@@ -1,0 +1,77 @@
+M_PREFIX=$(AML_HALAUDIO_STAGING_DIR)/usr
+LIB_DIR?=$(M_PREFIX)/lib
+HEADERS_DIR?=$(M_PREFIX)/include
+
+CC_OBJS=audio_hw.o \
+	audio_hw_utils.o \
+	audio_hwsync.o \
+	audio_hw_profile.o \
+	aml_hw_mixer.o \
+	alsa_manager.o \
+	aml_audio_stream.o \
+	alsa_config_parameters.o \
+	aml_ac3_parser.o \
+	aml_dcv_dec_api.o \
+	aml_dca_dec_api.o \
+	alsa_device_parser.o \
+	audio_post_process.o \
+	aml_avsync_tuning.o \
+	audio_format_parse.o \
+	dolby_lib_api.o \
+	audio_route.o \
+	spdif_encoder_api.o \
+	aml_output_manager.o \
+	pulse_manager.o
+	
+
+CXX_OBJS=audio_eq_drc_compensation.o \
+	audio_eq_drc_parser.o \
+
+TARGET_OBJS += $(CC_OBJS) $(CXX_OBJS)	
+	
+TARGET=libhalaudio.so
+
+INSTALL_DIR=${LIB_DIR}
+
+LDFLAGS += -shared -ltinyalsa -lamaudioutils -lstdc++ -lsupc++ -lpulse-simple
+
+TOPDIR=$(shell pwd)
+SRC?=$(TOPDIR)
+
+CFLAGS+=-O2 -fPIC -g
+CFLAGS+=-I$(SRC) -I$(SRC)/include -I$(SRC)/../include -I$(SRC)/../utils/ini/include -I$(SRC)/../utils/include  -I$(SRC)/../tinyalsa/include -I$(SRC)/../libms12/include -L${LIB_DIR} -I$(HEADERS_DIR)
+
+EXPORT_API = $(SRC)/../include/audio_base.h \
+	$(SRC)/../include/audio_core.h \
+	$(SRC)/../include/audio_effect_hal.h \
+	$(SRC)/../include/audio_effect.h \
+	$(SRC)/../include/audio_effect-base.h \
+	$(SRC)/../include/audio_hal.h \
+	$(SRC)/../include/hardware.h \
+	$(SRC)/../include/bitops.h
+
+#export CC CFLAGS
+#export CXX CFLAGS
+
+$(CC_OBJS): %.o: %.c
+	$(CC) $(CFLAGS)  -c $< -o $@
+$(CXX_OBJS): %.o: %.cpp
+	$(CXX) $(CFLAGS) -c $< -o $@
+
+all: $(TARGET)
+
+$(TARGET): $(CC_OBJS) $(CXX_OBJS)
+	$(CC) $(CFLAGS) $(LDFLAGS) $(TARGET_OBJS) -o $@
+	
+install:
+	-install -m 644 ${TARGET} $(INSTALL_DIR)
+	-install -m 644 $(TARGET) $(TARGET_DIR)/usr/lib
+	-install -m 644 $(EXPORT_API) $(HEADERS_DIR)/
+	
+force:
+
+clean:
+	-rm -rf *.o ${TARGET}
+
+
+
