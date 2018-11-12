@@ -22,6 +22,8 @@
 #include "aml_ringbuffer.h"
 #include "aml_audio_resampler.h"
 //#include "audio_hw.h"
+#include "aml_callback_api.h"
+
 
 #ifndef __unused
 #define __unused
@@ -143,14 +145,21 @@ typedef enum output_device {
     OUTPUT_DEVICE_CNT
 } output_device_t;
 
+typedef enum input_device {
+    PCM_INPUT_DEVICE = 0,   /*we treat all the input as PCM*/
+    INPUT_DEVICE_CNT
+} input_device_t;
 
-typedef struct aml_stream_format {
+
+
+typedef struct aml_stream_config {
     unsigned int channels;
     unsigned int rate;
     audio_format_t format;
+	unsigned int framesize; 
+	unsigned int latency; // the value is ms
 	
-
-} aml_stream_format_t;
+} aml_stream_config_t;
 
 
 
@@ -254,6 +263,10 @@ struct aml_audio_patch {
     int patch_hdl;
     struct resample_para dtv_resample;
     unsigned char *resample_outbuf;
+
+
+	/** callback info*/
+	aml_audiocb_handle_t * callback_handle;
 };
 
 struct audio_stream_out;

@@ -449,7 +449,7 @@ typedef struct alsa_handle {
 
 
 
-static const struct pcm_config pcm_config_default = {
+static const struct pcm_config pcm_config_out = {
     .channels = 2,
     .rate = MM_FULL_POWER_SAMPLING_RATE,
     .period_size = DEFAULT_PLAYBACK_PERIOD_SIZE,
@@ -457,8 +457,16 @@ static const struct pcm_config pcm_config_default = {
     .format = PCM_FORMAT_S16_LE,
 };
 
+static const struct pcm_config pcm_config_in = {
+    .channels = 2,
+    .rate = MM_FULL_POWER_SAMPLING_RATE,
+    .period_size = DEFAULT_CAPTURE_PERIOD_SIZE,
+    .period_count = PLAYBACK_PERIOD_COUNT,
+    .format = PCM_FORMAT_S16_LE,
+};
 
-int aml_alsa_output_open(void **handle, aml_stream_format_t * stream_format, audio_devices_t out_device) {
+
+int aml_alsa_output_open(void **handle, aml_stream_config_t * stream_config, audio_devices_t out_device) {
     int ret = -1;
 	struct pcm_config *config = NULL;
 	int card = 0;
@@ -467,7 +475,7 @@ int aml_alsa_output_open(void **handle, aml_stream_format_t * stream_format, aud
 	alsa_handle_t * alsa_handle = NULL;
 
     
-	alsa_handle = (alsa_handle_t *)malloc(sizeof(alsa_handle_t));
+	alsa_handle = (alsa_handle_t *)calloc(1,sizeof(alsa_handle_t));
     if(alsa_handle == NULL) {
 		ALOGE("malloc alsa_handle failed\n");
 		return -1;
@@ -475,10 +483,10 @@ int aml_alsa_output_open(void **handle, aml_stream_format_t * stream_format, aud
 
 	config = &alsa_handle->config;
 
-    memcpy(config, &pcm_config_default,sizeof(struct pcm_config));
+    memcpy(config, &pcm_config_out,sizeof(struct pcm_config));
 	
-	config->channels = stream_format->channels;
-	config->rate     = stream_format->rate;
+	config->channels = stream_config->channels;
+	config->rate     = stream_config->rate;
 
 	if(config->rate == 0 || config->channels == 0) {
 
@@ -486,9 +494,9 @@ int aml_alsa_output_open(void **handle, aml_stream_format_t * stream_format, aud
 		goto exit;
 	}
 
-	if (stream_format->format == AUDIO_FORMAT_PCM_16_BIT) {
+	if (stream_config->format == AUDIO_FORMAT_PCM_16_BIT) {
 		config->format = PCM_FORMAT_S16_LE;
-	} else if (stream_format->format == AUDIO_FORMAT_PCM_32_BIT) {
+	} else if (stream_config->format == AUDIO_FORMAT_PCM_32_BIT) {
 		config->format = PCM_FORMAT_S32_LE;
 	} else {
 		config->format = PCM_FORMAT_S16_LE;
@@ -510,6 +518,7 @@ int aml_alsa_output_open(void **handle, aml_stream_format_t * stream_format, aud
 
 	}
 
+	ALOGD("pcm open ch=%d rate=%d\n",config->channels,config->rate);
 	pcm = pcm_open(card, device, PCM_OUT, config);
 	if (!pcm || !pcm_is_ready(pcm)) {
 		ALOGE("%s, pcm %p open [ready %d] failed \n", __func__, pcm, pcm_is_ready(pcm));
@@ -529,6 +538,7 @@ exit:
 	if(alsa_handle) {
 		free(alsa_handle);
 	}
+	*handle = NULL;
 	return -1;
 
 }
@@ -564,6 +574,132 @@ size_t aml_alsa_output_write(void *handle, const void *buffer, size_t bytes) {
 	int ret = -1;
 	alsa_handle_t * alsa_handle = NULL;
 	struct pcm *pcm = NULL;
+    alsa_handle = (alsa_handle_t *)handle;
+	if(alsa_handle == NULL) {
+		ALOGE("%s handle is NULL\n",__func__);
+		return -1;
+	}
+
+	if(alsa_handle->pcm == NULL) {
+		ALOGE("%s PCM is NULL\n",__func__);
+		return -1;
+	}
+
+	//ALOGD("handle=%p pcm=%p\n",alsa_handle,alsa_handle->pcm);
+
+	ret = pcm_write(alsa_handle->pcm, buffer, bytes);
+
+	return ret;
+}
+
+int aml_alsa_input_open(void **handle, aml_stream_config_t * stream_config, audio_devices_t in_device) {
+    int ret = -1;
+	struct pcm_config *config = NULL;
+	int card = 0;
+	int device = 0;
+	struct pcm *pcm = NULL;
+	alsa_handle_t * alsa_handle = NULL;
+
+    
+	alsa_handle = (alsa_handle_t *)calloc(1,sizeof(alsa_handle_t));
+    if(alsa_handle == NULL) {
+		ALOGE("malloc alsa_handle failed\n");
+		return -1;
+	}
+
+	config = &alsa_handle->config;
+
+    memcpy(config, &pcm_config_in,sizeof(struct pcm_config));
+	
+	config->channels    = stream_config->channels;
+	config->rate        = stream_config->rate;
+	//config->period_size = stream_config->framesize;
+
+	if(config->rate == 0 || config->channels == 0) {
+
+		ALOGE("Invalid sampleate=%d channel=%d\n",config->rate == 0,config->channels);
+		goto exit;
+	}
+
+	if (stream_config->format == AUDIO_FORMAT_PCM_16_BIT) {
+		config->format = PCM_FORMAT_S16_LE;
+	} else if (stream_config->format == AUDIO_FORMAT_PCM_32_BIT) {
+		config->format = PCM_FORMAT_S32_LE;
+	} else {
+		config->format = PCM_FORMAT_S16_LE;
+	}
+
+	card = 0 ;//alsa_device_get_card_index();
+    if(in_device & AUDIO_DEVICE_IN_SPDIF || 
+	   in_device & AUDIO_DEVICE_IN_HDMI) {
+		// we should get the device from different platform
+        device = 4;
+
+	} else if(in_device & AUDIO_DEVICE_IN_LINE) {
+		// we should get the device from different platform
+		device = 2;
+	}
+
+	config->start_threshold = config->period_size * config->period_count;
+	config->avail_min = 0;
+
+	ALOGD("In device=%d alsa device=%d\n", in_device,device);
+	ALOGD("%s period size=%d\n",__func__,config->period_size);
+	pcm = pcm_open(card, device, PCM_IN, config);
+	if (!pcm || !pcm_is_ready(pcm)) {
+		ALOGE("%s, pcm %p open [ready %d] failed \n", __func__, pcm, pcm_is_ready(pcm));
+		goto exit;
+	}
+
+	alsa_handle->card = card;
+	alsa_handle->alsa_device = device;
+	alsa_handle->pcm = pcm;
+
+	*handle = (void*)alsa_handle;
+
+	return 0;
+
+exit:
+	if(alsa_handle) {
+		free(alsa_handle);
+	}
+	*handle = NULL;
+	return -1;
+
+}
+
+
+void aml_alsa_input_close(void *handle)
+{
+    ALOGI("\n+%s() hanlde %p\n", __func__, handle);
+	alsa_handle_t * alsa_handle = NULL;
+	struct pcm *pcm = NULL;
+
+    alsa_handle = (alsa_handle_t *)handle;
+
+	if(alsa_handle == NULL) {
+		ALOGE("%s handle is NULL\n",__func__);
+		return;
+	}
+
+	if(alsa_handle->pcm == NULL) {
+		ALOGE("%s PCM is NULL\n",__func__);
+		return;
+	}
+
+
+	pcm = alsa_handle->pcm;
+	pcm_stop(pcm);
+	pcm_close(pcm);
+	free(alsa_handle);
+	
+    ALOGI("-%s()\n\n", __func__);
+}
+
+size_t aml_alsa_input_read(void *handle, void *buffer, size_t bytes) {
+	int ret = -1;
+	alsa_handle_t * alsa_handle = NULL;
+	struct pcm *pcm = NULL;
 
     alsa_handle = (alsa_handle_t *)handle;
 
@@ -576,9 +712,8 @@ size_t aml_alsa_output_write(void *handle, const void *buffer, size_t bytes) {
 		ALOGE("%s PCM is NULL\n",__func__);
 		return -1;
 	}
-
-
-	ret = pcm_write(alsa_handle->pcm, buffer, bytes);
+	//ALOGD("alsa read =%d\n",bytes);
+	ret = pcm_read(alsa_handle->pcm, buffer, bytes);
 
 	return ret;
 }

@@ -57,7 +57,7 @@ void aml_close_continuous_audio_device(struct aml_audio_device *adev);
  * If device has been opened, close it and reopen with new params
  * and increase the refs count
  */
-int aml_alsa_output_open(void **handle, aml_stream_format_t * stream_format, audio_devices_t out_device);
+int aml_alsa_output_open(void **handle, aml_stream_config_t * stream_config, audio_devices_t out_device);
 
 /**
  * decrease the pcm refs count and do pcm close when refs count equals zero.
@@ -69,6 +69,11 @@ void aml_alsa_output_close(void *handle);
  */
 size_t aml_alsa_output_write(void *handle, const void *buffer, size_t bytes);
 
+int aml_alsa_input_open(void **handle, aml_stream_config_t * stream_config, audio_devices_t in_device) ;
+
+void aml_alsa_input_close(void *handle);
+
+size_t aml_alsa_input_read(void *handle, void *buffer, size_t bytes);
 
 
 #endif

@@ -21,6 +21,8 @@ CC_OBJS=audio_hw.o \
 	audio_route.o \
 	spdif_encoder_api.o \
 	aml_output_manager.o \
+	aml_input_manager.o \
+	aml_callback_api.o \
 	pulse_manager.o
 	
 

@@ -45,13 +45,15 @@ static const pa_sample_spec  sample_spec= {
 	.channels = 2
 };
 
-int aml_pa_output_open(void **handle, aml_stream_format_t * stream_format, audio_devices_t out_device) {
+int aml_pa_output_open(void **handle, aml_stream_config_t * stream_config, audio_devices_t out_device) {
     int ret = -1;
 	int error;
 	struct pcm *pcm = NULL;
 	pa_handle_t * pa_handle = NULL;
+	int audio_latency = 0;
 	
 	pa_simple *s = NULL;
+	pa_buffer_attr buf_attr;
 
     
 	pa_handle = (pa_handle_t *)malloc(sizeof(pa_handle_t));
@@ -62,19 +64,33 @@ int aml_pa_output_open(void **handle, aml_stream_format_t * stream_format, audio
 
 	memcpy(&pa_handle->sample_spec, &sample_spec,sizeof(pa_sample_spec));
 
-	if (stream_format->format == AUDIO_FORMAT_PCM_16_BIT) {
+	if (stream_config->format == AUDIO_FORMAT_PCM_16_BIT) {
 		pa_handle->sample_spec.format = PA_SAMPLE_S16LE;
-	} else if (stream_format->format == AUDIO_FORMAT_PCM_32_BIT) {
+	} else if (stream_config->format == AUDIO_FORMAT_PCM_32_BIT) {
 		pa_handle->sample_spec.format = PA_SAMPLE_S32LE;
 	} else {
 		pa_handle->sample_spec.format = PA_SAMPLE_S16LE;
 
 	}
 
-	pa_handle->sample_spec.rate     = stream_format->rate;
-	pa_handle->sample_spec.channels = stream_format->channels;
+	pa_handle->sample_spec.rate     = stream_config->rate;
+	pa_handle->sample_spec.channels = stream_config->channels;
 	ALOGD("%s rate=%d format=%d ch=%d\n",__func__,pa_handle->sample_spec.rate,pa_handle->sample_spec.format,pa_handle->sample_spec.channels);
-    if (!(s = pa_simple_new(NULL, "aml_halaudio", PA_STREAM_PLAYBACK, NULL, "playback", &pa_handle->sample_spec, NULL, NULL, &error))) {
+
+    // currently we accetp a small value
+	if(stream_config->latency > 0) {
+		audio_latency = stream_config->latency*1000;
+	}else {
+		audio_latency = 50*1000;
+	}
+	buf_attr.maxlength = -1;
+	buf_attr.tlength = pa_usec_to_bytes(audio_latency, &pa_handle->sample_spec);
+	buf_attr.prebuf = -1;
+	buf_attr.minreq = -1;
+	buf_attr.fragsize = -1;
+
+	ALOGD("buf_attr.tlength=%d ms=%d\n",buf_attr.tlength,audio_latency);
+	if (!(s = pa_simple_new(NULL, "aml_halaudio", PA_STREAM_PLAYBACK, NULL, "playback", &pa_handle->sample_spec, NULL, &buf_attr, &error))) {
         ALOGE(": pa_simple_new() failed: %s\n", pa_strerror(error));
         goto exit;
     }

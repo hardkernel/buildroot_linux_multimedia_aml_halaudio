@@ -54,7 +54,7 @@
 #endif
 
 #ifndef DEFAULT_CAPTURE_PERIOD_SIZE
-#define DEFAULT_CAPTURE_PERIOD_SIZE  1024
+#define DEFAULT_CAPTURE_PERIOD_SIZE  512
 #endif
 
 /* number of ICE61937 format frames per period */
@@ -346,6 +346,7 @@ struct aml_audio_device {
     int aml_ng_release_time;
     int system_app_mixing_status;
     int audio_type;
+	int audio_latency;  // currently work on pulse audio
 
 };
 
@@ -465,6 +466,8 @@ struct aml_stream_in {
     int mute_flag;
     int mute_log_cntr;
     struct aml_audio_device *dev;
+
+	void *input_handle[INPUT_DEVICE_CNT];    /*store input handle*/	
 };
 typedef  int (*do_standby_func)(struct aml_stream_out *out);
 typedef  int (*do_startup_func)(struct aml_stream_out *out);

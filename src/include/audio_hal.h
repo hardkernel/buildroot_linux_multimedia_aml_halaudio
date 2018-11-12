@@ -555,6 +555,27 @@ static inline size_t audio_stream_in_frame_size(const struct audio_stream_in *s)
     return sizeof(int8_t);
 }
 
+typedef enum {
+    AML_AUDIO_CALLBACK_FORMATCHANGED, /*the audio format is changed*/
+}audio_callback_type_t;
+
+typedef union audio_callback_data{
+    audio_format_t audio_format;
+
+}audio_callback_data_t;
+
+typedef struct audio_callback_info {
+    int id;  // tid or pid
+    audio_callback_type_t type;
+
+}audio_callback_info_t;
+
+//typedef struct audio_callback_info audio_callback_info_t;
+
+typedef int (*audio_callback_func_t)(audio_callback_info_t *info, void * args);
+
+
+
 /**********************************************************************/
 
 /**
@@ -721,6 +742,18 @@ struct audio_hw_device {
     /* Set audio port configuration */
     int (*set_audio_port_config)(struct audio_hw_device *dev,
                          const struct audio_port_config *config);
+
+	/* used for linux */
+
+    /* Install audio callback */
+    int (*install_callback_audio_patch)(struct audio_hw_device *dev,
+                         audio_patch_handle_t handle,
+                         audio_callback_info_t * callback_info,
+                         audio_callback_func_t  callback_func);
+	/* remove audio callback */
+	int (*remove_callback_audio_patch)(struct audio_hw_device *dev,
+	                     audio_patch_handle_t handle,
+	                     audio_callback_info_t * callback_info);
 
 };
 typedef struct audio_hw_device audio_hw_device_t;
