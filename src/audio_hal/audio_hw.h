@@ -287,7 +287,7 @@ struct aml_audio_device {
     /* Dolby MS12 lib variable end */
 
     /*used for ac3 eac3 decoder*/
-    struct dolby_ddp_dec ddp;
+    int digital_raw;
     /**
      * enum eDolbyLibType
      * DolbyDcvLib  = dcv dec lib   , libHwAudio_dcvdec.so
@@ -296,7 +296,9 @@ struct aml_audio_device {
     int dolby_lib_type;
     int dolby_lib_type_last;
     /*used for dts decoder*/
-    struct dca_dts_dec dts_hd;
+    //struct dca_dts_dec dts_hd;
+    int is_dtscd;
+
     bool bHDMIARCon;
     bool bHDMIConnected;
 
@@ -346,7 +348,7 @@ struct aml_audio_device {
     int aml_ng_release_time;
     int system_app_mixing_status;
     int audio_type;
-	int audio_latency;  // currently work on pulse audio
+    int audio_latency;  // currently work on pulse audio
 
 };
 
@@ -427,7 +429,9 @@ struct aml_stream_out {
     bool normal_pcm_mixing_config;
     bool flag_dtschecked;
 
-	void *output_handle[OUTPUT_DEVICE_CNT];    /*store output handle*/
+    void *output_handle[OUTPUT_DEVICE_CNT];    /*store output handle*/
+
+    aml_dec_t *aml_dec;                        /*store the decoder handle*/
 };
 
 typedef ssize_t (*write_func)(struct audio_stream_out *stream, const void *buffer, size_t bytes);
@@ -467,7 +471,7 @@ struct aml_stream_in {
     int mute_log_cntr;
     struct aml_audio_device *dev;
 
-	void *input_handle[INPUT_DEVICE_CNT];    /*store input handle*/	
+    void *input_handle[INPUT_DEVICE_CNT];    /*store input handle*/
 };
 typedef  int (*do_standby_func)(struct aml_stream_out *out);
 typedef  int (*do_startup_func)(struct aml_stream_out *out);

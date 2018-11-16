@@ -23,6 +23,7 @@ CC_OBJS=audio_hw.o \
 	aml_output_manager.o \
 	aml_input_manager.o \
 	aml_callback_api.o \
+	aml_dec_api.o \
 	pulse_manager.o
 	
 

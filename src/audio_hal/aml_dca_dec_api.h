@@ -21,9 +21,11 @@
 #include "aml_ringbuffer.h"
 #include "aml_audio_resampler.h"
 #include "aml_audio_parser.h"
-
+#include "aml_dec_api.h"
 
 struct dca_dts_dec {
+    aml_dec_t  aml_dec;
+#if 0
     unsigned char *inbuf;
     unsigned char *outbuf;
     unsigned char *outbuf_raw;
@@ -31,17 +33,21 @@ struct dca_dts_dec {
     int remain_size;
     int outlen_pcm;
     int outlen_raw;
-    int is_dtscd;
+
     int digital_raw;
-	bool is_iec61937;
+    bool is_iec61937;
+#endif
+    int is_dtscd;
     //int (*get_parameters) (void *, int *, int *, int *);
     int (*decoder_process)(unsigned char*, int, unsigned char *, int *, char *, int *);
 };
 
 int dca_decode_init(struct aml_audio_parser *parser);
 int dca_decode_release(struct aml_audio_parser *parser);
-int dca_decoder_init_patch(struct dca_dts_dec *dts_dec);
-int dca_decoder_release_patch(struct dca_dts_dec *dts_dec);
-int dca_decoder_process_patch(struct dca_dts_dec *dts_dec, unsigned char*buffer, int bytes);
+int dca_decoder_init_patch(aml_dec_t **ppdts_dec, aml_dec_config_t * dec_config);
+int dca_decoder_release_patch(aml_dec_t *dts_dec);
+int dca_decoder_process_patch(aml_dec_t *dts_dec, unsigned char*buffer, int bytes);
+
+extern aml_dec_func_t aml_dca_func;
 
 #endif

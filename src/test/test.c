@@ -152,7 +152,7 @@ int linein_source(audio_hw_device_t *dev)
 
 
 
-int media_source(audio_hw_device_t *dev)
+int media_source(audio_hw_device_t *dev, audio_format_t  format)
 {
     int rc = 0;
     audio_io_handle_t handle;
@@ -166,11 +166,19 @@ int media_source(audio_hw_device_t *dev)
     FILE *fp_input = NULL;
     char *temp_buf[1024];
     int read_size = 0;
+    char * file_name = NULL;
 
+    if (format == AUDIO_FORMAT_AC3) {
+        file_name = "/data/test.ac3";
+    } else if (format == AUDIO_FORMAT_DTS) {
+        file_name = "/data/test.dts";
+    } else {
+        return 0;
+    }
 
     config.channel_mask = AUDIO_CHANNEL_OUT_STEREO;
     config.sample_rate  = 48000;
-    config.format       = AUDIO_FORMAT_AC3;
+    config.format       = format;
 
     /* open the output stream */
     rc = dev->open_output_stream(dev,
@@ -217,7 +225,7 @@ int media_source(audio_hw_device_t *dev)
     dev->set_audio_port_config(dev, &sinks);
 
 
-    fp_input = fopen("/data/test.ac3", "r+");
+    fp_input = fopen(file_name, "r+");
     if (fp_input == NULL) {
         printf("open input file failed\n");
 
@@ -262,12 +270,12 @@ int main(int argc, char *argv[])
     int cnt = 0;
 
 
-    if (argc != 2) {
+    if (argc != 2 && argc != 3) {
         printf("cmd should be: \n");
         printf("************************\n");
         printf("test spdinfin \n");
         printf("test linein \n");
-        printf("test mediain \n");
+        printf("test mediain ac3 or dts\n");
         printf("************************\n");
 
 
@@ -295,7 +303,13 @@ int main(int argc, char *argv[])
     } else if (strcmp(argv[1], "linein") == 0) {
         linein_source(dev);
     } else if (strcmp(argv[1], "mediain") == 0) {
-        media_source(dev);
+        audio_format_t  format = AUDIO_FORMAT_INVALID;
+        if (strcmp(argv[2], "ac3") == 0) {
+            format = AUDIO_FORMAT_AC3;
+        } else if (strcmp(argv[2], "dts") == 0) {
+            format = AUDIO_FORMAT_DTS;
+        }
+        media_source(dev, format);
     }
 
 #if 0

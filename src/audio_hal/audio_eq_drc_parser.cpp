@@ -215,13 +215,16 @@ static int handle_audio_model_data(IniParser* pIniParser, struct audio_eq_drc_in
 
     ini_value = pIniParser->GetString("model", "id", "0");
     p_attr->mod.model = atoi(ini_value);
-    if (p_attr->mod.model == 0)
+    if (p_attr->mod.model == 0) {
         ITEM_LOGD("%s, model is (AD)\n", __FUNCTION__);
-    else if (p_attr->mod.model == 1)
+    }
+    else if (p_attr->mod.model == 1) {
         ITEM_LOGD("%s, model is (BD)\n", __FUNCTION__);
-    else
+    }
+    else {
         ITEM_LOGD("%s, model is unknown\n", __FUNCTION__);
-
+    }
+    
     return 0;
 }
 
