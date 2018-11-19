@@ -103,9 +103,19 @@ audio_channel_mask_t audio_parse_get_audio_channel_mask(audio_type_parse_t *stat
  */
 int audio_parse_get_audio_type_direct(audio_type_parse_t *status);
 /*
- *@brief gget current audio type from buffer data
+ *@brief get current audio type from buffer data
+ * input params:
+ *          void *buffer : scan data address
+            size_t bytes : scan data size
+            int *package_size : if data is IEC71937 format, get the IEC61937 size
+            audio_channel_mask_t *cur_ch_mask : if format is DDP, return its channel mask
+            int *raw_size : raw data size in payload
+            int *offset : IEC61937 offset in 'buffer'
+ *
+ * return value:
+ *          0/1/2/3~: current audio type defined by enum audio_type
  */
-int audio_type_parse(void *buffer, size_t bytes, int *package_size, audio_channel_mask_t *cur_ch_mask);
+int audio_type_parse(void *buffer, size_t bytes, int *package_size, audio_channel_mask_t *cur_ch_mask, int *raw_size, int *offset);
 
 
 int creat_audio_type_parse(void **status);
@@ -114,5 +124,42 @@ void release_audio_type_parse(void **status);
 
 void feeddata_audio_type_parse(void **status, char * input, int size);
 
+/*
+ *@brief get current audio type from buffer data
+ * input params:
+ *          char *buffer: iec61937 data buffer address
+            size_t bytes: iec61937 data buffer length
+            size_t *raw_deficiency: raw data deficiency last time
+            char *raw_buf: raw data buffer address
+            size_t *raw_wt: raw data buffer write pointer
+            size_t raw_max_bytes: raw data buffer length
+            int *raw_size: raw audio valid size in IEC61937 packet
+ *
+ * return value:
+ *          0: if the audio format is suitable for dobly atmos(dd/ddp/truehd/mat)
+               and this time valid data(<=min(raw_deficiency,input_bytes)) could store to the raw_buf.
+               suppose this cases is sucess!
+ *          1; if this time valid data(<=min(raw_size , (raw_max_bytes - *raw_wt))) is large than valid space of raw_buf.
+                suppose this is fail
+ */
+int decode_IEC61937_to_raw_data(char *buffer, size_t bytes, char *raw_buf, size_t *raw_wt, size_t raw_max_bytes, size_t *raw_deficiency, int *raw_size);
+/*
+ *@brief get current audio type from buffer data
+ * input params:
+ *          char *input_data: iec61937 data buffer address
+            size_t input_bytes: iec61937 data buffer length
+            size_t *raw_deficiency: raw data deficiency last time
+            char *raw_buf: raw data buffer address
+            size_t *raw_wt: raw data buffer write pointer
+            size_t raw_max_bytes: raw data buffer length
+ *
+ * return value:
+ *          val(>= 0): if *raw_deficiency is zero return zero;
+               if this time valid data(<=min(raw_deficiency,input_bytes)) could store to the raw_buf.
+               suppose these two cases are sucess!
+ *          -1; if this time valid data(<=min(raw_deficiency,input_bytes)) is large than valid space of raw_buf.
+                suppose this is fail
+ */
+int fill_in_the_remaining_data(char *input_data, size_t input_bytes, size_t *raw_deficiency, char *raw_buf, size_t *raw_wt, size_t raw_max_bytes);
 
 #endif

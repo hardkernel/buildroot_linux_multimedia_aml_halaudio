@@ -51,7 +51,7 @@ inline const char *get_cur_time_str()
 // #define LOG_LEVEL_ERROR(fmt, args...)  printf("%s[E] %s [%s, #%d] " fmt "\n", get_cur_time_str(), LOG_TAG, __func__, __LINE__, ##args)
 // #define LOG_LEVEL_FATAL(fmt, args...)  printf("%s[F] %s [%s, #%d] " fmt "\n", get_cur_time_str(), LOG_TAG, __func__, __LINE__, ##args)
 
-#define PRINT_LEVEL     LEVEL_INFO
+#define PRINT_LEVEL     LEVEL_ERROR
 
 
 #define LOG(level, fmt, args...)  \

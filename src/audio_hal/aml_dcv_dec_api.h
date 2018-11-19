@@ -49,7 +49,7 @@ int dcv_decode_init(struct aml_audio_parser *parser);
 int dcv_decode_release(struct aml_audio_parser *parser);
 
 
-int dcv_decoder_init_patch(aml_dec_t ** ppddp_dec, aml_dec_config_t * dec_config);
+int dcv_decoder_init_patch(aml_dec_t ** ppddp_dec, audio_format_t format, aml_dec_config_t * dec_config);
 int dcv_decoder_release_patch(aml_dec_t * ddp_dec);
 int dcv_decoder_process_patch(aml_dec_t * ddp_dec, unsigned char*buffer, int bytes);
 

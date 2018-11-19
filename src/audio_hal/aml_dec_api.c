@@ -35,14 +35,21 @@
 #include "aml_dec_api.h"
 #include "aml_dca_dec_api.h"
 #include "aml_dcv_dec_api.h"
+#include "aml_datmos_api.h"
 
-static aml_dec_func_t * get_decoder_function(audio_format_t format)
+
+static aml_dec_func_t * get_decoder_function(audio_format_t format, int dolby_strategy)
 {
     switch (format) {
     case AUDIO_FORMAT_AC3:
     case AUDIO_FORMAT_E_AC3: {
-        return &aml_dcv_func;
+        if (dolby_strategy == AML_DOLBY_DECODER)
+            return &aml_dcv_func;
+        else if (dolby_strategy == AML_DOLBY_ATMOS)
+            return &aml_datmos_func;
     }
+    case AUDIO_FORMAT_DOLBY_TRUEHD:
+        return &aml_datmos_func;
     case AUDIO_FORMAT_DTS:
     case AUDIO_FORMAT_DTS_HD: {
         return &aml_dca_func;
@@ -59,20 +66,24 @@ int aml_decoder_init(aml_dec_t **ppaml_dec, audio_format_t format, aml_dec_confi
 {
     int ret = -1;
     aml_dec_func_t *dec_fun = NULL;
-    dec_fun = get_decoder_function(format);
+    dec_fun = get_decoder_function(format, AML_DOLBY_ATMOS);
     aml_dec_t *aml_dec_handel = NULL;
     if (dec_fun == NULL) {
         return -1;
     }
 
-
     ALOGD("dec_fun->f_init=%p\n", dec_fun->f_init);
     if (dec_fun->f_init) {
-        ret = dec_fun->f_init(ppaml_dec, dec_config);
+        ret = dec_fun->f_init(ppaml_dec, format, dec_config);
     } else {
         return -1;
     }
     aml_dec_handel = *ppaml_dec;
+    if (aml_dec_handel) {
+        aml_dec_handel->dec_info.output_sr = 48000;
+        aml_dec_handel->dec_info.output_ch = 2;
+        aml_dec_handel->dec_info.output_bitwidth = SAMPLE_16BITS;
+    }
     aml_dec_handel->format = format;
 
     return ret;
@@ -88,7 +99,7 @@ int aml_decoder_release(aml_dec_t *aml_dec)
         return -1;
     }
 
-    dec_fun = get_decoder_function(aml_dec->format);
+    dec_fun = get_decoder_function(aml_dec->format, AML_DOLBY_ATMOS);
     if (dec_fun == NULL) {
         return -1;
     }
@@ -111,28 +122,48 @@ int aml_decoder_config(aml_dec_t *aml_dec, aml_dec_config_t * config)
         ALOGE("%s aml_dec is NULL\n", __func__);
         return -1;
     }
-    dec_fun = get_decoder_function(aml_dec->format);
+    dec_fun = get_decoder_function(aml_dec->format, AML_DOLBY_ATMOS);
     if (dec_fun == NULL) {
         return -1;
     }
 
-
     return ret;
-
-
 }
+
+
 int aml_decoder_process(aml_dec_t *aml_dec, unsigned char*buffer, int bytes, int * used_bytes)
 {
     int ret = -1;
     aml_dec_func_t *dec_fun = NULL;
+    int fill_bytes = 0;
+    int parser_raw = 0;
+
     if (aml_dec == NULL) {
         ALOGE("%s aml_dec is NULL\n", __func__);
         return -1;
     }
 
-    dec_fun = get_decoder_function(aml_dec->format);
+    dec_fun = get_decoder_function(aml_dec->format, AML_DOLBY_ATMOS);
     if (dec_fun == NULL) {
         return -1;
+    }
+
+    fill_bytes = fill_in_the_remaining_data(buffer, bytes, &(aml_dec->raw_deficiency), aml_dec->inbuf, &aml_dec->inbuf_wt, aml_dec->inbuf_max_len);
+
+    /*
+     *if fill_bytes = -1
+     *then one iec61937 data is completed
+     *so, send the raw data to decoder and then call decode_IEC61937_to_raw_data
+     */
+    //new data in buffer not through parser, and raw data is whole of one iec61937.
+    if ((fill_bytes >= 0) && (bytes - fill_bytes >= 0) && (aml_dec->raw_deficiency == 0)) {
+        parser_raw = decode_IEC61937_to_raw_data(buffer + fill_bytes
+            , bytes - fill_bytes
+            , aml_dec->inbuf
+            , &aml_dec->inbuf_wt
+            , aml_dec->inbuf_max_len
+            , &(aml_dec->raw_deficiency)
+            , &(aml_dec->IEC61937_raw_size));
     }
 
     if (dec_fun->f_process) {

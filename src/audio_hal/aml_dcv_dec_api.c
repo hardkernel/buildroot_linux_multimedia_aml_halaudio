@@ -783,7 +783,7 @@ int dcv_decode_release(struct aml_audio_parser *parser)
     return stop_decode_thread(parser);
 }
 
-int dcv_decoder_init_patch(aml_dec_t ** ppddp_dec, aml_dec_config_t * dec_config)
+int dcv_decoder_init_patch(aml_dec_t ** ppddp_dec, audio_format_t format, aml_dec_config_t * dec_config)
 {
     struct dolby_ddp_dec *ddp_dec;
     aml_dec_t  *aml_dec = NULL;

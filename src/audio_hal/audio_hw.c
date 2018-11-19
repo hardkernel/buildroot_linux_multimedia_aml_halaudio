@@ -90,6 +90,9 @@
 #include "dolby_lib_api.h"
 // for dtv playback
 #include "audio_hw_dtv.h"
+
+/*dolby amtos api*/
+#include "aml_datmos_api.h"
 //#define ENABLE_AVSYNC_TUNING //debug  zz
 /* ALSA cards for AML */
 #define CARD_AMLOGIC_BOARD 0
@@ -174,6 +177,14 @@ static const struct pcm_config pcm_config_bt = {
     .rate = VX_NB_SAMPLING_RATE,
     .period_size = DEFAULT_PLAYBACK_PERIOD_SIZE,
     .period_count = PLAYBACK_PERIOD_COUNT,
+    .format = PCM_FORMAT_S16_LE,
+};
+
+static const struct pcm_config i2s_multi_config_in = {
+    .channels = 8,
+    .rate = MM_FULL_POWER_SAMPLING_RATE,
+    .period_size = DEFAULT_CAPTURE_PERIOD_SIZE,
+    .period_count = CAPTURE_PERIOD_COUNT,
     .format = PCM_FORMAT_S16_LE,
 };
 
@@ -754,7 +765,7 @@ static int check_input_parameters(uint32_t sample_rate, audio_format_t format, i
         return -EINVAL;
     }
 
-    if ((channel_count < 1) || (channel_count > 2)) {
+    if ((channel_count < 1) || (channel_count > 8)) {
         return -EINVAL;
     }
 
@@ -782,7 +793,14 @@ static int check_input_parameters(uint32_t sample_rate, audio_format_t format, i
             sample_rate == 48000) {
             ALOGD("%s: audio patch input device %x", __FUNCTION__, devices);
             return 0;
-        } else {
+        }
+        else if (format == AUDIO_FORMAT_PCM_16_BIT &&
+            channel_count == 8 &&
+            sample_rate == 48000) {
+            ALOGD("%s: audio patch input device %x(i2s 8ch/16bits)", __FUNCTION__, devices);
+            return 0;
+        }
+        else {
             ALOGD("%s: unspported audio patch input device %x", __FUNCTION__, devices);
             return -EINVAL;
         }
@@ -3453,6 +3471,7 @@ static ssize_t in_read(struct audio_stream_in *stream, void* buffer,
         ret = start_input_stream(in);
         if (ret < 0) {
             bytes = 0;
+            ALOGI("could not get data here!");
             goto exit;
         }
         in->standby = 0;
@@ -3505,11 +3524,13 @@ static ssize_t in_read(struct audio_stream_in *stream, void* buffer,
                 ALOGE("%s(), parser in_read err", __func__);
                 goto exit;
             } else if (ret == 0) {
+                ALOGI("mute here!");
                 memset(buffer, 0, bytes);
             } else {
                 bytes = ret;
             }
         } else {
+            ALOGI("mute here!");
             memset(buffer, 0, bytes);
         }
     } else {
@@ -3519,7 +3540,7 @@ static ssize_t in_read(struct audio_stream_in *stream, void* buffer,
             ret = aml_input_read(stream, buffer, bytes);
         }
         if (ret < 0) {
-            ALOGE("%s(), in read fails errno = %d", __func__, ret);
+            ALOGI("%s(), in read fails errno = %d", __func__, ret);
             goto exit;
         }
         DoDumpData(buffer, bytes, CC_DUMP_SRC_TYPE_INPUT);
@@ -3607,6 +3628,8 @@ static ssize_t in_read(struct audio_stream_in *stream, void* buffer,
     }
     if (adev->mic_mute || in_mute || parental_mute
         || in->spdif_fmt_hw == SPDIFIN_AUDIO_TYPE_PAUSE) {
+        ALOGI("mic_mute %d in_mute %d parental_mute %d in->spdif_fmt_hw %d",
+            adev->mic_mute, in_mute, parental_mute, in->spdif_fmt_hw);
         memset(buffer, 0, bytes);
     } else if (!adev->audio_patching) {
         /* case dev->mix, set audio gain to src */
@@ -3625,12 +3648,35 @@ static ssize_t in_read(struct audio_stream_in *stream, void* buffer,
         }
     }
 #endif
+#if DATMOS
+    if (0) {
+        FILE *dump_fp = NULL;
+        dump_fp = fopen("/tmp/audio_in.data", "a+");
+        if (dump_fp != NULL) {
+            fwrite(buffer, bytes, 1, dump_fp);
+            fclose(dump_fp);
+        } else {
+            ALOGW("[Error] Can't write to /data/dump_in.pcm");
+        }
+    }
+#endif
 
 exit:
+
     if (ret < 0) {
-        usleep(bytes * 1000000 / audio_stream_in_frame_size(stream) /
-               in_get_sample_rate(&stream->common));
-        ALOGE("audio in read err!!!");
+        size_t frame_size = audio_stream_in_frame_size(stream);
+        if (frame_size == 0) {
+            if (adev->in_device & AUDIO_DEVICE_IN_HDMI) {
+                if (adev->datmos_enable)
+                    frame_size = adev->datmos_param.capture_ch * 2;
+            }
+            else
+                frame_size = 4;
+        }
+        frame_size = (frame_size == 0) ? frame_size : 4;
+
+        usleep(bytes * 1000000 / frame_size / in_get_sample_rate(&stream->common));
+        ALOGI("audio in read err!!!");
     }
     pthread_mutex_unlock(&in->lock);
     return bytes;
@@ -4715,7 +4761,12 @@ static int adev_set_parameters(struct audio_hw_device *dev, const char *kvpairs)
         goto exit;
     }
 
-
+#ifdef DATMOS
+    ret = datmos_set_parameters(adev, parms);
+    if (ret >= 0) {
+        goto exit;
+    }
+#endif
 
 exit:
     str_parms_destroy(parms);
@@ -4825,6 +4876,14 @@ static char * adev_get_parameters(const struct audio_hw_device *dev,
         return  strdup(temp_buf);
 #endif
     }
+
+#ifdef DATMOS
+    int ret = datmos_get_parameters(adev, keys, temp_buf, sizeof(temp_buf));
+
+    if (ret == 0)
+        return  strdup(temp_buf);
+#endif
+
     return strdup("");
 }
 
@@ -4996,7 +5055,12 @@ static int adev_open_input_stream(struct audio_hw_device *dev,
 
         config->sample_rate = in->config.rate;
         config->channel_mask = AUDIO_CHANNEL_IN_MONO;
-    } else {
+    } else if (config->channel_mask == AUDIO_CHANNEL_OUT_7POINT1) {
+        ALOGI("config use 8ch/16bits", in->config.channels);
+        memcpy(&in->config, &i2s_multi_config_in, sizeof(i2s_multi_config_in));
+    }
+    else {
+        ALOGI("config use 2ch/16bits", in->config.channels);
         memcpy(&in->config, &pcm_config_in, sizeof(pcm_config_in));
     }
 
@@ -5130,7 +5194,11 @@ int do_output_standby_l(struct audio_stream *stream)
     if (aml_out->status == STREAM_HW_WRITING && !continous_mode(adev)) {
         ALOGI("%s aml_out(%p)standby close", __func__, aml_out);
         pthread_mutex_lock(&adev->alsa_pcm_lock);
+#ifndef OUTPUT_LAYER
+        aml_alsa_output_close(stream);
+#else
         aml_output_close(out);
+#endif
         if (eDolbyDcvLib == adev->dolby_lib_type && adev->digital_raw == 1) {
             struct pcm *pcm = adev->pcm_handle[DIGITAL_DEVICE];
             if (aml_out->dual_output_flag && pcm) {
@@ -5431,7 +5499,7 @@ ssize_t audio_hal_data_processing(struct audio_stream_out *stream
     size_t convert_size = 0;
 
     if (out_channel == 0 || bytes == 0) {
-        ALOGE("Wrong Input\n");
+        ALOGI("Wrong Input\n");
         return -1;
 
     }
@@ -5559,7 +5627,6 @@ ssize_t audio_hal_data_processing(struct audio_stream_out *stream
             convert_size = bytes;
 
         }
-
 
         need_bytes = out_frames * (SAMPLE_32BITS >> 3) * out_channel;
         if (out_channel > in_ch) {
@@ -6076,7 +6143,10 @@ static void config_output(struct audio_stream_out *stream)
 
     if (adev->bypass_enable != 1) {
         if (aml_dec == NULL) {
-            ALOGD("decoder init format=0x%x\n", aml_out->hal_internal_format);
+            ALOGD("decoder init format=0x%x\n",aml_out->hal_internal_format);
+            if (IS_DATMOS_SUPPORT(aml_out->hal_internal_format)) {
+                ((aml_datmos_config_t *)&dec_config)->reserved = &adev->datmos_param;
+            }
             status = aml_decoder_init(&aml_out->aml_dec, aml_out->hal_internal_format, (aml_dec_config_t *)&dec_config);
             if (status < 0) {
                 return;
@@ -6088,7 +6158,7 @@ static void config_output(struct audio_stream_out *stream)
             } else {
                 aml_dec->is_iec61937 = false;
             }
-            ALOGI("dcv_decoder_init_patch return :%d,is 61937 %d\n", status, aml_dec->is_iec61937);
+            ALOGI("aml_decoder_init return :%d,is 61937 %d\n", status, aml_dec->is_iec61937);
         } else if (aml_dec) {
             if (aml_dec->digital_raw > 0) {
                 struct pcm *pcm = adev->pcm_handle[DIGITAL_DEVICE];
@@ -6114,10 +6184,6 @@ static void config_output(struct audio_stream_out *stream)
         aml_hw_mixer_reset(&adev->hw_mixer);
     }
     pthread_mutex_unlock(&adev->lock);
-
-
-
-
     return ;
 }
 
@@ -6370,7 +6436,9 @@ ssize_t mixer_main_buffer_write(struct audio_stream_out *stream, const void *buf
         audio_channel_mask_t cur_ch_mask;
         audio_format_t cur_aformat;
         int package_size;
-        int cur_audio_type = audio_type_parse(write_buf, write_bytes, &package_size, &cur_ch_mask);
+        int raw_size = 0;
+        int offset = 0;
+        int cur_audio_type = audio_type_parse(write_buf, write_bytes, &package_size, &cur_ch_mask, &raw_size, &offset);
 
         cur_aformat = andio_type_convert_to_android_audio_format_t(cur_audio_type);
         ALOGI("cur_aformat:%0x cur_audio_type:%d", cur_aformat, cur_audio_type);
@@ -6418,11 +6486,7 @@ ssize_t mixer_main_buffer_write(struct audio_stream_out *stream, const void *buf
         }
     } else {
 
-        if ((aml_out->hal_internal_format == AUDIO_FORMAT_DTS) ||
-            (aml_out->hal_internal_format == AUDIO_FORMAT_DTS_HD) ||
-            (aml_out->hal_internal_format == AUDIO_FORMAT_AC3) ||
-            (aml_out->hal_internal_format == AUDIO_FORMAT_E_AC3)) {
-
+        if (IS_DECODER_SUPPORT(aml_out->hal_internal_format)) {
             if (adev->bypass_enable) {
                 if (aml_out->hal_format == AUDIO_FORMAT_IEC61937) {
                     output_format = aml_out->hal_internal_format;
@@ -6457,9 +6521,9 @@ ssize_t mixer_main_buffer_write(struct audio_stream_out *stream, const void *buf
             output_format = AUDIO_FORMAT_PCM_16_BIT;
             aml_hw_mixer_mixing(&adev->hw_mixer, tmp_buffer, write_bytes);
             data_format.format = output_format;
-            data_format.sr     = 48000;
-            data_format.ch     = 2;
-            data_format.bitwidth = SAMPLE_16BITS;
+            data_format.sr     = aml_dec->dec_info.output_sr;
+            data_format.ch     = aml_dec->dec_info.output_ch;
+            data_format.bitwidth = aml_dec->dec_info.output_bitwidth;
             if (audio_hal_data_processing(stream, tmp_buffer, aml_dec->outlen_pcm, &output_buffer, &output_buffer_bytes, &data_format) == 0) {
                 hw_write(stream, output_buffer, output_buffer_bytes, output_format);
                 aml_out->frame_write_sum = aml_out->input_bytes_size  / audio_stream_out_frame_size(stream) ;
@@ -6905,7 +6969,6 @@ int calc_time_interval_us(struct timespec *ts0, struct timespec *ts1)
     return interval_us;
 }
 
-#define EAC3_MULTIPLIER 4
 // buffer/period ratio, bigger will add more latency
 void *audio_patch_input_threadloop(void *data)
 {
@@ -6938,6 +7001,15 @@ void *audio_patch_input_threadloop(void *data)
     } else {
         //TODO we need parse hdmi/spdif input paramater here.
     }
+
+#ifdef DATMOS
+    if (aml_dev->datmos_enable) {
+        patch->chanmask = stream_config.channel_mask
+            = audio_channel_out_mask_from_count(aml_dev->datmos_param.capture_ch);
+        ALOGE("channel_mask %#x, capture_ch %d",
+            stream_config.channel_mask, aml_dev->datmos_param.capture_ch);
+    }
+#endif
 
     ret = adev_open_input_stream(patch->dev,
                                  0,
@@ -6982,6 +7054,12 @@ void *audio_patch_input_threadloop(void *data)
             period_mul = 1;
         }
 
+#ifdef DATMOS
+        /*hdmi in choose i2s device with 8ch/16bits config*/
+        if (stream_config.channel_mask == AUDIO_CHANNEL_OUT_7POINT1) {
+            period_mul = TRUEHD_MULTIPLIER;
+        }
+#endif
 
         if (patch->input_src == AUDIO_DEVICE_IN_LINE) {
             read_threshold = 4 * read_bytes * period_mul;
@@ -7040,9 +7118,14 @@ void *audio_patch_input_threadloop(void *data)
         us = calc_time_interval_us(&before_read, &after_read);
         ALOGD("function gap =%d \n", us);
 #endif
-        //ALOGV("++%s in read over read_bytes = %d, in_read returns = %d \n",
-        //__FUNCTION__, read_bytes * period_mul, bytes_avail);
+        // ALOGV("++%s in read over read_bytes = %d, in_read returns = %d \n",
+        // __FUNCTION__, read_bytes * period_mul, bytes_avail);
         if (bytes_avail > 0) {
+            //temp add a parse function here
+            if (patch->input_src == AUDIO_DEVICE_IN_HDMI || patch->input_src == AUDIO_DEVICE_IN_SPDIF) {
+                feeddata_audio_type_parse(&patch->audio_parse_para, patch->in_buf, bytes_avail);
+            }
+
 
             //DoDumpData(patch->in_buf, bytes_avail, CC_DUMP_SRC_TYPE_INPUT);
             do {
@@ -7199,7 +7282,10 @@ void *audio_patch_output_threadloop(void *data)
         default:
             period_mul = 1;
         }
-
+#ifdef DATMOS
+        if ((aml_dev->datmos_enable) && (aml_dev->datmos_param.capture_ch == 8))
+            period_mul = TRUEHD_MULTIPLIER;
+#endif
         pthread_mutex_lock(&patch->mutex);
         //ALOGV("%s(), ringbuffer level read before wait--%d \n",
         //__func__, get_buffer_read_space(ringbuffer));
@@ -7242,11 +7328,6 @@ void *audio_patch_output_threadloop(void *data)
             int us = 0;
             clock_gettime(CLOCK_MONOTONIC, &before_read);
 #endif
-
-            //temp add a parse function here
-            if (patch->input_src == AUDIO_DEVICE_IN_HDMI || patch->input_src == AUDIO_DEVICE_IN_SPDIF) {
-                feeddata_audio_type_parse(&patch->audio_parse_para, patch->out_buf, ret);
-            }
 
             ret = out_write_new(stream_out, patch->out_buf, ret);
 
@@ -7305,7 +7386,7 @@ static int create_patch(struct audio_hw_device *dev,
     pthread_mutex_init(&patch->mutex, NULL);
     pthread_cond_init(&patch->cond, NULL);
 
-    ret = ring_buffer_init(& (patch->aml_ringbuffer), 4 * period_size * PATCH_PERIOD_COUNT);
+    ret = ring_buffer_init(& (patch->aml_ringbuffer), 16 * period_size * PATCH_PERIOD_COUNT);
     if (ret < 0) {
         ALOGE("Fail to init audio ringbuffer!");
         goto err_ring_buf;
@@ -8150,6 +8231,11 @@ static int adev_dump(const audio_hw_device_t *device, int fd)
 static int adev_close(hw_device_t *device)
 {
     struct aml_audio_device *adev = (struct aml_audio_device *) device;
+#ifdef DATMOS
+    if (adev->datmos_enable)
+        cleanup_atmos_func(&(adev->datmos_param));
+#endif
+
     if (adev->effect_buf) {
         free(adev->effect_buf);
     }
@@ -8612,6 +8698,13 @@ static int adev_open(const hw_module_t* module, const char* name,
         adev->ms12.dolby_ms12_enable == false;
     }
 
+#ifdef DATMOS
+    adev->datmos_enable = !get_datmos_func(&(adev->datmos_param));
+    ALOGI("Amlogic HAL get Datmos Func %s!\n", adev->datmos_enable ? "success" : "fail");
+    if (adev->datmos_enable) {
+        datmos_default_options();
+    }
+#endif
 
     /* init the input/output function */
     aml_output_init();

@@ -569,7 +569,7 @@ int pcm_read(struct pcm *pcm, void *data, unsigned int count)
     for (;;) {
         if (!pcm->running) {
             if (pcm_start(pcm) < 0) {
-                fprintf(stderr, "start error");
+                // fprintf(stderr, "start error");
                 return -errno;
             }
         }

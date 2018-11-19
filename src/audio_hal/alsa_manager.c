@@ -253,7 +253,12 @@ int aml_alsa_output_open(void **handle, aml_stream_config_t * stream_config, aml
         return -1;
     }
 
-    ALOGD("pcm open ch=%d rate=%d\n", config->channels, config->rate);
+    ALOGD("In pcm open ch=%d rate=%d\n",config->channels,config->rate);
+    ALOGI("%s, audio open card(%d), device(%d) \n", __func__, card, device);
+    ALOGI("ALSA open configs: channels %d format %d period_count %d period_size %d rate %d \n",
+        config->channels, config->format, config->period_count, config->period_size, config->rate);
+    ALOGI("ALSA open configs: threshold start %u stop %u silence %u silence_size %d avail_min %d \n",
+        config->start_threshold, config->stop_threshold, config->silence_threshold, config->silence_size, config->avail_min);
     pcm = pcm_open(card, device, PCM_OUT, config);
     if (!pcm || !pcm_is_ready(pcm)) {
         ALOGE("%s, pcm %p open [ready %d] failed \n", __func__, pcm, pcm_is_ready(pcm));

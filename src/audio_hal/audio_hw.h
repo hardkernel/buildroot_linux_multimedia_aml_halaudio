@@ -43,7 +43,7 @@
 #include "audio_format_parse.h"
 #include "aml_alsa_mixer.h"
 #include "aml_sample_conv.h"
-
+#include "aml_datmos_api.h"
 
 /* number of frames per period */
 /*
@@ -98,6 +98,8 @@ static unsigned int DEFAULT_OUT_SAMPLING_RATE = 48000;
 #define DDP_FRAME_SIZE      768
 #define EAC3_MULTIPLIER 4
 
+#define DEFAULT_CHANNEL_NUM 2//STEREO
+#define DEFAULT_BITWIDTH 16//16bits_per_sample
 
 /*
 enum {
@@ -348,8 +350,11 @@ struct aml_audio_device {
     int aml_ng_release_time;
     int system_app_mixing_status;
     int audio_type;
-    int audio_latency;  // currently work on pulse audio
-
+	int audio_latency;  // currently work on pulse audio
+#ifdef DATMOS
+    struct aml_datmos_param datmos_param;
+    bool datmos_enable;
+#endif
 };
 
 struct aml_stream_out {
@@ -571,6 +576,7 @@ ssize_t audio_hal_data_processing(struct audio_stream_out *stream
                                   , size_t *output_buffer_bytes
                                   , aml_data_format_t * data_format);
 
+
 /*
  *@brief hw_write the api to write the data to audio hardware
  */
@@ -578,4 +584,22 @@ ssize_t hw_write(struct audio_stream_out *stream
                  , const void *buffer
                  , size_t bytes
                  , audio_format_t output_format);
+
+
+#define IS_DATMOS_SUPPORT(format) ((format == AUDIO_FORMAT_AC3) || (format == AUDIO_FORMAT_E_AC3) || (format == AUDIO_FORMAT_DOLBY_TRUEHD))
+#define EAC3_MULTIPLIER 4
+#define TRUEHD_MULTIPLIER 16
+
+#ifdef DATMOS
+#define IS_DECODER_SUPPORT(format)   ((format == AUDIO_FORMAT_DTS) || \
+                                    (format == AUDIO_FORMAT_DTS_HD) || \
+                                    (format == AUDIO_FORMAT_AC3) || \
+                                    (format == AUDIO_FORMAT_E_AC3) || \
+                                    (format == AUDIO_FORMAT_DOLBY_TRUEHD))
+#else
+#define IS_DATMOS_SUPPORT(format)   ((format == AUDIO_FORMAT_DTS) || \
+                                    (format == AUDIO_FORMAT_DTS_HD) || \
+                                    (format == AUDIO_FORMAT_AC3) || \
+                                    (format == AUDIO_FORMAT_E_AC3))
+#endif
 #endif

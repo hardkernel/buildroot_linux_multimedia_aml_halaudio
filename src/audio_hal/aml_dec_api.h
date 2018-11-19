@@ -49,6 +49,9 @@ typedef struct aml_dec {
     int remain_size;
     int outlen_pcm;
     int outlen_raw;
+    int inbuf_max_len;
+    int outbuf_max_len;
+    int outbuf_raw_max_len;
     unsigned char *outbuf_multi;
     int outlen_multi;
     int digital_raw;
@@ -57,23 +60,35 @@ typedef struct aml_dec {
     /**after decoder success, we can query these info*/
     aml_dec_info_t dec_info;
     void * dec_func;
+    void *dec_ptr;/*an handle which is used in datmos*/
+    size_t raw_deficiency;
+    size_t inbuf_wt;
+    size_t IEC61937_raw_size;
 } aml_dec_t;
 
 typedef struct aml_dcv_config {
     int digital_raw;
     int nIsEc3;
+    void *reserved;//dlopen handle
 } aml_dcv_config_t;
 
 typedef struct aml_dca_config {
     int digital_raw;
     int is_dtscd;
+    void *reserved;//dlopen handle
 } aml_dca_config_t;
+
+typedef struct aml_datmos_config {
+    int audio_type;
+    int is_eb3_extension;
+    void *reserved;//dlopen handle
+} aml_datmos_config_t;
 
 
 typedef union aml_dec_config {
     aml_dcv_config_t dcv_config;
     aml_dca_config_t dca_config;
-
+    aml_datmos_config_t datmos_config;
 } aml_dec_config_t;
 
 enum {
@@ -81,8 +96,15 @@ enum {
     AML_CONFIF_OUTPUT
 };
 
+enum dolby_strategy{
+    AML_DOLBY_DECODER,
+    AML_DOLBY_MS12,
+    AML_DOLBY_ATMOS,
+};
 
-typedef int (*F_Init)(aml_dec_t **ppaml_dec, aml_dec_config_t * dec_config);
+
+
+typedef int (*F_Init)(aml_dec_t **ppaml_dec, audio_format_t format, aml_dec_config_t * dec_config);
 typedef int (*F_Release)(aml_dec_t *aml_dec);
 typedef int (*F_Process)(aml_dec_t *aml_dec, unsigned char* buffer, int bytes);
 typedef int (*F_Config)(aml_dec_t *aml_dec, int config_type, aml_dec_config_t * config_value);

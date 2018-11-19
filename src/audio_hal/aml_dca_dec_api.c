@@ -321,7 +321,7 @@ static int dca_decoder_release()
 
 #endif
 
-int dca_decoder_init_patch(aml_dec_t **ppdts_dec, aml_dec_config_t * dec_config)
+int dca_decoder_init_patch(aml_dec_t **ppdts_dec, audio_format_t format, aml_dec_config_t * dec_config)
 {
     struct dca_dts_dec *dts_dec;
     aml_dec_t  *aml_dec = NULL;

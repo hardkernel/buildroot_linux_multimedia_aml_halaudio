@@ -24,8 +24,12 @@ CC_OBJS=audio_hw.o \
 	aml_input_manager.o \
 	aml_callback_api.o \
 	aml_dec_api.o \
+	aml_datmos_api.o \
 	aml_sample_conv.o
-	
+
+
+
+
 ifeq ($(ENABLE_PULSEAUDIO),yes)
 CC_OBJS += pulse_manager.o
 endif
@@ -33,14 +37,17 @@ endif
 
 CXX_OBJS=audio_eq_drc_compensation.o \
 	audio_eq_drc_parser.o \
+	aml_datmos_config.o \
 
-TARGET_OBJS += $(CC_OBJS) $(CXX_OBJS)	
-	
+
+TARGET_OBJS += $(CC_OBJS) $(CXX_OBJS)
+
 TARGET=libhalaudio.so
 
 INSTALL_DIR=${LIB_DIR}
 
 LDFLAGS += -shared -ltinyalsa -lamaudioutils -lstdc++ -lsupc++ -lcjson
+
 
 ifeq ($(ENABLE_PULSEAUDIO),yes)
 LDFLAGS += -lpulse-simple
@@ -51,11 +58,16 @@ ifeq ($(ENABLE_AUDIOSERVICE),yes)
 CFLAGS  += -DUSE_AUDIOSERVICE
 endif
 
+
 TOPDIR=$(shell pwd)
 SRC?=$(TOPDIR)
 
 CFLAGS+=-O2 -fPIC -g
 CFLAGS+=-I$(SRC) -I$(SRC)/include -I$(SRC)/../include -I$(SRC)/../utils/ini/include -I$(SRC)/../utils/include  -I$(SRC)/../tinyalsa/include -I$(SRC)/../libms12/include -L${LIB_DIR} -I$(HEADERS_DIR)
+
+#marco of Dolby Atmos
+DEFINES = -DDATMOS -DMAX_OUTPUT_CH=8 -DBYTES_PER_SAMPLE=4
+CFLAGS += $(DEFINES)
 
 EXPORT_API = $(SRC)/../include/audio_base.h \
 	$(SRC)/../include/audio_core.h \

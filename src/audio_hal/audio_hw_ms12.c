@@ -414,27 +414,6 @@ MAIN_INPUT:
                 dolby_ms12_scheduler_run(ms12->dolby_ms12_ptr);
             }
 
-#ifdef REPLACE_OUTPUT_BUFFER_WITH_CALLBACK
-
-#else
-            //ms12 output
-            ms12_output_size =
-                dolby_ms12_output(
-                    ms12->dolby_ms12_ptr
-                    , ms12->dolby_ms12_out_data
-                    , ms12->dolby_ms12_out_max_size);
-            if (ms12_output_size > 0) {
-                audio_format_t output_format = get_output_format(stream);
-                if (0 == audio_hal_data_processing(stream
-                                                   , ms12->dolby_ms12_out_data
-                                                   , ms12_output_size
-                                                   , &output_buffer
-                                                   , &output_buffer_bytes
-                                                   , output_format)) {
-                    hw_write(stream, output_buffer, output_buffer_bytes, output_format);
-                }
-            }
-#endif
             if (dolby_ms12_input_bytes > 0) {
                 if (adev->dual_decoder_support == true) {
                     *use_size = dual_decoder_used_bytes;
@@ -624,6 +603,7 @@ int pcm_output(void *buffer, void *priv_data, size_t size)
     void *output_buffer = NULL;
     size_t output_buffer_bytes = 0;
     audio_format_t output_format = AUDIO_FORMAT_PCM_16_BIT;
+    aml_data_format_t data_format;
     int ret = 0;
 
     if (adev->debug_flag > 1) {
@@ -633,7 +613,12 @@ int pcm_output(void *buffer, void *priv_data, size_t size)
     /*dump ms12 pcm output*/
     dump_ms12_output_data(buffer, size, MS12_OUTPUT_PCM_FILE);
 
-    if (audio_hal_data_processing((struct audio_stream_out *)aml_out, buffer, size, &output_buffer, &output_buffer_bytes, output_format) == 0) {
+    data_format.format = output_format;
+    data_format.sr     = 48000;
+    data_format.ch     = 2;
+    data_format.bitwidth = SAMPLE_16BITS;
+    if (0 == audio_hal_data_processing((struct audio_stream_out *)aml_out, buffer, size
+        , &output_buffer, &output_buffer_bytes, &data_format) == 0) {
         ret = hw_write((struct audio_stream_out *)aml_out, output_buffer, output_buffer_bytes, output_format);
     }
 
@@ -666,7 +651,13 @@ int bitstream_output(void *buffer, void *priv_data, size_t size)
         ret = aml_audio_spdif_output(stream_out, buffer, size);
     } else {
         output_format = adev->sink_format;
-        if (audio_hal_data_processing((struct audio_stream_out *)aml_out, buffer, size, &output_buffer, &output_buffer_bytes, output_format) == 0) {
+        aml_data_format_t data_format;
+        data_format.format = output_format;
+        data_format.sr     = 48000;
+        data_format.ch     = 2;
+        data_format.bitwidth = SAMPLE_16BITS;
+        if (0 == audio_hal_data_processing((struct audio_stream_out *)aml_out, buffer
+            , size, &output_buffer, &output_buffer_bytes, &data_format) == 0) {
             ret = hw_write((struct audio_stream_out *)aml_out, output_buffer, output_buffer_bytes, output_format);
         }
     }
