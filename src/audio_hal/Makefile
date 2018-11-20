@@ -23,9 +23,12 @@ CC_OBJS=audio_hw.o \
 	aml_output_manager.o \
 	aml_input_manager.o \
 	aml_callback_api.o \
-	aml_dec_api.o \
-	pulse_manager.o
+	aml_dec_api.o
 	
+ifeq ($(ENABLE_PULSEAUDIO),yes)
+CC_OBJS += pulse_manager.o
+endif
+
 
 CXX_OBJS=audio_eq_drc_compensation.o \
 	audio_eq_drc_parser.o \
@@ -36,7 +39,12 @@ TARGET=libhalaudio.so
 
 INSTALL_DIR=${LIB_DIR}
 
-LDFLAGS += -shared -ltinyalsa -lamaudioutils -lstdc++ -lsupc++ -lpulse-simple
+LDFLAGS += -shared -ltinyalsa -lamaudioutils -lstdc++ -lsupc++
+
+ifeq ($(ENABLE_PULSEAUDIO),yes)
+LDFLAGS += -lpulse-simple
+CFLAGS  += -DUSE_PULSE_AUDIO
+endif
 
 TOPDIR=$(shell pwd)
 SRC?=$(TOPDIR)

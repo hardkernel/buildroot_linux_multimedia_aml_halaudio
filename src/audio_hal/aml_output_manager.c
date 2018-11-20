@@ -36,7 +36,7 @@ static struct aml_output_function aml_output_function = {
 void aml_output_init (void) {
 
 	ALOGD("Init the output module\n");
-#if 0
+#ifndef USE_PULSE_AUDIO
 	aml_output_function.output_open  = aml_alsa_output_open;
 	aml_output_function.output_close = aml_alsa_output_close;
 	aml_output_function.output_write = aml_alsa_output_write;

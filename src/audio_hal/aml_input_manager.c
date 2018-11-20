@@ -35,7 +35,7 @@ static struct aml_input_function aml_input_function = {
 void aml_input_init (void) {
 
 	ALOGD("Init the input module\n");
-#ifndef USE_PULSE_AUDIO	
+#if 1//ndef USE_PULSE_AUDIO
 	aml_input_function.input_open  = aml_alsa_input_open;
 	aml_input_function.input_close = aml_alsa_input_close;
 	aml_input_function.input_read = aml_alsa_input_read;
