@@ -331,8 +331,7 @@ struct aml_audio_device {
     */
     bool need_remove_conti_mode;
     int debug_flag;
-    int dcvlib_bypass_enable;
-    int dtslib_bypass_enable;
+    int bypass_enable;
     float dts_post_gain;
     bool spdif_encoder_init_flag;
     /*atsc has video in program*/

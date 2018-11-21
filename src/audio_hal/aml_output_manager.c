@@ -25,7 +25,9 @@
 
 #include "aml_output_manager.h"
 #include "alsa_manager.h"
+#ifdef USE_PULSE_AUDIO
 #include "pulse_manager.h"
+#endif
 
 static struct aml_output_function aml_output_function = {
 	.output_open = NULL,
