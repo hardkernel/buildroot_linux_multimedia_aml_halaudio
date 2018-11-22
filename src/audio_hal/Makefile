@@ -39,7 +39,7 @@ TARGET=libhalaudio.so
 
 INSTALL_DIR=${LIB_DIR}
 
-LDFLAGS += -shared -ltinyalsa -lamaudioutils -lstdc++ -lsupc++
+LDFLAGS += -shared -ltinyalsa -lamaudioutils -lstdc++ -lsupc++ -lcjson
 
 ifeq ($(ENABLE_PULSEAUDIO),yes)
 LDFLAGS += -lpulse-simple

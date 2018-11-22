@@ -22,7 +22,7 @@
 
 
 
-int aml_pa_output_open(void **handle, aml_stream_config_t * stream_config, audio_devices_t out_device);
+int aml_pa_output_open(void **handle, aml_stream_config_t * stream_config, aml_device_config_t *device_config);
 
 void aml_pa_output_close(void *handle);
 

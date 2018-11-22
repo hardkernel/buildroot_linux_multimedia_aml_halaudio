@@ -20,44 +20,12 @@
 #include "audio_hw.h"
 
 
-#ifndef OUTPUT_LAYER	
-
 /**
  * pcm open with configs in streams: card, device, pcm_config
  * If device has been opened, close it and reopen with new params
  * and increase the refs count
  */
-int aml_alsa_output_open(struct audio_stream_out *stream);
-
-/**
- * decrease the pcm refs count and do pcm close when refs count equals zero.
- */
-void aml_alsa_output_close(struct audio_stream_out *stream);
-/**
- * pcm_write to the pcm handle saved in stream instance.
- */
-size_t aml_alsa_output_write(struct audio_stream_out *stream,
-                             const void *buffer,
-                             size_t bytes);
-/**
- * get the stream latency.
- */
-int aml_alsa_output_get_letancy(struct audio_stream_out *stream);
-
-/*
- *@brief close continuous audio device
- */
-void aml_close_continuous_audio_device(struct aml_audio_device *adev);
-
-#else
-
-
-/**
- * pcm open with configs in streams: card, device, pcm_config
- * If device has been opened, close it and reopen with new params
- * and increase the refs count
- */
-int aml_alsa_output_open(void **handle, aml_stream_config_t * stream_config, audio_devices_t out_device);
+int aml_alsa_output_open(void **handle, aml_stream_config_t * stream_config, aml_device_config_t *device_config);
 
 /**
  * decrease the pcm refs count and do pcm close when refs count equals zero.
@@ -69,13 +37,15 @@ void aml_alsa_output_close(void *handle);
  */
 size_t aml_alsa_output_write(void *handle, const void *buffer, size_t bytes);
 
-int aml_alsa_input_open(void **handle, aml_stream_config_t * stream_config, audio_devices_t in_device) ;
+int aml_alsa_input_open(void **handle, aml_stream_config_t * stream_config, aml_device_config_t *device_config) ;
 
 void aml_alsa_input_close(void *handle);
 
 size_t aml_alsa_input_read(void *handle, void *buffer, size_t bytes);
 
+void aml_alsa_init();
 
-#endif
+
+
 
 #endif // _ALSA_MANAGER_H_

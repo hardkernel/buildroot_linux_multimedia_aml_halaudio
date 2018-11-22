@@ -32,23 +32,23 @@ enum {
 
 struct aml_output_handle {
     audio_devices_t device; /* speaker/spdif etc*/
-	aml_stream_config_t stream_config;  /*stream basic info*/
+    aml_stream_config_t stream_config;  /*stream basic info*/
 
-	void * device_handle;
+    void * device_handle;
 
 
 };
 
 struct aml_output_function {
-	int (*output_open)(void **handle, aml_stream_config_t * stream_config, audio_devices_t out_device);	
-	void (*output_close)(void *handle);
-	size_t (*output_write)(void *handle, const void *buffer, size_t bytes);
+    int (*output_open)(void **handle, aml_stream_config_t * stream_config, aml_device_config_t *device_config);
+    void (*output_close)(void *handle);
+    size_t (*output_write)(void *handle, const void *buffer, size_t bytes);
 
 };
 
-void aml_output_init (void);
+void aml_output_init(void);
 
-int aml_output_open(struct audio_stream_out *stream, aml_stream_config_t * stream_config, audio_devices_t out_device);
+int aml_output_open(struct audio_stream_out *stream, aml_stream_config_t * stream_config, aml_device_config_t *device_config);
 
 int aml_output_close(struct audio_stream_out *stream);
 
@@ -56,5 +56,5 @@ int aml_output_write_pcm(struct audio_stream_out *stream, const void *buffer, in
 
 int aml_output_write_raw(struct audio_stream_out *stream, const void *buffer, int bytes);
 
- 
+
 #endif

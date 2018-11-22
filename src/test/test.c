@@ -23,7 +23,7 @@ int format_changed_callback(audio_callback_info_t *info, void * args)
 
 
 
-int hdmi_source(audio_hw_device_t *dev)
+int spdif_source(audio_hw_device_t *dev)
 {
     int rc;
 
@@ -46,7 +46,7 @@ int hdmi_source(audio_hw_device_t *dev)
     sources.id = 1;
     sources.role = AUDIO_PORT_ROLE_SOURCE;
     sources.type = AUDIO_PORT_TYPE_DEVICE;
-    sources.ext.device.type = AUDIO_DEVICE_IN_HDMI;
+    sources.ext.device.type = AUDIO_DEVICE_IN_SPDIF;
 
     memset(&sinks, 0 , sizeof(struct audio_port_config));
     sinks.id = 2;
@@ -299,7 +299,7 @@ int main(int argc, char *argv[])
     }
 
     if (strcmp(argv[1], "spdifin") == 0) {
-        hdmi_source(dev);
+        spdif_source(dev);
     } else if (strcmp(argv[1], "linein") == 0) {
         linein_source(dev);
     } else if (strcmp(argv[1], "mediain") == 0) {

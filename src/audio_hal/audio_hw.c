@@ -3074,6 +3074,7 @@ static int start_input_stream(struct aml_stream_in *in)
 {
     int ret = 0;
     aml_stream_config_t stream_config = {0};
+    aml_device_config_t device_config;
 
     struct aml_audio_device *adev = in->dev;
     ALOGD("%s(need_echo_reference=%d, channels=%d, rate=%d, requested_rate=%d, mode= %d device=0x%x 0x%x)\n",
@@ -3090,8 +3091,9 @@ static int start_input_stream(struct aml_stream_in *in)
     stream_config.rate      = in->config.rate;
     stream_config.format    = in->config.format;
     //stream_config.framesize = in->config.period_size;
+    device_config.device    = adev->in_device;
 
-    ret = aml_input_open((struct audio_stream_in *)in, &stream_config, adev->in_device);
+    ret = aml_input_open((struct audio_stream_in *)in, &stream_config, &device_config);
 
     if (ret != 0) {
         adev->active_input = NULL;
@@ -5394,9 +5396,16 @@ ssize_t audio_hal_data_processing(struct audio_stream_out *stream
     int16_t *effect_tmp_buf = NULL;
     int out_frames = bytes / 4;
     ssize_t ret = 0;
-    int i = 0;
+    int i = 0, j = 0;
     uint32_t latency_frames = 0;
     uint64_t total_frame = 0;
+    int channel = aml_out->config.channels;
+
+    if (channel == 0) {
+        ALOGE("Wrong channel=%d\n",channel);
+        return -1;
+
+    }
     /* raw data need packet to IEC61937 format by spdif encoder */
     if ((output_format == AUDIO_FORMAT_AC3) || (output_format == AUDIO_FORMAT_E_AC3)) {
         //ALOGI("%s, aml_out->hal_format %x , is_iec61937_format = %d, \n", __func__, aml_out->hal_format,is_iec61937_format(stream));
@@ -5506,10 +5515,14 @@ ssize_t audio_hal_data_processing(struct audio_stream_out *stream
         }
         // hank hard code s400 only support 4 channel
         for (i = 0; i < out_frames; i++) {
-            aml_out->tmp_buffer_8ch[4 * i] = ((int32_t)(hp_tmp_buf[2 * i])) << 16;
-            aml_out->tmp_buffer_8ch[4 * i + 1] = ((int32_t)(hp_tmp_buf[2 * i + 1])) << 16;
-            aml_out->tmp_buffer_8ch[4 * i + 2] = ((int32_t)(effect_tmp_buf[2 * i])) << 16;
-            aml_out->tmp_buffer_8ch[4 * i + 3] = ((int32_t)(effect_tmp_buf[2 * i + 1])) << 16;
+            aml_out->tmp_buffer_8ch[channel * i] = ((int32_t)(tmp_buffer[2 * i])) << 16;
+            aml_out->tmp_buffer_8ch[channel * i + 1] = ((int32_t)(tmp_buffer[2 * i + 1])) << 16;
+            aml_out->tmp_buffer_8ch[channel * i + 2] = ((int32_t)(tmp_buffer[2 * i])) << 16;
+            aml_out->tmp_buffer_8ch[channel * i + 3] = ((int32_t)(tmp_buffer[2 * i + 1])) << 16;
+            //aml_out->tmp_buffer_8ch[8 * i + 4] = ((int32_t)(tmp_buffer[2 * i])) << 16;
+            //aml_out->tmp_buffer_8ch[8 * i + 5] = ((int32_t)(tmp_buffer[2 * i + 1])) << 16;
+            //aml_out->tmp_buffer_8ch[8 * i + 6] = ((int32_t)(tmp_buffer[2 * i])) << 16;
+            //aml_out->tmp_buffer_8ch[8 * i + 7] = ((int32_t)(tmp_buffer[2 * i + 1])) << 16;            
         }
         *output_buffer = aml_out->tmp_buffer_8ch;
         *output_buffer_bytes = bytes * out_multiply;
@@ -5535,6 +5548,7 @@ ssize_t hw_write(struct audio_stream_out *stream
     uint64_t total_frame = 0;
     uint64_t write_frames = 0;
     int  adjust_ms = 0;
+    aml_device_config_t device_config;
     adev->debug_flag = aml_audio_get_debug_flag();
     if (adev->debug_flag) {
         ALOGI("+%s() buffer %p bytes %zu, format %d", __func__, buffer, bytes, output_format);
@@ -5558,12 +5572,14 @@ ssize_t hw_write(struct audio_stream_out *stream
             output_config.rate = aml_out->config.rate;
             output_config.format = AUDIO_FORMAT_PCM_32_BIT; // change this later
             output_config.latency = adev->audio_latency;
-            ret = aml_output_open(stream, &output_config, AUDIO_DEVICE_OUT_SPEAKER);
+            device_config.device = AUDIO_DEVICE_OUT_SPEAKER;
+            ret = aml_output_open(stream, &output_config, &device_config);
         } else if (is_digital_raw_format(output_format)) {
             output_config.channels = 2;
             output_config.rate    = MM_FULL_POWER_SAMPLING_RATE;
             output_config.format   = output_format; //
-            ret = aml_output_open(stream, &output_config, AUDIO_DEVICE_OUT_SPDIF);
+            device_config.device = AUDIO_DEVICE_OUT_SPDIF;
+            ret = aml_output_open(stream, &output_config, &device_config);
         }
 
         if (ret) {
@@ -8512,6 +8528,7 @@ static int adev_open(const hw_module_t* module, const char* name,
     /* init the input/output function */
     aml_output_init();
     aml_input_init();
+    aml_alsa_init();
 
     /* init callback function */
     adev->hw_device.install_callback_audio_patch = install_callback_audio_patch;

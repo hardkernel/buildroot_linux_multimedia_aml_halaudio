@@ -161,6 +161,18 @@ typedef struct aml_stream_config {
 	
 } aml_stream_config_t;
 
+typedef struct hdmi_config {
+    int port_id;
+} hdmi_config_t;
+
+typedef struct aml_device_config {
+    audio_devices_t device;
+    union {
+        hdmi_config_t hdmi_config;
+    };
+}aml_device_config_t;
+
+
 
 
 static inline alsa_device_t usecase_to_device(stream_usecase_t usecase)

@@ -778,7 +778,7 @@ static inline bool audio_is_valid_format(audio_format_t format)
 /**
  * Extract the primary format, eg. PCM, AC3, etc.
  */
-static inline audio_format_t audio_get_main_format(audio_format_t format)
+inline audio_format_t audio_get_main_format(audio_format_t format)
 {
     return (audio_format_t)(format & AUDIO_FORMAT_MAIN_MASK);
 }
@@ -786,7 +786,7 @@ static inline audio_format_t audio_get_main_format(audio_format_t format)
 /**
  * Is the data plain PCM samples that can be scaled and mixed?
  */
-static inline bool audio_is_linear_pcm(audio_format_t format)
+inline bool audio_is_linear_pcm(audio_format_t format)
 {
     return (audio_get_main_format(format) == AUDIO_FORMAT_PCM);
 }
