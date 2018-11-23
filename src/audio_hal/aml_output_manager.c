@@ -107,7 +107,6 @@ int aml_output_open(struct audio_stream_out *stream, aml_stream_config_t * strea
 
 int aml_output_close(struct audio_stream_out *stream)
 {
-    int ret = -1;
     int i = 0;
     ALOGD("Enter %s \n", __func__);
     struct aml_stream_out *aml_stream = (struct aml_stream_out *)stream;
@@ -136,9 +135,9 @@ int aml_output_close(struct audio_stream_out *stream)
         }
     }
 
-    ALOGD("Exit %s = %d\n", __func__, ret);
+    ALOGD("Exit %s = %d\n", __func__);
 
-    return ret;
+    return 0;
 }
 
 

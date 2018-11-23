@@ -310,6 +310,15 @@ int main(int argc, char *argv[])
             format = AUDIO_FORMAT_DTS;
         }
         media_source(dev, format);
+    }else if (strcmp(argv[1], "all") == 0){
+        //run all the case
+        
+        spdif_source(dev);
+        linein_source(dev);
+        media_source(dev, AUDIO_FORMAT_AC3);
+        media_source(dev, AUDIO_FORMAT_DTS);
+        
+
     }
 
 #if 0

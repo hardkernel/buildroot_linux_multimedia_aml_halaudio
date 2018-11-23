@@ -42,6 +42,7 @@
 #include "aml_audio_types_def.h"
 #include "audio_format_parse.h"
 #include "aml_alsa_mixer.h"
+#include "aml_sample_conv.h"
 
 
 /* number of frames per period */
@@ -431,6 +432,7 @@ struct aml_stream_out {
     void *output_handle[OUTPUT_DEVICE_CNT];    /*store output handle*/
 
     aml_dec_t *aml_dec;                        /*store the decoder handle*/
+    aml_sample_conv_t * sample_convert;        /*store the sample convert handle*/
 };
 
 typedef ssize_t (*write_func)(struct audio_stream_out *stream, const void *buffer, size_t bytes);
@@ -567,7 +569,7 @@ ssize_t audio_hal_data_processing(struct audio_stream_out *stream
                                   , size_t input_buffer_bytes
                                   , void **output_buffer
                                   , size_t *output_buffer_bytes
-                                  , audio_format_t output_format);
+                                  , aml_data_format_t * data_format);
 
 /*
  *@brief hw_write the api to write the data to audio hardware

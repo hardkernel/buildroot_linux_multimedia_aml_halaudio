@@ -68,7 +68,11 @@ static const struct pcm_config pcm_config_in = {
 #define SPDIF_OUT     "Spdif_out"
 
 // currently we don't know where to save it ,we keep it here
+#ifdef USE_AUDIOSERVICE
+static unsigned char * alsa_config = "{ \"Card\" : 0,\"SPDIF_IN\" : 4, \"LINE_IN\"  : 2,\"Speaker_Out\" : 2, \"Spdif_out\"   : 4 }";
+#else
 static unsigned char * alsa_config = "{ \"Card\" : 0,\"HDMI_IN\" : 1, \"SPDIF_IN\" : 4, \"LINE_IN\"  : 0,\"Speaker_Out\" : 2, \"Spdif_out\"   : 4 }";
+#endif
 
 typedef struct alsa_pair {
     unsigned char * name;

@@ -23,7 +23,8 @@ CC_OBJS=audio_hw.o \
 	aml_output_manager.o \
 	aml_input_manager.o \
 	aml_callback_api.o \
-	aml_dec_api.o
+	aml_dec_api.o \
+	aml_sample_conv.o
 	
 ifeq ($(ENABLE_PULSEAUDIO),yes)
 CC_OBJS += pulse_manager.o
@@ -44,6 +45,10 @@ LDFLAGS += -shared -ltinyalsa -lamaudioutils -lstdc++ -lsupc++ -lcjson
 ifeq ($(ENABLE_PULSEAUDIO),yes)
 LDFLAGS += -lpulse-simple
 CFLAGS  += -DUSE_PULSE_AUDIO
+endif
+
+ifeq ($(ENABLE_AUDIOSERVICE),yes)
+CFLAGS  += -DUSE_AUDIOSERVICE
 endif
 
 TOPDIR=$(shell pwd)

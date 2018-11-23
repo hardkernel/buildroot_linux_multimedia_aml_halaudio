@@ -172,6 +172,26 @@ typedef struct aml_device_config {
     };
 }aml_device_config_t;
 
+enum sample_bitwidth {
+    SAMPLE_8BITS =  8,
+    SAMPLE_16BITS = 16,
+    SAMPLE_24BITS = 24,
+    SAMPLE_32BITS = 32,
+};
+
+enum sample_endian {
+    SAMPLE_LITTLE_ENDIAN,
+    SAMPLE_BIG_ENDIAN,
+};
+
+typedef struct aml_data_format {
+    audio_format_t format;
+    int sr ;   /**  samplerate*/
+    int ch ;   /**  channels*/
+    int bitwidth; /**the sample bit width, refer to sample_bitwidth*/
+    int endian;   /*refer to sample_endian*/
+
+}aml_data_format_t;
 
 
 
