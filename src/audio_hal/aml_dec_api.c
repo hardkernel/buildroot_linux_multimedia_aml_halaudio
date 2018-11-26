@@ -38,6 +38,13 @@
 #include "aml_datmos_api.h"
 
 
+#ifdef USE_AUDIOSERVICE
+    static int gdolby_strategy = AML_DOLBY_DECODER;
+#else
+    static int gdolby_strategy = AML_DOLBY_ATMOS;
+#endif
+
+
 static aml_dec_func_t * get_decoder_function(audio_format_t format, int dolby_strategy)
 {
     switch (format) {
@@ -66,7 +73,7 @@ int aml_decoder_init(aml_dec_t **ppaml_dec, audio_format_t format, aml_dec_confi
 {
     int ret = -1;
     aml_dec_func_t *dec_fun = NULL;
-    dec_fun = get_decoder_function(format, AML_DOLBY_ATMOS);
+    dec_fun = get_decoder_function(format, gdolby_strategy);
     aml_dec_t *aml_dec_handel = NULL;
     if (dec_fun == NULL) {
         return -1;
@@ -99,7 +106,7 @@ int aml_decoder_release(aml_dec_t *aml_dec)
         return -1;
     }
 
-    dec_fun = get_decoder_function(aml_dec->format, AML_DOLBY_ATMOS);
+    dec_fun = get_decoder_function(aml_dec->format, gdolby_strategy);
     if (dec_fun == NULL) {
         return -1;
     }
@@ -122,7 +129,7 @@ int aml_decoder_config(aml_dec_t *aml_dec, aml_dec_config_t * config)
         ALOGE("%s aml_dec is NULL\n", __func__);
         return -1;
     }
-    dec_fun = get_decoder_function(aml_dec->format, AML_DOLBY_ATMOS);
+    dec_fun = get_decoder_function(aml_dec->format, gdolby_strategy);
     if (dec_fun == NULL) {
         return -1;
     }
@@ -143,7 +150,7 @@ int aml_decoder_process(aml_dec_t *aml_dec, unsigned char*buffer, int bytes, int
         return -1;
     }
 
-    dec_fun = get_decoder_function(aml_dec->format, AML_DOLBY_ATMOS);
+    dec_fun = get_decoder_function(aml_dec->format, gdolby_strategy);
     if (dec_fun == NULL) {
         return -1;
     }

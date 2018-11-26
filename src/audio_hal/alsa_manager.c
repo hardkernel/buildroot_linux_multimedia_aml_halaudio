@@ -178,6 +178,11 @@ void aml_alsa_init()
     for (i = 0 ; i < sizeof(alsapairs) / sizeof(alsa_pair_t); i++) {
 
         temp = cJSON_GetObjectItem(alsa_root, alsapairs[i].name);
+        if(temp == NULL) {
+            ALOGD("%s is NULL\n",alsapairs[i].name);
+            continue;
+        }
+          
         alsapairs[i].alsa_card = alsa_card;
         alsapairs[i].alsa_device = temp->valueint;
         ALOGD("Device name=%s card=%d device=%d\n", alsapairs[i].name, alsapairs[i].alsa_card, alsapairs[i].alsa_device);
