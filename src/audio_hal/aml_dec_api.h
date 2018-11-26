@@ -63,7 +63,15 @@ typedef struct aml_dec {
     void *dec_ptr;/*an handle which is used in datmos*/
     size_t raw_deficiency;
     size_t inbuf_wt;
-    size_t IEC61937_raw_size;
+    size_t burst_payload_size;
+    /*if format is MAT[TrueHD/PCM]*/
+    /*61440bytes |PA PB PC PD ....|*/
+    /*61440bytes |PA PB PC PD ....|*/
+    int first_PAPB;
+    int next_PAPB;
+    int last_consumed_bytes;
+    int is_truehd_within_mat;
+    int is_dolby_atmos;
 } aml_dec_t;
 
 typedef struct aml_dcv_config {

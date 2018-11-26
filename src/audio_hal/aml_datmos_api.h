@@ -30,7 +30,7 @@
 struct aml_datmos_param {
     bool is_dolby_atmos;
     void *fd;
-    int (*get_audio_info)(void *, int *, int *);
+    int (*get_audio_info)(void *, int *);
     int (*aml_atmos_init)(unsigned int, void **, bool, const int, const char **);
     int (*aml_atmos_process)(void *, unsigned int, void *, size_t *, char *, unsigned int , size_t *);
     void (*aml_atmos_cleanup)(void *);
@@ -47,18 +47,18 @@ struct aml_datmos_param {
     bool noupmix;
     bool novlamp;
     bool verbose;
-    int init_argc;
-    char **init_argv;
 };
 
 
 struct dolby_atmos_dec {
     aml_dec_t  aml_dec;
-    int (*get_audio_info)(void *, int *, int *);
+    int (*get_audio_info)(void *, int *);
     int (*aml_atmos_init)(unsigned int, void **, bool, const int, const char **);
     int (*aml_atmos_process)(void *, unsigned int, void *, size_t *, char *, unsigned int , size_t *);
     void (*aml_atmos_cleanup)(void *);
     int (*aml_get_output_info)(void *, int *, int *, int *);
+    int is_truehd_within_mat;
+    int is_dolby_atmos;
 };
 /*
  *@brief datmos set parameters

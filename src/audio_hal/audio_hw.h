@@ -359,6 +359,10 @@ struct aml_audio_device {
 #ifdef DATMOS
     struct aml_datmos_param datmos_param;
     bool datmos_enable;
+    int is_truehd_within_mat;
+    int is_dolby_atmos;
+    int audio_sample_rate;//audio source samplerate
+    audio_format_t decode_format;
 #endif
 };
 
@@ -601,6 +605,10 @@ ssize_t hw_write(struct audio_stream_out *stream
                                     (format == AUDIO_FORMAT_AC3) || \
                                     (format == AUDIO_FORMAT_E_AC3) || \
                                     (format == AUDIO_FORMAT_DOLBY_TRUEHD))
+
+#define IS_DATMOS_DECODER_SUPPORT(format)   ((format == AUDIO_FORMAT_AC3) || \
+                                            (format == AUDIO_FORMAT_E_AC3) || \
+                                            (format == AUDIO_FORMAT_DOLBY_TRUEHD))
 #else
 #define IS_DATMOS_SUPPORT(format)   ((format == AUDIO_FORMAT_DTS) || \
                                     (format == AUDIO_FORMAT_DTS_HD) || \

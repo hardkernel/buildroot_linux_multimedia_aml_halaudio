@@ -134,6 +134,8 @@ void feeddata_audio_type_parse(void **status, char * input, int size);
             size_t *raw_wt: raw data buffer write pointer
             size_t raw_max_bytes: raw data buffer length
             int *raw_size: raw audio valid size in IEC61937 packet
+            int *offset : IEC61937 offset in 'buffer'
+            int *got_format: it value is defined by iec61937 pc
  *
  * return value:
  *          0: if the audio format is suitable for dobly atmos(dd/ddp/truehd/mat)
@@ -142,7 +144,15 @@ void feeddata_audio_type_parse(void **status, char * input, int size);
  *          1; if this time valid data(<=min(raw_size , (raw_max_bytes - *raw_wt))) is large than valid space of raw_buf.
                 suppose this is fail
  */
-int decode_IEC61937_to_raw_data(char *buffer, size_t bytes, char *raw_buf, size_t *raw_wt, size_t raw_max_bytes, size_t *raw_deficiency, int *raw_size);
+int decode_IEC61937_to_raw_data(char *buffer
+        , size_t bytes
+        , char *raw_buf
+        , size_t *raw_wt
+        , size_t raw_max_bytes
+        , size_t *raw_deficiency
+        , int *raw_size
+        , int *offset
+        , int *got_format);
 /*
  *@brief get current audio type from buffer data
  * input params:

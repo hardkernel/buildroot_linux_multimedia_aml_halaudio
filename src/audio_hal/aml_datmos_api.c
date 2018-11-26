@@ -28,6 +28,7 @@
 #include "aml_datmos_api.h"
 #include "audio_hw.h"
 #include "aml_datmos_config.h"
+#include "audio_core.h"
 
 /*marco define*/
 #define VAL_LEN 256
@@ -45,7 +46,7 @@
 #define DATMOS_HT_EPROC_NOT_PREROLLED 6
 
 #define ONE_BLOCK_FRAME_SIZE 256
-#define MAX_BLOCK_NUM 16
+#define MAX_BLOCK_NUM 32
 #define AUDIO_FORMAT_STRING(format) ((format) == TRUEHD) ? ("TRUEHD") : (((format) == AC3) ? ("AC3") : (((format) == EAC3) ? ("EAC3") : ("LPCM")))
 
 #define DATMOS_PCM_OUT_FILE "/tmp/datmos_pcm_out.data"
@@ -62,7 +63,6 @@ typedef enum {
     DAP_Night,
 } GUI_DAP_VALUE;
 
-static bool prerolled_flag = false;
 /*basic fuction*/
 static int convert_format (unsigned char *buffer, int size){
     int idx;
@@ -313,11 +313,18 @@ int datmos_get_parameters(struct audio_hw_device *dev, const char *keys, char *t
     }
 
     if (strstr(keys, "audio_format")) {
-        snprintf(temp_buf, temp_buf_size, "audio_format=%d", adev->sink_format);
+        if (adev->decode_format == AUDIO_FORMAT_DOLBY_TRUEHD)
+            snprintf(temp_buf, temp_buf_size, "audio_format=%d", (adev->is_truehd_within_mat == false) ? (AUDIO_FORMAT_MAT) : (adev->decode_format));
+        else
+            snprintf(temp_buf, temp_buf_size, "audio_format=%d", adev->decode_format);
         return 0;
     }
     else if (strstr(keys, "is_dolby_atmos")) {
-        snprintf(temp_buf, temp_buf_size, "is_dolby_atmos=%d", adev->datmos_param.is_dolby_atmos);
+        snprintf(temp_buf, temp_buf_size, "is_dolby_atmos=%d", adev->is_dolby_atmos);
+        return 0;
+    }
+    else if (strstr(keys, "audio_samplerate")) {
+        snprintf(temp_buf, temp_buf_size, "audio_samplerate=%d", adev->audio_sample_rate);
         return 0;
     }
     return 1;
@@ -340,7 +347,7 @@ int get_datmos_func(struct aml_datmos_param *datmos_handle)
             return 1;
         }
 
-        datmos_handle->get_audio_info = (int (*)(void *, int *, int *))dlsym(datmos_handle->fd, "get_audio_info");
+        datmos_handle->get_audio_info = (int (*)(void *, int *))dlsym(datmos_handle->fd, "get_audio_info");
         if (datmos_handle->get_audio_info == NULL) {
             ALOGI("cant find lib interface %s", dlerror());
             goto error;
@@ -406,6 +413,22 @@ int cleanup_atmos_func(struct aml_datmos_param *datmos_handle)
     return 0;
 }
 
+
+static void mat_frame_debug(const char *mat_frame, int raw_size)
+{
+    int i = 0;
+    if (mat_frame) {
+        for (i = 0; i < 16; i++) {
+            printf("%2x ", mat_frame[i]);
+        }
+        printf("\n");
+        for (i = 0; i < 16; i++) {
+            printf("%2x ", mat_frame[raw_size - 16 + i]);
+        }
+        printf("\n");
+    }
+}
+
 static int datmos_get_output_info(aml_dec_t *aml_dec, aml_dec_info_t *dec_info)
 {
     struct dolby_atmos_dec *datmos_dec = (struct dolby_atmos_dec *)aml_dec;
@@ -424,8 +447,30 @@ static int datmos_get_output_info(aml_dec_t *aml_dec, aml_dec_info_t *dec_info)
             ALOGV("output_sr %d output_ch %d output_bitwidth %d",
                 dec_info->output_sr, dec_info->output_ch, 
                 dec_info->output_bitwidth);
-            return ret;
         }
+        return ret;
+    }
+
+}
+
+static int datmos_get_atmos_info(aml_dec_t *aml_dec)
+{
+    struct dolby_atmos_dec *datmos_dec = (struct dolby_atmos_dec *)aml_dec;
+    int ret = 0;
+
+    if (!datmos_dec) {
+        ALOGE("%s datmos_dec is NULL\n", __func__);
+        return -1;
+    }
+    else {
+        if (datmos_dec->get_audio_info && aml_dec->dec_ptr) {
+            ret = datmos_dec->get_audio_info(aml_dec->dec_ptr, &datmos_dec->is_dolby_atmos);
+            ALOGV("is_dolby_atmos %d",datmos_dec->is_dolby_atmos);
+            ret = 0;
+        }
+        else
+            ret = -1;
+        return ret;
     }
 
 }
@@ -535,7 +580,6 @@ int datmos_decoder_init_patch(aml_dec_t ** ppdatmos_dec, audio_format_t format, 
         free(init_argv);
         init_argv = NULL;
     }
-    prerolled_flag = false;
     ALOGV("<<OUT>>");
     return 1;
 
@@ -567,7 +611,10 @@ int datmos_decoder_release_patch(aml_dec_t *aml_dec)
 {
     struct dolby_atmos_dec *datmos_dec = (struct dolby_atmos_dec *)aml_dec;
     ALOGV("<<IN>>");
-    datmos_dec->aml_atmos_cleanup(aml_dec->dec_ptr);
+    if (datmos_dec && datmos_dec->aml_atmos_cleanup) {
+        datmos_dec->aml_atmos_cleanup(aml_dec->dec_ptr);
+        aml_dec->dec_ptr = NULL;
+    }
 
     if (aml_dec->status == 1) {
         aml_dec->status = 0;
@@ -590,8 +637,9 @@ int datmos_decoder_release_patch(aml_dec_t *aml_dec)
         datmos_dec->aml_atmos_init = NULL;
         datmos_dec->aml_atmos_process = NULL;
         datmos_dec->aml_atmos_cleanup = NULL;
-        aml_dec->dec_ptr = NULL;
+        datmos_dec->aml_get_output_info = NULL;
         free(aml_dec);
+        aml_dec = NULL;
     }
     ALOGV("<<OUT>>");
     return 1;
@@ -604,31 +652,25 @@ int datmos_decoder_process_patch(aml_dec_t *aml_dec, unsigned char*in_buffer, in
     size_t pcm_produced_bytes = 0;
     int ret = 0;
     size_t input_threshold = 0;
+    size_t dump_input = 0;
+    size_t dump_output = 0;
+    size_t check_data = 0;
 
     ALOGV("<<IN>>");
-    if (!aml_dec || !in_buffer || (in_bytes <= 0) || !aml_dec->inbuf || (aml_dec->inbuf_wt == 0)) {
-        ALOGV("aml_dec %p in_buffer %p in_bytes %#x inbuf %p inbuf_wt %#x\n",
+    if (!aml_dec || !in_buffer || (in_bytes <= 0) || !aml_dec->inbuf) {
+        ALOGE("aml_dec %p in_buffer %p in_bytes %#x inbuf %p inbuf_wt %#x\n",
             aml_dec, in_buffer, in_bytes, aml_dec->inbuf, aml_dec->inbuf_wt);
         goto EXIT;
     }
 
-    ALOGV("inbuf_wt %#x IEC61937_raw_size %#x\n", aml_dec->inbuf_wt, aml_dec->IEC61937_raw_size);
-    /*fixme, if only send one 0xeff0 data(truehd/mat), could not preroll the datmos at all*/
-    /*need fix it here!*/
-    if (aml_dec->format == AUDIO_FORMAT_DOLBY_TRUEHD) {
-        input_threshold = (prerolled_flag == false) ? MAX_DECODER_MAT_FRAME_LENGTH*3 : MAX_DECODER_MAT_FRAME_LENGTH;
-    }
-    else
-        input_threshold = aml_dec->IEC61937_raw_size;
-    // ALOGI("format %#x prerolled_flag %d input_threshold %#x", aml_dec->format, prerolled_flag, input_threshold);
-    input_threshold = aml_dec->IEC61937_raw_size;
-    if (aml_dec->inbuf_wt >= input_threshold) {
-        convert_format(aml_dec->inbuf, aml_dec->IEC61937_raw_size);
-        if (0) {
-            FILE *fpin=fopen(DATMOS_RAW_IN_FILE,"a+");
-            fwrite((char *)aml_dec->inbuf, 1, aml_dec->IEC61937_raw_size,fpin);
-            fclose(fpin);
-        }
+    /*FIXME, sometimes the data is not right, decoder could not preroll the datmos at all*/
+    input_threshold = aml_dec->burst_payload_size;
+
+    if ((aml_dec->inbuf_wt >= input_threshold) && (input_threshold > 0)) {
+        ALOGV("inbuf_wt %#x burst_payload_size %#x, input_threshold %#x\n", aml_dec->inbuf_wt, aml_dec->burst_payload_size, input_threshold);
+        datmos_dec->is_truehd_within_mat = is_truehd_within_mat(aml_dec->inbuf, input_threshold);
+
+        /*begin to decode the data*/
         ret = datmos_dec->aml_atmos_process
                         (aml_dec->inbuf
                         , input_threshold
@@ -637,37 +679,78 @@ int datmos_decoder_process_patch(aml_dec_t *aml_dec, unsigned char*in_buffer, in
                         , aml_dec->outbuf
                         , aml_dec->outbuf_max_len
                         , &pcm_produced_bytes);
-        if ((ret == 0) && !prerolled_flag)
-            prerolled_flag = true;
+
+        if (check_data) {
+            mat_frame_debug(aml_dec->inbuf, input_threshold);
+            char *datmos_data = aml_dec->inbuf;
+            ALOGE("header %2x %2x", datmos_data[0], datmos_data[1]);
+        }
+
+        ALOGV("valid bytes %#x outlen_pcm %#x", aml_dec->inbuf_wt, aml_dec->outlen_pcm);
+        /*end of the decode*/
+        {
+            //dump the input data, as the data should convert to LSB
+            if (dump_input) {
+                FILE *fpa=fopen(DATMOS_RAW_IN_FILE,"a+");
+                // convert_format(aml_dec->inbuf, aml_dec->burst_payload_size);
+                fwrite((char *)aml_dec->inbuf, 1, aml_dec->burst_payload_size,fpa);
+                fclose(fpa);
+            }
+            //update the inbuf_wt and flush the consumed data in the inbuf
+            {
+                if (aml_dec->inbuf_wt - aml_dec->burst_payload_size > 0) {
+                    memmove(aml_dec->inbuf, aml_dec->inbuf + aml_dec->burst_payload_size, aml_dec->inbuf_wt - aml_dec->burst_payload_size);
+                    aml_dec->inbuf_wt -= aml_dec->burst_payload_size;
+                }
+                else {
+                    memset(aml_dec->inbuf, 0, aml_dec->inbuf_wt);
+                    aml_dec->inbuf_wt = 0;
+                }
+            }
+            /*
+             *for this ret means that datmos would block this status
+             *we should return -1, the decoder should be reinit again!
+             */
+            if ((ret == 4) && (aml_dec->format == AUDIO_FORMAT_DOLBY_TRUEHD))  {
+                /*pay more attention here, if flush the inbuf, should reset the raw_deficiency&inbuf_wt to zero*/
+                // memset(aml_dec->inbuf, 0, aml_dec->inbuf_max_len);
+                // aml_dec->inbuf_wt = 0;
+                // aml_dec->raw_deficiency =0;
+                aml_dec->outlen_pcm = 0;
+                return -1;
+            }
+        }
+
         aml_dec->outlen_pcm = pcm_produced_bytes;
-        ret = datmos_get_output_info(aml_dec, &(aml_dec->dec_info));
+        datmos_get_output_info(aml_dec, &(aml_dec->dec_info));
+        datmos_get_atmos_info(aml_dec);
+
+        aml_dec->is_truehd_within_mat = datmos_dec->is_truehd_within_mat;
+        aml_dec->is_dolby_atmos = datmos_dec->is_dolby_atmos;
+
         if (aml_dec->dec_info.output_bitwidth == SAMPLE_24BITS)
             aml_dec->dec_info.output_bitwidth = SAMPLE_32BITS;
-        ALOGV("valid bytes %#x outlen_pcm %#x", aml_dec->inbuf_wt, aml_dec->outlen_pcm);
-        if (aml_dec->inbuf_wt - aml_dec->IEC61937_raw_size > 0) {
-            memmove(aml_dec->inbuf, aml_dec->inbuf+aml_dec->IEC61937_raw_size, aml_dec->inbuf_wt - aml_dec->IEC61937_raw_size);
-            aml_dec->inbuf_wt -= aml_dec->IEC61937_raw_size;
-        }
-        else
-            aml_dec->inbuf_wt = 0;
 
 
-        if (0) {
+        //dump the output pcm data
+        if (dump_output) {
             FILE *fp1=fopen(DATMOS_PCM_OUT_FILE,"a+");
-            fwrite((char *)aml_dec->outbuf, 1,  aml_dec->outlen_pcm ,fp1);
+            fwrite((char *)aml_dec->outbuf, 1, aml_dec->outlen_pcm ,fp1);
             fclose(fp1);
+            aml_dec->outlen_pcm = 0;
         }
 
 
     }
     else {
-        //fixme, how to modify this inbuf_wt?
-        //do nothing, just store the data to aml_dec->inbuf
-        //clear the output pcm length as zero.
+        /*
+         *do nothing, just store the data to aml_dec->inbuf
+         *clear the output pcm length as zero.
+         */
         aml_dec->outlen_pcm = 0;
     }
     ALOGV("<<ret %d OUT>>", ret);
-    return ret;
+    return 0;
 EXIT:
     return -1;
 }

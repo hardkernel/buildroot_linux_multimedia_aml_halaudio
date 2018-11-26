@@ -3522,13 +3522,11 @@ static ssize_t in_read(struct audio_stream_in *stream, void* buffer,
                 ALOGE("%s(), parser in_read err", __func__);
                 goto exit;
             } else if (ret == 0) {
-                ALOGI("mute here!");
                 memset(buffer, 0, bytes);
             } else {
                 bytes = ret;
             }
         } else {
-            ALOGI("mute here!");
             memset(buffer, 0, bytes);
         }
     } else {
@@ -3538,7 +3536,6 @@ static ssize_t in_read(struct audio_stream_in *stream, void* buffer,
             ret = aml_input_read(stream, buffer, bytes);
         }
         if (ret < 0) {
-            ALOGI("%s(), in read fails errno = %d", __func__, ret);
             goto exit;
         }
         DoDumpData(buffer, bytes, CC_DUMP_SRC_TYPE_INPUT);
@@ -3984,6 +3981,7 @@ static void adev_close_output_stream(struct audio_hw_device *dev,
     hwsync_lpcm = (out->flags & AUDIO_OUTPUT_FLAG_HW_AV_SYNC && out->config.rate  <= 48000 &&
                    audio_is_linear_pcm(out->hal_format) && channel_count <= 2);
     adev->active_outputs[out->usecase] = NULL;
+    adev->decode_format = AUDIO_FORMAT_INVALID;
     out_standby_new(&stream->common);
     pthread_mutex_lock(&adev->lock);
     free(stream);
@@ -5745,6 +5743,8 @@ ssize_t hw_write(struct audio_stream_out *stream
     aml_stream_config_t output_config = {0};
     audio_format_t output_format = data_format->format;
     aml_device_config_t device_config;
+    aml_dec_t *aml_dec = aml_out->aml_dec;
+
     adev->debug_flag = aml_audio_get_debug_flag();
     if (adev->debug_flag) {
         ALOGI("+%s() buffer %p bytes %zu, format %d", __func__, buffer, bytes, output_format);
@@ -6238,6 +6238,7 @@ static void config_output(struct audio_stream_out *stream)
             if (status < 0) {
                 return;
             }
+            adev->decode_format = aml_out->hal_internal_format;
             aml_dec = aml_out->aml_dec;
             /*check if the input format is contained with 61937 format*/
             if (aml_out->hal_format == AUDIO_FORMAT_IEC61937) {
@@ -6258,6 +6259,10 @@ static void config_output(struct audio_stream_out *stream)
                 }
             }
             aml_decoder_release(aml_dec);
+            adev->decode_format = AUDIO_FORMAT_PCM_16_BIT;
+            adev->is_truehd_within_mat = false;
+            adev->is_dolby_atmos = false;
+            adev->audio_sample_rate = 0;
             aml_out->aml_dec = NULL;
             ALOGI("dcv_decoder_release_patch release");
         }
@@ -6581,6 +6586,21 @@ ssize_t mixer_main_buffer_write(struct audio_stream_out *stream, const void *buf
 
             if (aml_dec) {
                 ret = aml_decoder_process(aml_dec, (unsigned char *)buffer, bytes, &used_size);
+                /*update information*/
+                adev->is_truehd_within_mat = aml_dec->is_truehd_within_mat;
+                adev->is_dolby_atmos = aml_dec->is_dolby_atmos;
+                adev->audio_sample_rate = aml_dec->dec_info.output_sr;
+                /*decoder return error, reinit here*/
+                if ((ret < 0) && IS_DATMOS_DECODER_SUPPORT(aml_out->hal_internal_format)) {
+                    aml_decoder_release(aml_dec);
+                    aml_dec_config_t dec_config;
+                    if (IS_DATMOS_SUPPORT(aml_out->hal_internal_format)) {
+                        ((aml_datmos_config_t *)&dec_config)->reserved = &adev->datmos_param;
+                    }
+                    int init_status = aml_decoder_init(&aml_out->aml_dec, aml_out->hal_internal_format, (aml_dec_config_t *)&dec_config);
+                    if (init_status < 0)
+                        ALOGE("Reinit decoder error");
+                }
             } else {
                 config_output(stream);
             }
@@ -7193,6 +7213,7 @@ void *audio_patch_input_threadloop(void *data)
             //temp add a parse function here
             if (patch->input_src == AUDIO_DEVICE_IN_HDMI || patch->input_src == AUDIO_DEVICE_IN_SPDIF) {
                 feeddata_audio_type_parse(&patch->audio_parse_para, patch->in_buf, bytes_avail);
+                aml_dev->sink_format = patch->aformat;
             }
 
 
@@ -7223,9 +7244,7 @@ void *audio_patch_input_threadloop(void *data)
                         ALOGE("%s(), no space to input, in read audio discontinue!\n", __func__);
                     }
 
-
                     usleep(3000);
-
                 }
             } while (retry && !patch->input_thread_exit);
         } else {
@@ -7279,20 +7298,6 @@ void *audio_patch_output_threadloop(void *data)
     stream_config.channel_mask = AUDIO_CHANNEL_OUT_STEREO;
     stream_config.format = AUDIO_FORMAT_PCM_16_BIT;
 
-#ifdef DOLBY_MS12_INPUT_FORMAT_TEST
-    char buf[PROPERTY_VALUE_MAX];
-    int prop_ret = -1;
-    int format = 0;
-    prop_ret = property_get("dolby.ms12.input.format", buf, NULL);
-    if (prop_ret > 0) {
-        format = atoi(buf);
-        if (format == 1) {
-            stream_config.format = AUDIO_FORMAT_AC3;
-        } else if (format == 2) {
-            stream_config.format = AUDIO_FORMAT_E_AC3;
-        }
-    }
-#endif
     /*
     may we just exit from a direct active stream playback
     still here.we need remove to standby to new playback
@@ -7440,6 +7445,7 @@ static int create_patch(struct audio_hw_device *dev,
     pthread_attr_t attr;
     struct sched_param param;
     int ret = 0;
+    int ring_buffer_len = 0;
 
     ALOGI("++%s", __func__);
     patch = calloc(1, sizeof(*patch));
@@ -7456,7 +7462,18 @@ static int create_patch(struct audio_hw_device *dev,
     pthread_mutex_init(&patch->mutex, NULL);
     pthread_cond_init(&patch->cond, NULL);
 
-    ret = ring_buffer_init(& (patch->aml_ringbuffer), 16 * period_size * PATCH_PERIOD_COUNT);
+#ifdef DATMOS
+    if (aml_dev->datmos_enable)
+        ring_buffer_len = (aml_dev->capture_ch == 8) ? \
+                    (64 * period_size * PATCH_PERIOD_COUNT) : \
+                    (16 * period_size * PATCH_PERIOD_COUNT);
+    else
+#endif
+        ring_buffer_len = 16 * period_size * PATCH_PERIOD_COUNT;
+
+    ALOGE("ring_buffer_len %#x\n", ring_buffer_len);
+
+    ret = ring_buffer_init(& (patch->aml_ringbuffer), ring_buffer_len);
     if (ret < 0) {
         ALOGE("Fail to init audio ringbuffer!");
         goto err_ring_buf;
@@ -8793,6 +8810,10 @@ static int adev_open(const hw_module_t* module, const char* name,
     ALOGI("%s() adev->dolby_lib_type = %d", __FUNCTION__, adev->dolby_lib_type);
     adev->patch_src = SRC_INVAL;
     adev->audio_type = LPCM;
+    adev->is_truehd_within_mat = false;
+    adev->is_dolby_atmos = false;
+    adev->audio_sample_rate = 0;
+    adev->decode_format = AUDIO_FORMAT_INVALID;
     return 0;
 
 err_spk_tuning_buf:

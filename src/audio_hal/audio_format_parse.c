@@ -625,7 +625,7 @@ void feeddata_audio_type_parse(void **status, char * input, int size)
                     audio_type_status->parsed_size += size;
                     if (audio_type_status->parsed_size <= IEC61937_CHECK_SIZE) {
                          // during IEC header finding£¬we mute it
-                         memset(input, 0, size);
+                         // memset(input, 0, size);
                          audio_type_status->audio_type = MUTE;
                     } else {
                         // we alread checked some bytes, not found IEC header, we will treate it as PCM
@@ -638,11 +638,11 @@ void feeddata_audio_type_parse(void **status, char * input, int size)
 
             } else if (type == PAUSE) {
                 // set all the data as 0, keep the original data type
-                memset(input, 0, size);
+                // memset(input, 0, size);
 
             } else {
                 audio_type_status->state = IEC61937_SYNCING;
-                memset(input, 0, size);
+                // memset(input, 0, size);
                 audio_type_status->audio_type = LPCM;
                 audio_type_status->parsed_size = 0;
             }
@@ -671,7 +671,7 @@ void feeddata_audio_type_parse(void **status, char * input, int size)
 
             }
             // mute all the data during syncing
-            memset(input, 0, size);
+            // memset(input, 0, size);
             break;
         }
         case IEC61937_SYNCED:
@@ -709,45 +709,57 @@ static bool is_datmos_suitable_format(int audio_type)
 }
 
 //suppose the raw_buf has enough space!
-int decode_IEC61937_to_raw_data(char *buffer, size_t bytes, char *raw_buf, size_t *raw_wt, size_t raw_max_bytes, size_t *raw_deficiency, int *raw_size)
+int decode_IEC61937_to_raw_data(char *buffer
+    , size_t bytes
+    , char *raw_buf
+    , size_t *raw_wt
+    , size_t raw_max_bytes
+    , size_t *raw_deficiency
+    , int *raw_size
+    , int *offset
+    , int *got_format)
 {
     int ret = 0;
     audio_channel_mask_t cur_ch_mask;
     audio_format_t cur_aformat;
     int package_size;
-    int offset = 0;
-    int cur_audio_type = 0;
     size_t valid_bytes = 0;
 
-    cur_audio_type = audio_type_parse(buffer, bytes, &package_size, &cur_ch_mask, raw_size, &offset);
+    *got_format = audio_type_parse(buffer, bytes, &package_size, &cur_ch_mask, raw_size, offset);
 
-    if (is_datmos_suitable_format(cur_audio_type)) {
-        ALOGV("curent audio type %s\n", AUDIO_FORMAT_STRING(cur_audio_type));
-        if (bytes - (offset + IEC61937_HEADER_BYTES) >= *raw_size) {
+    if (is_datmos_suitable_format(*got_format)) {
+        ALOGV("curent audio type %s\n", AUDIO_FORMAT_STRING(*got_format));
+        if (bytes - (*offset + IEC61937_HEADER_BYTES) >= *raw_size) {
             valid_bytes = *raw_size;
         }
         else {
-            valid_bytes = bytes - (offset + IEC61937_HEADER_BYTES);
+            valid_bytes = bytes - (*offset + IEC61937_HEADER_BYTES);
         }
 
         if (valid_bytes <= (raw_max_bytes - *raw_wt)) {
             //copy the data to raw buffer
-            memcpy(raw_buf + *raw_wt, buffer + offset + IEC61937_HEADER_BYTES, valid_bytes);
+            // if (*raw_wt > IEC61937_HEADER_BYTES) {
+            //     char *last8bytes = raw_buf + *raw_wt - IEC61937_HEADER_BYTES;
+            //     char *new8bytes = buffer + *offset + IEC61937_HEADER_BYTES;
+            //     printf("L4B %2x %2x %2x %2x N4B %2x %2x %2x %2x wt %#x r 0xeff0 oset %#x Bytes %#x vB %#x\n",
+            //         last8bytes[0], last8bytes[1], last8bytes[2], last8bytes[3], new8bytes[0], new8bytes[1], new8bytes[2], new8bytes[3], *raw_wt, *offset, bytes, valid_bytes);
+            // }
+            memcpy(raw_buf + *raw_wt, buffer + *offset + IEC61937_HEADER_BYTES, valid_bytes);
             //update the write pointer
             *raw_wt += valid_bytes;
             //get the deficiency
             *raw_deficiency = *raw_size - valid_bytes;
             // ALOGE("*raw_size %#x raw_wt %#x\n", *raw_size, *raw_wt);
-            ret = valid_bytes;
+            ret = valid_bytes + (*offset + IEC61937_HEADER_BYTES);
         }
         else {
             ret = -1;
-            ALOGV("raw_size %#x valid bytes %#x valid space %#x\n", *raw_size, valid_bytes, raw_max_bytes - *raw_wt);
+            ALOGE("raw_size %#x valid bytes %#x valid space %#x\n", *raw_size, valid_bytes, raw_max_bytes - *raw_wt);
         }
     }
     else {
         // ALOGE("curent audio type %s\n", AUDIO_FORMAT_STRING(cur_audio_type));
-        ret = -1;
+        ret = bytes;
     }
 
     return ret;

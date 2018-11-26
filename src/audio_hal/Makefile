@@ -26,6 +26,7 @@ CC_OBJS=audio_hw.o \
 	aml_dec_api.o \
 	aml_datmos_api.o \
 	aml_sample_conv.o \
+	aml_mat_parser.o \
 	standard_alsa_manager.o
 
 
