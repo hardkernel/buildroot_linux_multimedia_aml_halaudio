@@ -8248,6 +8248,7 @@ static int adev_close(hw_device_t *device)
     }
     eq_drc_release(&adev->eq_data);
     free(device);
+    aml_log_exit();
     return 0;
 
 }
@@ -8554,6 +8555,8 @@ static int adev_open(const hw_module_t* module, const char* name,
         ret = -ENOMEM;
         goto err;
     }
+
+    aml_log_init();
 
     adev->hw_device.common.tag = HARDWARE_DEVICE_TAG;
     adev->hw_device.common.version = AUDIO_DEVICE_API_VERSION_3_0;
