@@ -11,6 +11,9 @@
 #include <time.h>
 #include <sys/timeb.h>
 
+extern int aml_audio_debug_level;
+
+
 inline const char *get_cur_time_str()
 {
     static char timestring[128] = {0};
@@ -24,7 +27,7 @@ inline const char *get_cur_time_str()
     ftime(&stTimeb);
 
     memset(timestring, 0, sizeof(timestring));
-    sprintf(timestring, "[%d-%02d-%02d %02d:%02d:%02d.%03d] ", (1900 + p->tm_year), ( 1 + p->tm_mon), p->tm_mday,
+    sprintf(timestring, "[%d-%02d-%02d %02d:%02d:%02d.%03d] ", (1900 + p->tm_year), (1 + p->tm_mon), p->tm_mday,
             p->tm_hour, p->tm_min, p->tm_sec, stTimeb.millitm);
 
     return (const char *)&timestring[0];
@@ -51,7 +54,7 @@ inline const char *get_cur_time_str()
 // #define LOG_LEVEL_ERROR(fmt, args...)  printf("%s[E] %s [%s, #%d] " fmt "\n", get_cur_time_str(), LOG_TAG, __func__, __LINE__, ##args)
 // #define LOG_LEVEL_FATAL(fmt, args...)  printf("%s[F] %s [%s, #%d] " fmt "\n", get_cur_time_str(), LOG_TAG, __func__, __LINE__, ##args)
 
-#define PRINT_LEVEL     LEVEL_ERROR
+#define PRINT_LEVEL     aml_audio_debug_level
 
 
 #define LOG(level, fmt, args...)  \
@@ -77,6 +80,11 @@ inline const char *get_cur_time_str()
 #define LOG_ALWAYS_FATAL_IF(cond, ...)
 #define ALOGD_IF(cond, ...)
 #define ALOGI_IF(cond, ...)
+
+
+void aml_log_int();
+
+void aml_log_exit();
 
 #endif
 
