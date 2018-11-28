@@ -150,15 +150,19 @@ typedef enum input_device {
     INPUT_DEVICE_CNT
 } input_device_t;
 
+typedef enum info_type {
+    PCMOUTPUT_CONFIG_INFO,   // refer to aml_stream_config
+
+} info_type_t;
 
 
 typedef struct aml_stream_config {
     unsigned int channels;
     unsigned int rate;
     audio_format_t format;
-	unsigned int framesize; 
-	unsigned int latency; // the value is ms
-	
+    unsigned int framesize;
+    unsigned int latency; // the value is ms
+
 } aml_stream_config_t;
 
 typedef struct hdmi_config {
@@ -170,7 +174,15 @@ typedef struct aml_device_config {
     union {
         hdmi_config_t hdmi_config;
     };
-}aml_device_config_t;
+} aml_device_config_t;
+
+
+typedef union output_info {
+    aml_stream_config_t config_info;
+
+} output_info_t;
+
+
 
 enum sample_bitwidth {
     SAMPLE_8BITS =  8,
@@ -191,7 +203,7 @@ typedef struct aml_data_format {
     int bitwidth; /**the sample bit width, refer to sample_bitwidth*/
     int endian;   /*refer to sample_endian*/
 
-}aml_data_format_t;
+} aml_data_format_t;
 
 
 
@@ -297,8 +309,8 @@ struct aml_audio_patch {
     unsigned char *resample_outbuf;
 
 
-	/** callback info*/
-	aml_audiocb_handle_t * callback_handle;
+    /** callback info*/
+    aml_audiocb_handle_t * callback_handle;
 };
 
 struct audio_stream_out;
@@ -327,7 +339,7 @@ int set_audio_source(int audio_source);
 int enable_HW_resample(int sr, int enable);
 int set_spdifin_pao(int enable);
 int get_hdmiin_samplerate(void);
-
+int get_spdifin_samplerate(void);
 /*
  *@brief clean the tmp_buffer_8ch&audioeffect_tmp_buffer and release audio stream
  */

@@ -95,27 +95,6 @@ int datmos_set_parameters(struct audio_hw_device *dev, struct str_parms *parms)
         goto error_exit;
     }
 
-    ret = str_parms_get_int(parms, "capture_device", &val);
-    if (ret >= 0) {
-        adev->datmos_param.capture_device = val;
-        ALOGI("capture_device set to %d\n", adev->datmos_param.capture_device);
-        return 0;
-    }
-
-    ret = str_parms_get_int(parms, "capture_ch", &val);
-    if (ret >= 0) {
-        adev->datmos_param.capture_ch = val;
-        ALOGI("capture_ch set to %d\n", adev->datmos_param.capture_ch);
-        return 0;
-    }
-
-    ret = str_parms_get_int(parms, "capture_samplerate", &val);
-    if (ret >= 0) {
-        adev->datmos_param.capture_samplerate = val;
-        ALOGI("capture_samplerate set to %d\n", adev->datmos_param.capture_samplerate);
-        return 0;
-    }
-
     ret = str_parms_get_str(parms, "speakers", value, sizeof(value));
     if (ret >= 0) {
         memset(adev->datmos_param.speaker_config, 0, sizeof(adev->datmos_param.speaker_config));

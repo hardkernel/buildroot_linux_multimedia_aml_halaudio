@@ -63,6 +63,7 @@ static struct aml_mixer_list gAmlMixerList[] = {
     {AML_MIXER_ID_EQ_MASTER_VOLUME,     "EQ master volume"},
     /* for enable PAO on SPDIFIN*/
     {AML_MIXER_ID_SPDIFIN_PAO,          "SPDIFIN PAO"},
+    {AML_MIXER_ID_SPDIFIN_SAMPLE_RATE, "SPDIFIN Sample Rate"},
 };
 
 static struct aml_mixer_ctrl gCtlI2sMute[] = {

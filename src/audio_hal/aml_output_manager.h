@@ -56,5 +56,7 @@ int aml_output_write_pcm(struct audio_stream_out *stream, const void *buffer, in
 
 int aml_output_write_raw(struct audio_stream_out *stream, const void *buffer, int bytes);
 
+int aml_output_getinfo(struct audio_stream_out *stream, info_type_t type, output_info_t * info);
+
 
 #endif

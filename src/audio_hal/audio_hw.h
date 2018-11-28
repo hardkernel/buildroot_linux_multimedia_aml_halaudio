@@ -350,7 +350,12 @@ struct aml_audio_device {
     int aml_ng_release_time;
     int system_app_mixing_status;
     int audio_type;
-	int audio_latency;  // currently work on pulse audio
+    int audio_latency;  // currently work on pulse audio
+    int capture_device;
+    int capture_ch;
+    int capture_samplerate;
+
+
 #ifdef DATMOS
     struct aml_datmos_param datmos_param;
     bool datmos_enable;
@@ -583,7 +588,7 @@ ssize_t audio_hal_data_processing(struct audio_stream_out *stream
 ssize_t hw_write(struct audio_stream_out *stream
                  , const void *buffer
                  , size_t bytes
-                 , audio_format_t output_format);
+                 , aml_data_format_t * data_format);
 
 
 #define IS_DATMOS_SUPPORT(format) ((format == AUDIO_FORMAT_AC3) || (format == AUDIO_FORMAT_E_AC3) || (format == AUDIO_FORMAT_DOLBY_TRUEHD))

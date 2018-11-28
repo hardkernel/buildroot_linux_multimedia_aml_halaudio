@@ -191,3 +191,33 @@ int aml_output_write_raw(struct audio_stream_out *stream, const void *buffer, in
 
 
 
+int aml_output_getinfo(struct audio_stream_out *stream, info_type_t type, output_info_t * info){
+    int ret = -1;
+    struct aml_stream_out *aml_stream = (struct aml_stream_out *)stream;
+    struct aml_output_handle *output_handle = NULL;
+
+    if (stream == NULL || info == NULL) {
+        ALOGE("Input parameter is NULL\n");
+        return -1;
+    }
+
+    switch (type) {
+        case PCMOUTPUT_CONFIG_INFO:
+            output_handle = (struct aml_output_handle *)aml_stream->output_handle[PCM_OUTPUT_DEVICE];
+
+            if (output_handle == NULL) {
+                ALOGE("output_handle is NULL\n");
+                return -1;
+            }
+            memcpy(&info->config_info, &output_handle->stream_config,sizeof(aml_stream_config_t));
+            return 0;
+
+        default:
+            return -1;
+    }
+
+
+    return -1;
+}
+
+

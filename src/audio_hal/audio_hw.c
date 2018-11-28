@@ -793,14 +793,12 @@ static int check_input_parameters(uint32_t sample_rate, audio_format_t format, i
             sample_rate == 48000) {
             ALOGD("%s: audio patch input device %x", __FUNCTION__, devices);
             return 0;
-        }
-        else if (format == AUDIO_FORMAT_PCM_16_BIT &&
-            channel_count == 8 &&
-            sample_rate == 48000) {
+        } else if (format == AUDIO_FORMAT_PCM_16_BIT &&
+                   channel_count == 8 &&
+                   sample_rate == 48000) {
             ALOGD("%s: audio patch input device %x(i2s 8ch/16bits)", __FUNCTION__, devices);
             return 0;
-        }
-        else {
+        } else {
             ALOGD("%s: unspported audio patch input device %x", __FUNCTION__, devices);
             return -EINVAL;
         }
@@ -2554,7 +2552,7 @@ static int insert_output_bytes(struct aml_stream_out *out, size_t size)
             data_format.ch     = 2;
             data_format.bitwidth = SAMPLE_16BITS;
             if (audio_hal_data_processing(stream, insert_buf, once_write_size, &output_buffer, &output_buffer_bytes, &data_format) == 0) {
-                hw_write(stream, output_buffer, output_buffer_bytes, output_format);
+                hw_write(stream, output_buffer, output_buffer_bytes, &data_format);
             }
         }
         insert_size -= once_write_size;
@@ -3629,7 +3627,7 @@ static ssize_t in_read(struct audio_stream_in *stream, void* buffer,
     if (adev->mic_mute || in_mute || parental_mute
         || in->spdif_fmt_hw == SPDIFIN_AUDIO_TYPE_PAUSE) {
         ALOGI("mic_mute %d in_mute %d parental_mute %d in->spdif_fmt_hw %d",
-            adev->mic_mute, in_mute, parental_mute, in->spdif_fmt_hw);
+              adev->mic_mute, in_mute, parental_mute, in->spdif_fmt_hw);
         memset(buffer, 0, bytes);
     } else if (!adev->audio_patching) {
         /* case dev->mix, set audio gain to src */
@@ -3667,16 +3665,18 @@ exit:
         size_t frame_size = audio_stream_in_frame_size(stream);
         if (frame_size == 0) {
             if (adev->in_device & AUDIO_DEVICE_IN_HDMI) {
-                if (adev->datmos_enable)
-                    frame_size = adev->datmos_param.capture_ch * 2;
-            }
-            else
+                if (adev->datmos_enable) {
+                    frame_size = adev->capture_ch * 2;
+                }
+            } else {
                 frame_size = 4;
+            }
         }
         frame_size = (frame_size == 0) ? frame_size : 4;
 
         usleep(bytes * 1000000 / frame_size / in_get_sample_rate(&stream->common));
         ALOGI("audio in read err!!!");
+        bytes = -1;
     }
     pthread_mutex_unlock(&in->lock);
     return bytes;
@@ -3978,6 +3978,7 @@ static void adev_close_output_stream(struct audio_hw_device *dev,
         free(out->tmp_buffer_8ch);
         free(out->audioeffect_tmp_buffer);
         aml_sampleconv_close(out->sample_convert);
+        out->sample_convert = NULL;
     }
     int channel_count = popcount(out->hal_channel_mask);
     hwsync_lpcm = (out->flags & AUDIO_OUTPUT_FLAG_HW_AV_SYNC && out->config.rate  <= 48000 &&
@@ -4761,6 +4762,30 @@ static int adev_set_parameters(struct audio_hw_device *dev, const char *kvpairs)
         goto exit;
     }
 
+    ret = str_parms_get_int(parms, "capture_device", &val);
+    if (ret >= 0) {
+        adev->capture_device = val;
+        ALOGI("capture_device set to %d\n", adev->capture_device);
+        return 0;
+    }
+
+    ret = str_parms_get_int(parms, "capture_ch", &val);
+    if (ret >= 0) {
+        adev->capture_ch = val;
+        ALOGI("capture_ch set to %d\n", adev->capture_ch);
+        return 0;
+    }
+
+    ret = str_parms_get_int(parms, "capture_samplerate", &val);
+    if (ret >= 0) {
+        adev->capture_samplerate = val;
+        ALOGI("capture_samplerate set to %d\n", adev->capture_samplerate);
+        return 0;
+    }
+
+
+
+
 #ifdef DATMOS
     ret = datmos_set_parameters(adev, parms);
     if (ret >= 0) {
@@ -4880,8 +4905,9 @@ static char * adev_get_parameters(const struct audio_hw_device *dev,
 #ifdef DATMOS
     int ret = datmos_get_parameters(adev, keys, temp_buf, sizeof(temp_buf));
 
-    if (ret == 0)
+    if (ret == 0) {
         return  strdup(temp_buf);
+    }
 #endif
 
     return strdup("");
@@ -5058,8 +5084,7 @@ static int adev_open_input_stream(struct audio_hw_device *dev,
     } else if (config->channel_mask == AUDIO_CHANNEL_OUT_7POINT1) {
         ALOGI("config use 8ch/16bits", in->config.channels);
         memcpy(&in->config, &i2s_multi_config_in, sizeof(i2s_multi_config_in));
-    }
-    else {
+    } else {
         ALOGI("config use 2ch/16bits", in->config.channels);
         memcpy(&in->config, &pcm_config_in, sizeof(pcm_config_in));
     }
@@ -5607,10 +5632,36 @@ ssize_t audio_hal_data_processing(struct audio_stream_out *stream
         apply_volume(gain_speaker, hp_tmp_buf, sizeof(uint16_t), bytes);
         //apply_volume(gain_spdif_arc, tmp_buffer, sizeof(uint16_t), bytes);
 
+
+
+        need_bytes = out_frames * (SAMPLE_32BITS >> 3) * out_channel;
+
+        /* we should do 32 bit out, we may need increase the buffer size. */
+        if (aml_out->tmp_buffer_8ch_size < need_bytes) {
+            ALOGI("realloc tmp_buffer_8ch size from %zu to %zu\n", aml_out->tmp_buffer_8ch_size, need_bytes);
+            aml_out->tmp_buffer_8ch = realloc(aml_out->tmp_buffer_8ch, need_bytes);
+            if (aml_out->tmp_buffer_8ch == NULL) {
+                ALOGE("realloc tmp_buffer_8ch buf failed size %zu\n", need_bytes);
+                return -ENOMEM;
+            }
+            aml_out->tmp_buffer_8ch_size = need_bytes;
+        }
         /*we don't need convert the data*/
         if (data_format->bitwidth == dst_format.bitwidth &&
             out_channel == in_ch) {
-            *output_buffer = tmp_buffer;
+            int32_t * src_data = (int32_t *)tmp_buffer;
+            for (i = 0; i < out_frames; i++) {
+                aml_out->tmp_buffer_8ch[out_channel * i ]     = src_data[in_ch * i];
+                aml_out->tmp_buffer_8ch[out_channel * i + 1]  = src_data[in_ch * i + 1];
+                aml_out->tmp_buffer_8ch[out_channel * i + 2]  = src_data[in_ch * i + 4];
+                aml_out->tmp_buffer_8ch[out_channel * i + 3]  = src_data[in_ch * i + 5];
+                aml_out->tmp_buffer_8ch[out_channel * i + 4]  = src_data[in_ch * i + 6];
+                aml_out->tmp_buffer_8ch[out_channel * i + 5]  = src_data[in_ch * i + 7];
+                aml_out->tmp_buffer_8ch[out_channel * i + 6]  = src_data[in_ch * i + 2];
+                aml_out->tmp_buffer_8ch[out_channel * i + 7]  = src_data[in_ch * i + 3];
+
+            }
+            *output_buffer = aml_out->tmp_buffer_8ch;
             *output_buffer_bytes = bytes;
             return 0;
         }
@@ -5650,6 +5701,7 @@ ssize_t audio_hal_data_processing(struct audio_stream_out *stream
 
             }
         }
+        data_format->ch = out_channel;
         *output_buffer = aml_out->tmp_buffer_8ch;
         *output_buffer_bytes = need_bytes;
     }
@@ -5660,7 +5712,7 @@ ssize_t audio_hal_data_processing(struct audio_stream_out *stream
 ssize_t hw_write(struct audio_stream_out *stream
                  , const void *buffer
                  , size_t bytes
-                 , audio_format_t output_format)
+                 , aml_data_format_t * data_format)
 {
     //ALOGV("+%s() buffer %p bytes %zu", __func__, buffer, bytes);
     struct aml_stream_out *aml_out = (struct aml_stream_out *) stream;
@@ -5674,13 +5726,32 @@ ssize_t hw_write(struct audio_stream_out *stream
     uint64_t total_frame = 0;
     uint64_t write_frames = 0;
     int  adjust_ms = 0;
+    aml_stream_config_t output_config = {0};
+    audio_format_t output_format = data_format->format;
     aml_device_config_t device_config;
     adev->debug_flag = aml_audio_get_debug_flag();
     if (adev->debug_flag) {
         ALOGI("+%s() buffer %p bytes %zu, format %d", __func__, buffer, bytes, output_format);
     }
+
     pthread_mutex_lock(&adev->trans_lock);
     pthread_mutex_lock(&adev->alsa_pcm_lock);
+
+    if (aml_out->status == STREAM_HW_WRITING) {
+
+        ret = aml_output_getinfo(aml_out, PCMOUTPUT_CONFIG_INFO, (output_info_t *)&output_config);
+        if (ret == 0) {
+            if (data_format->sr != output_config.rate ||
+                data_format->ch != output_config.channels) {
+                ALOGD("Output format changed from rate=%d ch=%d to rate=%d ch=%d\n",
+                      output_config.rate, output_config.channels, data_format->ch, data_format->sr);
+                aml_output_close(aml_out);
+                aml_out->status = STREAM_STANDBY;
+            }
+        }
+
+    }
+
     if (aml_out->status != STREAM_HW_WRITING) {
         ALOGI("%s, aml_out %p alsa open output_format %#x\n", __func__, aml_out, output_format);
         if (eDolbyDcvLib == adev->dolby_lib_type) {
@@ -5691,20 +5762,20 @@ ssize_t hw_write(struct audio_stream_out *stream
             aml_tinymix_set_spdif_format(output_format);
         }
         // hank currently  set it, we need get it somewhere
-        aml_stream_config_t output_config = {0};
+
         ALOGD("Output format=%d\n", output_format);
         if (!is_digital_raw_format(output_format)) {
-            output_config.channels = aml_out->config.channels;
-            output_config.rate = aml_out->config.rate;
-            output_config.format = AUDIO_FORMAT_PCM_32_BIT; // change this later
-            output_config.latency = adev->audio_latency;
-            device_config.device = AUDIO_DEVICE_OUT_SPEAKER;
+            output_config.channels = data_format->ch;
+            output_config.rate     = data_format->sr;
+            output_config.format   = AUDIO_FORMAT_PCM_32_BIT; // change this later
+            output_config.latency  = adev->audio_latency;
+            device_config.device   = AUDIO_DEVICE_OUT_SPEAKER;
             ret = aml_output_open(stream, &output_config, &device_config);
         } else if (is_digital_raw_format(output_format)) {
             output_config.channels = 2;
-            output_config.rate    = MM_FULL_POWER_SAMPLING_RATE;
+            output_config.rate     = MM_FULL_POWER_SAMPLING_RATE;
             output_config.format   = output_format; //
-            device_config.device = AUDIO_DEVICE_OUT_SPDIF;
+            device_config.device   = AUDIO_DEVICE_OUT_SPDIF;
             ret = aml_output_open(stream, &output_config, &device_config);
         }
 
@@ -6143,7 +6214,7 @@ static void config_output(struct audio_stream_out *stream)
 
     if (adev->bypass_enable != 1) {
         if (aml_dec == NULL) {
-            ALOGD("decoder init format=0x%x\n",aml_out->hal_internal_format);
+            ALOGD("decoder init format=0x%x\n", aml_out->hal_internal_format);
             if (IS_DATMOS_SUPPORT(aml_out->hal_internal_format)) {
                 ((aml_datmos_config_t *)&dec_config)->reserved = &adev->datmos_param;
             }
@@ -6220,19 +6291,15 @@ ssize_t mixer_main_buffer_write(struct audio_stream_out *stream, const void *buf
         ALOGE("%s() invalid buffer %p\n", __FUNCTION__, buffer);
         return -1;
     }
-#ifdef ENABLE_MS12
-    // why clean up, ms12 thead will handle all?? zz
-    if (eDolbyMS12Lib == adev->dolby_lib_type) {
-        if (patch && continous_mode(adev)) {
-            if (adev->ms12.dolby_ms12_enable) {
-                pthread_mutex_lock(&adev->lock);
-                get_dolby_ms12_cleanup(&adev->ms12);
-                pthread_mutex_unlock(&adev->lock);
-            }
-            return return_bytes;
-        }
-    }
-#endif
+
+    /*set some default value*/
+    data_format.format = AUDIO_FORMAT_PCM_SUB_16_BIT;
+    data_format.sr     = 48000;
+    data_format.ch     = 2;
+    data_format.bitwidth = SAMPLE_16BITS;
+
+
+
     case_cnt = popcount(adev->usecase_masks);
     if (adev->mix_init_flag == false) {
         ALOGI("%s mix init, mask %#x", __func__, adev->usecase_masks);
@@ -6429,6 +6496,7 @@ ssize_t mixer_main_buffer_write(struct audio_stream_out *stream, const void *buf
                 aml_out->hal_format = AUDIO_FORMAT_PCM_16_BIT;
                 aml_out->hal_internal_format = AUDIO_FORMAT_PCM_16_BIT;
                 memset((void *)buffer, 0, bytes);
+                return 0;
             }
 
         }
@@ -6478,11 +6546,8 @@ ssize_t mixer_main_buffer_write(struct audio_stream_out *stream, const void *buf
         (adev->continuous_audio_mode == false) && \
         (adev->sink_format == AUDIO_FORMAT_E_AC3)) {
         data_format.format = output_format;
-        data_format.sr     = 48000;
-        data_format.ch     = 2;
-        data_format.bitwidth = SAMPLE_16BITS;
         if (audio_hal_data_processing(stream, buffer, bytes, &output_buffer, &output_buffer_bytes, &data_format) == 0) {
-            hw_write(stream, output_buffer, output_buffer_bytes, output_format);
+            hw_write(stream, output_buffer, output_buffer_bytes, &data_format);
         }
     } else {
 
@@ -6491,11 +6556,8 @@ ssize_t mixer_main_buffer_write(struct audio_stream_out *stream, const void *buf
                 if (aml_out->hal_format == AUDIO_FORMAT_IEC61937) {
                     output_format = aml_out->hal_internal_format;
                     data_format.format = output_format;
-                    data_format.sr     = 48000;
-                    data_format.ch     = 2;
-                    data_format.bitwidth = SAMPLE_16BITS;
                     if (audio_hal_data_processing(stream, (void *)buffer, bytes, &output_buffer, &output_buffer_bytes, &data_format) == 0) {
-                        hw_write(stream, output_buffer, output_buffer_bytes, output_format);
+                        hw_write(stream, output_buffer, output_buffer_bytes, &data_format);
                     }
                     return return_bytes;
                 }
@@ -6525,7 +6587,7 @@ ssize_t mixer_main_buffer_write(struct audio_stream_out *stream, const void *buf
             data_format.ch     = aml_dec->dec_info.output_ch;
             data_format.bitwidth = aml_dec->dec_info.output_bitwidth;
             if (audio_hal_data_processing(stream, tmp_buffer, aml_dec->outlen_pcm, &output_buffer, &output_buffer_bytes, &data_format) == 0) {
-                hw_write(stream, output_buffer, output_buffer_bytes, output_format);
+                hw_write(stream, output_buffer, output_buffer_bytes, &data_format);
                 aml_out->frame_write_sum = aml_out->input_bytes_size  / audio_stream_out_frame_size(stream) ;
                 aml_out->last_frames_postion = aml_out->frame_write_sum;
             }
@@ -6534,27 +6596,32 @@ ssize_t mixer_main_buffer_write(struct audio_stream_out *stream, const void *buf
         }
 
         /** PCM input case*/
+
+        if (adev->audio_patch) {
+            if (patch->input_src == AUDIO_DEVICE_IN_HDMI || patch->input_src == AUDIO_DEVICE_IN_SPDIF) {
+                /* we need some input info*/
+                data_format.sr = patch->sample_rate;
+                data_format.ch = audio_channel_count_from_out_mask(patch->chanmask);
+
+            }
+        }
+
+
         void *tmp_buffer = (void *) write_buf;
         if (aml_out->hw_sync_mode) {
             ALOGV("mixing hw_sync mode");
             aml_hw_mixer_mixing(&adev->hw_mixer, tmp_buffer, hw_sync->hw_sync_frame_size);
             data_format.format = output_format;
-            data_format.sr     = 48000;
-            data_format.ch     = 2;
-            data_format.bitwidth = SAMPLE_16BITS;
             if (audio_hal_data_processing(stream, tmp_buffer, hw_sync->hw_sync_frame_size, &output_buffer, &output_buffer_bytes, &data_format) == 0) {
-                hw_write(stream, output_buffer, output_buffer_bytes, output_format);
+                hw_write(stream, output_buffer, output_buffer_bytes, &data_format);
             }
         } else {
             //ALOGV("mixing non-hw_sync mode");
             aml_hw_mixer_mixing(&adev->hw_mixer, tmp_buffer, write_bytes);
             //hw_write(stream, tmp_buffer, write_bytes, output_format);
             data_format.format = output_format;
-            data_format.sr     = 48000;
-            data_format.ch     = 2;
-            data_format.bitwidth = SAMPLE_16BITS;
             if (audio_hal_data_processing(stream, tmp_buffer, write_bytes, &output_buffer, &output_buffer_bytes, &data_format) == 0) {
-                hw_write(stream, output_buffer, output_buffer_bytes, output_format);
+                hw_write(stream, output_buffer, output_buffer_bytes, &data_format);
             }
         }
 
@@ -6721,7 +6788,7 @@ ssize_t process_buffer_write(struct audio_stream_out *stream, const void *buffer
     data_format.ch     = 2;
     data_format.bitwidth = SAMPLE_16BITS;
     if (audio_hal_data_processing(stream, buffer, bytes, &output_buffer, &output_buffer_bytes, &data_format) == 0) {
-        hw_write(stream, output_buffer, output_buffer_bytes, aml_out->hal_internal_format);
+        hw_write(stream, output_buffer, output_buffer_bytes, &data_format);
     }
     if (bytes > 0) {
         aml_out->input_bytes_size += bytes;
@@ -6977,6 +7044,7 @@ void *audio_patch_input_threadloop(void *data)
     struct aml_audio_device *aml_dev = (struct aml_audio_device *) dev;
     ring_buffer_t *ringbuffer = & (patch->aml_ringbuffer);
     struct audio_stream_in *stream_in = NULL;
+    struct aml_stream_in *aml_in = NULL;
     struct audio_config stream_config;
     // FIXME: add calc for read_bytes;
     int read_bytes = DEFAULT_CAPTURE_PERIOD_SIZE * CAPTURE_PERIOD_COUNT;
@@ -6994,20 +7062,18 @@ void *audio_patch_input_threadloop(void *data)
     when HDMIRX is stable, we need to set input/output para for MS12
     input and endpoint ouput.
     */
-    if (1/*patch->input_src != AUDIO_DEVICE_IN_HDMI*/) {
-        patch->sample_rate = stream_config.sample_rate = 48000;
-        patch->chanmask = stream_config.channel_mask = AUDIO_CHANNEL_IN_STEREO;
-        patch->aformat = stream_config.format = AUDIO_FORMAT_PCM_16_BIT;
-    } else {
-        //TODO we need parse hdmi/spdif input paramater here.
-    }
+
+    patch->sample_rate = stream_config.sample_rate = 48000;
+    patch->chanmask = stream_config.channel_mask = AUDIO_CHANNEL_IN_STEREO;
+    patch->aformat = stream_config.format = AUDIO_FORMAT_PCM_16_BIT;
+
 
 #ifdef DATMOS
     if (aml_dev->datmos_enable) {
         patch->chanmask = stream_config.channel_mask
-            = audio_channel_out_mask_from_count(aml_dev->datmos_param.capture_ch);
+                          = audio_channel_out_mask_from_count(aml_dev->capture_ch);
         ALOGE("channel_mask %#x, capture_ch %d",
-            stream_config.channel_mask, aml_dev->datmos_param.capture_ch);
+              stream_config.channel_mask, aml_dev->capture_ch);
     }
 #endif
 
@@ -7024,7 +7090,7 @@ void *audio_patch_input_threadloop(void *data)
         ALOGE("open input steam fail, ret = %d", ret);
         goto exit_open;
     }
-
+    aml_in = (struct aml_stream_in *)stream_in;
     patch->in_buf_size = read_bytes * EAC3_MULTIPLIER * 4;
     patch->in_buf = calloc(1, patch->in_buf_size);
     if (!patch->in_buf) {
@@ -7042,17 +7108,41 @@ void *audio_patch_input_threadloop(void *data)
         int period_mul = 1;
         int read_threshold = 0;
 
-        switch (patch->aformat) {
-        case AUDIO_FORMAT_E_AC3:
-            period_mul = EAC3_MULTIPLIER;
-            break;
-        case AUDIO_FORMAT_DTS_HD:
-            // 192Khz
-            period_mul = 4 * 4;
-            break;
-        default:
+        if (patch->input_src == AUDIO_DEVICE_IN_HDMI) {
+            /*get HDMI info*/
+            /*these info is used for open alsa device*/
+            aml_in->config.channels = aml_dev->capture_ch;
+            if (aml_in->config.channels == 8) {
+                period_mul = 4;
+            } else {
+                period_mul = 1;
+            }
+            /*this info is used for output*/
+            patch->sample_rate = aml_dev->capture_samplerate;
+            patch->chanmask    = audio_channel_out_mask_from_count(aml_dev->capture_ch);
+
+        } else if (patch->input_src == AUDIO_DEVICE_IN_SPDIF) {
+            /*get spdif info*/
+            aml_in->config.channels = 2;
+            period_mul = 1;
+
+            /*this info is used for output*/
+            patch->sample_rate = 48000;//get_spdifin_samplerate() ; // we will get it from alsa
+            patch->chanmask    = audio_channel_out_mask_from_count(2);
+            //ALOGD("Spdif in samplerate=%d\n",get_spdifin_samplerate());
+
+        } else if (patch->input_src == AUDIO_DEVICE_IN_LINE) {
+            /*Line in use default setting*/
+            aml_in->config.channels = 2;
+            period_mul = 1;
+
+            /*this info is used for output*/
+            patch->sample_rate = 48000 ; // we will get it from alsa
+            patch->chanmask    = audio_channel_out_mask_from_count(2);
+        } else {
             period_mul = 1;
         }
+
 
 #ifdef DATMOS
         /*hdmi in choose i2s device with 8ch/16bits config*/
@@ -7065,45 +7155,6 @@ void *audio_patch_input_threadloop(void *data)
             read_threshold = 4 * read_bytes * period_mul;
         }
 
-        if (patch) {
-            if (patch->input_src == AUDIO_DEVICE_IN_HDMI) {
-#if 0
-                cur_aformat = audio_parse_get_audio_type(patch->audio_parse_para);
-                cur_samplerate = get_hdmiin_samplerate();
-
-                if (cur_samplerate != -1 && cur_samplerate != 0) {
-                    int period_size = 0;
-                    bool bSpdifin_PAO = false;
-                    int buf_size = 0;;
-                    // HDMI in samplerate is stable
-                    if (last_samplerate != cur_samplerate) {
-                        ALOGD("HDMI Format Switch from 0x%x to 0x%x rate=%d\n", last_aformat, cur_aformat, cur_samplerate);
-                        if (cur_samplerate != 7 /*192000*/) {
-                            bSpdifin_PAO = false;
-                            period_size = DEFAULT_CAPTURE_PERIOD_SIZE;
-                            // reset to original one
-                            buf_size = ring_buffer_size;
-
-
-                        } else if (cur_samplerate == 7 /*192000*/) {
-                            // if it is high bitrate bitstream, use PAO and increase the buffer size
-                            bSpdifin_PAO = true;
-                            period_size = DEFAULT_CAPTURE_PERIOD_SIZE * 4;
-                            // increase the buffer size
-                            buf_size = ring_buffer_size * 4;
-                        }
-                        ring_buffer_reset_size(ringbuffer, buf_size);
-                        set_spdifin_pao(bSpdifin_PAO);
-                        in_reset_preroid_size(stream_in, period_size);
-
-                    }
-                    last_aformat = cur_aformat;
-                    last_samplerate = cur_samplerate;
-                }
-#endif
-
-            }
-        }
 #if 0
         struct timespec before_read;
         struct timespec after_read;
@@ -7283,8 +7334,9 @@ void *audio_patch_output_threadloop(void *data)
             period_mul = 1;
         }
 #ifdef DATMOS
-        if ((aml_dev->datmos_enable) && (aml_dev->datmos_param.capture_ch == 8))
+        if ((aml_dev->datmos_enable) && (aml_dev->capture_ch == 8)) {
             period_mul = TRUEHD_MULTIPLIER;
+        }
 #endif
         pthread_mutex_lock(&patch->mutex);
         //ALOGV("%s(), ringbuffer level read before wait--%d \n",
@@ -8232,8 +8284,9 @@ static int adev_close(hw_device_t *device)
 {
     struct aml_audio_device *adev = (struct aml_audio_device *) device;
 #ifdef DATMOS
-    if (adev->datmos_enable)
+    if (adev->datmos_enable) {
         cleanup_atmos_func(&(adev->datmos_param));
+    }
 #endif
 
     if (adev->effect_buf) {

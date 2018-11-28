@@ -30,6 +30,20 @@
 /*
  *@brief get sink capability
  */
+
+static const char * const spdifin_sample_rate_text[] = {
+    "N/A",
+    "32000",
+    "44100",
+    "48000",
+    "88200",
+    "96000",
+    "176400",
+    "192000"
+
+};
+
+
 static audio_format_t get_sink_capability(struct aml_audio_device *adev)
 {
     struct aml_arc_hdmi_desc *hdmi_desc = &adev->hdmi_descs;
@@ -82,7 +96,7 @@ void get_sink_format(struct audio_stream_out *stream)
 #ifdef DATMOS
         && (source_format != AUDIO_FORMAT_DOLBY_TRUEHD)
 #endif
-        ) {
+       ) {
         /*unsupport format [dts-hd/true-hd]*/
         ALOGI("%s() source format %#x change to %#x", __FUNCTION__, source_format, AUDIO_FORMAT_PCM_16_BIT);
         source_format = AUDIO_FORMAT_PCM_16_BIT;
@@ -284,6 +298,19 @@ int get_hdmiin_samplerate(void)
 
     return aml_mixer_ctrl_get_int(AML_MIXER_ID_HDMI_IN_SAMPLERATE);
 }
+
+int get_spdifin_samplerate(void)
+{
+    int index = 0;
+
+    index = aml_mixer_ctrl_get_int(AML_MIXER_ID_SPDIFIN_SAMPLE_RATE);
+    if (index <= 0 || index > 6) {
+        return 48000;
+    }
+
+    return atoi(spdifin_sample_rate_text[index]);
+}
+
 
 
 int enable_HW_resample(int sr, int enable)

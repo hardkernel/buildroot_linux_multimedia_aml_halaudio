@@ -28,9 +28,6 @@
 
 
 struct aml_datmos_param {
-    size_t capture_ch;
-    size_t capture_device;
-    size_t capture_samplerate;
     bool is_dolby_atmos;
     void *fd;
     int (*get_audio_info)(void *, int *, int *);
