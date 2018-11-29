@@ -25,7 +25,8 @@ CC_OBJS=audio_hw.o \
 	aml_callback_api.o \
 	aml_dec_api.o \
 	aml_datmos_api.o \
-	aml_sample_conv.o
+	aml_sample_conv.o \
+	standard_alsa_manager.o
 
 
 
@@ -58,6 +59,9 @@ ifeq ($(ENABLE_AUDIOSERVICE),yes)
 CFLAGS  += -DUSE_AUDIOSERVICE
 endif
 
+ifeq ($(ENABLE_ALSA_PLUGINS),yes)
+CFLAGS  += -DUSE_ALSA_PLUGINS
+endif
 
 TOPDIR=$(shell pwd)
 SRC?=$(TOPDIR)

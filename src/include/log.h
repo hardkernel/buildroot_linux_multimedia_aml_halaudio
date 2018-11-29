@@ -82,7 +82,7 @@ inline const char *get_cur_time_str()
 #define ALOGI_IF(cond, ...)
 
 
-void aml_log_int();
+void aml_log_init();
 
 void aml_log_exit();
 

@@ -29,6 +29,9 @@
 #include "pulse_manager.h"
 #endif
 
+#include "standard_alsa_manager.h"
+
+
 static struct aml_output_function aml_output_function = {
     .output_open = NULL,
     .output_close = NULL,
@@ -40,14 +43,19 @@ void aml_output_init(void)
 
     ALOGD("Init the output module\n");
 #ifndef USE_PULSE_AUDIO
+#ifdef USE_ALSA_PLUGINS
+    aml_output_function.output_open  = standard_alsa_output_open;
+    aml_output_function.output_close = standard_alsa_output_close;
+    aml_output_function.output_write = standard_alsa_output_write;
+#else
     aml_output_function.output_open  = aml_alsa_output_open;
     aml_output_function.output_close = aml_alsa_output_close;
     aml_output_function.output_write = aml_alsa_output_write;
+#endif
 #else
     aml_output_function.output_open  = aml_pa_output_open;
     aml_output_function.output_close = aml_pa_output_close;
     aml_output_function.output_write = aml_pa_output_write;
-
 #endif
     return;
 }
@@ -191,7 +199,8 @@ int aml_output_write_raw(struct audio_stream_out *stream, const void *buffer, in
 
 
 
-int aml_output_getinfo(struct audio_stream_out *stream, info_type_t type, output_info_t * info){
+int aml_output_getinfo(struct audio_stream_out *stream, info_type_t type, output_info_t * info)
+{
     int ret = -1;
     struct aml_stream_out *aml_stream = (struct aml_stream_out *)stream;
     struct aml_output_handle *output_handle = NULL;
@@ -202,18 +211,18 @@ int aml_output_getinfo(struct audio_stream_out *stream, info_type_t type, output
     }
 
     switch (type) {
-        case PCMOUTPUT_CONFIG_INFO:
-            output_handle = (struct aml_output_handle *)aml_stream->output_handle[PCM_OUTPUT_DEVICE];
+    case PCMOUTPUT_CONFIG_INFO:
+        output_handle = (struct aml_output_handle *)aml_stream->output_handle[PCM_OUTPUT_DEVICE];
 
-            if (output_handle == NULL) {
-                ALOGE("output_handle is NULL\n");
-                return -1;
-            }
-            memcpy(&info->config_info, &output_handle->stream_config,sizeof(aml_stream_config_t));
-            return 0;
-
-        default:
+        if (output_handle == NULL) {
+            ALOGE("output_handle is NULL\n");
             return -1;
+        }
+        memcpy(&info->config_info, &output_handle->stream_config, sizeof(aml_stream_config_t));
+        return 0;
+
+    default:
+        return -1;
     }
 
 

@@ -109,8 +109,10 @@ int aml_sampleconv_process(aml_sample_conv_t * handle, aml_data_format_t *src, v
             ALOGE("realloc convert_buffer buf failed size %zu\n", need_bytes);
             return -1;
         }
-        handle->convert_buffer_size = need_bytes;
+
     }
+
+    handle->convert_buffer_size = need_bytes;
 
     for (i = 0; i < sizeof(aml_conv_table) / sizeof(aml_conv_handle_t); i ++) {
         conv_item = &aml_conv_table[i];

@@ -121,7 +121,7 @@ static inline stream_usecase_t convert_usecase_mask_to_stream_usecase(usecase_ma
             break;
         }
     }
-    ALOGI("%s mask %#x i %d", __func__, mask, i);
+    //ALOGI("%s mask %#x i %d", __func__, mask, i);
     if (i >= STREAM_USECASE_MAX) {
         return STREAM_USECASE_INVAL;
     } else {
@@ -241,6 +241,32 @@ static inline alsa_device_t usecase_device_adapter_with_ms12(alsa_device_t useca
     }
 }
 //#endif
+
+static inline audio_format_t BitToFormat(int bitwidth)
+{
+    audio_format_t format;
+    switch (bitwidth) {
+    case SAMPLE_8BITS:
+        format = AUDIO_FORMAT_PCM_8_BIT;
+        break;
+    case SAMPLE_16BITS:
+        format = AUDIO_FORMAT_PCM_16_BIT;
+        break;
+    case SAMPLE_24BITS:
+        /*24 bit store in 32 bits*/
+        format = AUDIO_FORMAT_PCM_32_BIT;
+        break;
+    case SAMPLE_32BITS:
+        format = AUDIO_FORMAT_PCM_32_BIT;
+        break;
+    default:
+        format =  AUDIO_FORMAT_PCM_16_BIT;
+
+    }
+    return format;
+}
+
+
 
 struct aml_audio_patch {
     struct audio_hw_device *dev;

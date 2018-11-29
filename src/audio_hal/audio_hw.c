@@ -5632,6 +5632,15 @@ ssize_t audio_hal_data_processing(struct audio_stream_out *stream
         apply_volume(gain_speaker, hp_tmp_buf, sizeof(uint16_t), bytes);
         //apply_volume(gain_spdif_arc, tmp_buffer, sizeof(uint16_t), bytes);
 
+#ifdef USE_ALSA_PLUGINS
+        // if ALSA plugins is enabled, we can bypass the data to alsa
+        *output_buffer = (void*) buffer;
+        *output_buffer_bytes = bytes;
+        return 0;
+
+#endif
+
+
 
 
         need_bytes = out_frames * (SAMPLE_32BITS >> 3) * out_channel;
@@ -5672,6 +5681,7 @@ ssize_t audio_hal_data_processing(struct audio_stream_out *stream
             aml_sampleconv_process(aml_out->sample_convert, data_format, tmp_buffer, &dst_format, nsamples);
             convert_buf = aml_out->sample_convert->convert_buffer;
             convert_size = aml_out->sample_convert->convert_buffer_size;
+            data_format->bitwidth = dst_format.bitwidth;
 
         } else {
             convert_buf = (unsigned char *)tmp_buffer;
@@ -5700,10 +5710,16 @@ ssize_t audio_hal_data_processing(struct audio_stream_out *stream
                 }
 
             }
+            data_format->ch = out_channel;
+            *output_buffer = aml_out->tmp_buffer_8ch;
+            *output_buffer_bytes = need_bytes;
+        } else {
+            data_format->ch = in_ch;
+            *output_buffer = convert_buf;
+            *output_buffer_bytes = convert_size;
+
         }
-        data_format->ch = out_channel;
-        *output_buffer = aml_out->tmp_buffer_8ch;
-        *output_buffer_bytes = need_bytes;
+
     }
 
     return 0;
@@ -5739,13 +5755,13 @@ ssize_t hw_write(struct audio_stream_out *stream
 
     if (aml_out->status == STREAM_HW_WRITING) {
 
-        ret = aml_output_getinfo(aml_out, PCMOUTPUT_CONFIG_INFO, (output_info_t *)&output_config);
+        ret = aml_output_getinfo(stream, PCMOUTPUT_CONFIG_INFO, (output_info_t *)&output_config);
         if (ret == 0) {
             if (data_format->sr != output_config.rate ||
                 data_format->ch != output_config.channels) {
                 ALOGD("Output format changed from rate=%d ch=%d to rate=%d ch=%d\n",
                       output_config.rate, output_config.channels, data_format->ch, data_format->sr);
-                aml_output_close(aml_out);
+                aml_output_close(stream);
                 aml_out->status = STREAM_STANDBY;
             }
         }
@@ -5767,7 +5783,7 @@ ssize_t hw_write(struct audio_stream_out *stream
         if (!is_digital_raw_format(output_format)) {
             output_config.channels = data_format->ch;
             output_config.rate     = data_format->sr;
-            output_config.format   = AUDIO_FORMAT_PCM_32_BIT; // change this later
+            output_config.format   = BitToFormat(data_format->bitwidth);
             output_config.latency  = adev->audio_latency;
             device_config.device   = AUDIO_DEVICE_OUT_SPEAKER;
             ret = aml_output_open(stream, &output_config, &device_config);
@@ -6602,6 +6618,7 @@ ssize_t mixer_main_buffer_write(struct audio_stream_out *stream, const void *buf
                 /* we need some input info*/
                 data_format.sr = patch->sample_rate;
                 data_format.ch = audio_channel_count_from_out_mask(patch->chanmask);
+                //ALOGD("patch->sample_rate=%d\n",patch->sample_rate);
 
             }
         }
@@ -7112,6 +7129,7 @@ void *audio_patch_input_threadloop(void *data)
             /*get HDMI info*/
             /*these info is used for open alsa device*/
             aml_in->config.channels = aml_dev->capture_ch;
+            //aml_in->config.format = PCM_FORMAT_S32_LE;
             if (aml_in->config.channels == 8) {
                 period_mul = 4;
             } else {
