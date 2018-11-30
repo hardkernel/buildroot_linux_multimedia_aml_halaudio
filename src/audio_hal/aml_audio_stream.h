@@ -289,6 +289,7 @@ struct aml_audio_patch {
     audio_devices_t input_src;
     audio_format_t  aformat;
     unsigned int  sample_rate;
+    unsigned int  ch;
     audio_channel_mask_t chanmask;
 #if 0
     struct ring_buffer
@@ -372,4 +373,10 @@ int get_spdifin_samplerate(void);
 void  release_audio_stream(struct audio_stream_out *stream);
 /*@brief check the AV audio stability by HW register */
 bool is_av_in_stable_hw(struct audio_stream_in *stream);
+
+int get_input_streaminfo(struct audio_stream_in *stream, aml_data_format_t *data_format);
+
+int get_stream_parameters(struct audio_hw_device *dev, const char *keys, char *temp_buf, size_t temp_buf_size);
+
+
 #endif /* _AML_AUDIO_STREAM_H_ */

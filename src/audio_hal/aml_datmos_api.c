@@ -304,29 +304,6 @@ error_exit:
 
 int datmos_get_parameters(struct audio_hw_device *dev, const char *keys, char *temp_buf, size_t temp_buf_size)
 {
-    int ret = 0;
-    struct aml_audio_device *adev = (struct aml_audio_device *) dev;
-
-    if (!adev || !keys) {
-        ALOGE("Fatal Error adev %p keys %p", adev, keys);
-        return 1;
-    }
-
-    if (strstr(keys, "audio_format")) {
-        if (adev->decode_format == AUDIO_FORMAT_DOLBY_TRUEHD)
-            snprintf(temp_buf, temp_buf_size, "audio_format=%d", (adev->is_truehd_within_mat == false) ? (AUDIO_FORMAT_MAT) : (adev->decode_format));
-        else
-            snprintf(temp_buf, temp_buf_size, "audio_format=%d", adev->decode_format);
-        return 0;
-    }
-    else if (strstr(keys, "is_dolby_atmos")) {
-        snprintf(temp_buf, temp_buf_size, "is_dolby_atmos=%d", adev->is_dolby_atmos);
-        return 0;
-    }
-    else if (strstr(keys, "audio_samplerate")) {
-        snprintf(temp_buf, temp_buf_size, "audio_samplerate=%d", adev->audio_sample_rate);
-        return 0;
-    }
     return 1;
 }
 

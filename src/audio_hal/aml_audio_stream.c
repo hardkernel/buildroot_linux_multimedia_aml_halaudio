@@ -341,3 +341,66 @@ int enable_HW_resample(int sr, int enable)
     return 0;
 }
 
+
+int get_input_streaminfo(struct audio_stream_in *stream, aml_data_format_t *data_format)
+{
+    struct aml_stream_in *in = (struct aml_stream_in *)stream;
+    struct aml_audio_device *aml_dev = NULL;
+
+    if (stream == NULL || data_format == NULL) {
+        return -1;
+    }
+
+    aml_dev = in->dev;
+
+    if (in->device & AUDIO_DEVICE_IN_HDMI) {
+        data_format->ch = aml_dev->capture_ch;
+        data_format->sr = aml_dev->capture_samplerate;
+
+    } else if (in->device & AUDIO_DEVICE_IN_SPDIF) {
+        data_format->ch = 2;
+        data_format->sr = 48000;//get_spdifin_samplerate();
+
+
+    } else if (in->device & AUDIO_DEVICE_IN_LINE) {
+        data_format->ch = 2;
+        data_format->sr = 48000;
+
+    } else {
+        data_format->ch = 2;
+        data_format->sr = 48000;
+
+    }
+
+    return 0;
+}
+
+int get_stream_parameters(struct audio_hw_device *dev, const char *keys, char *temp_buf, size_t temp_buf_size)
+{
+    int ret = 0;
+    struct aml_audio_device *adev = (struct aml_audio_device *) dev;
+
+    if (!adev || !keys) {
+        ALOGE("Fatal Error adev %p keys %p", adev, keys);
+        return 1;
+    }
+
+    if (strstr(keys, "audio_format")) {
+        if (adev->decode_format == AUDIO_FORMAT_DOLBY_TRUEHD) {
+            snprintf(temp_buf, temp_buf_size, "audio_format=%d", (adev->is_truehd_within_mat == false) ? (AUDIO_FORMAT_MAT) : (adev->decode_format));
+        } else {
+            snprintf(temp_buf, temp_buf_size, "audio_format=%d", adev->decode_format);
+        }
+        return 0;
+    } else if (strstr(keys, "is_dolby_atmos")) {
+        snprintf(temp_buf, temp_buf_size, "is_dolby_atmos=%d", adev->is_dolby_atmos);
+        return 0;
+    } else if (strstr(keys, "audio_samplerate")) {
+        snprintf(temp_buf, temp_buf_size, "audio_samplerate=%d", adev->audio_sample_rate);
+        return 0;
+    }
+    return 1;
+}
+
+
+

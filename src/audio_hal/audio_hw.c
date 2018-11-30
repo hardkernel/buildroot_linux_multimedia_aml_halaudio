@@ -4785,7 +4785,7 @@ static int adev_set_parameters(struct audio_hw_device *dev, const char *kvpairs)
 
 
 #ifdef DATMOS
-    ret = datmos_set_parameters(adev, parms);
+    ret = datmos_set_parameters((struct audio_hw_device *)adev, parms);
     if (ret >= 0) {
         goto exit;
     }
@@ -4816,6 +4816,7 @@ exit:
 static char * adev_get_parameters(const struct audio_hw_device *dev,
                                   const char *keys)
 {
+    int ret = -1;
     struct aml_audio_device *adev = (struct aml_audio_device *) dev;
     char temp_buf[64] = {0};
 
@@ -4900,13 +4901,10 @@ static char * adev_get_parameters(const struct audio_hw_device *dev,
 #endif
     }
 
-#ifdef DATMOS
-    int ret = datmos_get_parameters(adev, keys, temp_buf, sizeof(temp_buf));
-
+    ret = get_stream_parameters((struct audio_hw_device *)adev, keys, temp_buf, sizeof(temp_buf));
     if (ret == 0) {
         return  strdup(temp_buf);
     }
-#endif
 
     return strdup("");
 }
@@ -6590,6 +6588,7 @@ ssize_t mixer_main_buffer_write(struct audio_stream_out *stream, const void *buf
                 adev->is_truehd_within_mat = aml_dec->is_truehd_within_mat;
                 adev->is_dolby_atmos = aml_dec->is_dolby_atmos;
                 adev->audio_sample_rate = aml_dec->dec_info.output_sr;
+#ifdef DATMOS
                 /*decoder return error, reinit here*/
                 if ((ret < 0) && IS_DATMOS_DECODER_SUPPORT(aml_out->hal_internal_format)) {
                     aml_decoder_release(aml_dec);
@@ -6598,9 +6597,11 @@ ssize_t mixer_main_buffer_write(struct audio_stream_out *stream, const void *buf
                         ((aml_datmos_config_t *)&dec_config)->reserved = &adev->datmos_param;
                     }
                     int init_status = aml_decoder_init(&aml_out->aml_dec, aml_out->hal_internal_format, (aml_dec_config_t *)&dec_config);
-                    if (init_status < 0)
+                    if (init_status < 0) {
                         ALOGE("Reinit decoder error");
+                    }
                 }
+#endif
             } else {
                 config_output(stream);
             }
@@ -6634,12 +6635,23 @@ ssize_t mixer_main_buffer_write(struct audio_stream_out *stream, const void *buf
         /** PCM input case*/
 
         if (adev->audio_patch) {
-            if (patch->input_src == AUDIO_DEVICE_IN_HDMI || patch->input_src == AUDIO_DEVICE_IN_SPDIF) {
+            if (patch->input_src == AUDIO_DEVICE_IN_HDMI) {
                 /* we need some input info*/
                 data_format.sr = patch->sample_rate;
-                data_format.ch = audio_channel_count_from_out_mask(patch->chanmask);
+                data_format.ch = patch->ch;
                 //ALOGD("patch->sample_rate=%d\n",patch->sample_rate);
+                adev->decode_format = output_format;
+                adev->audio_sample_rate = patch->sample_rate;
 
+            } else if (patch->input_src == AUDIO_DEVICE_IN_SPDIF) {
+                data_format.sr = patch->sample_rate;
+                data_format.ch = patch->ch;
+                adev->decode_format = output_format;
+                // if the resample is enabled, we need get the input sample rate
+                adev->audio_sample_rate = get_spdifin_samplerate();
+            } else {
+                adev->decode_format = output_format;
+                adev->audio_sample_rate = 48000;
             }
         }
 
@@ -7083,8 +7095,9 @@ void *audio_patch_input_threadloop(void *data)
     struct audio_stream_in *stream_in = NULL;
     struct aml_stream_in *aml_in = NULL;
     struct audio_config stream_config;
+    aml_data_format_t data_format = { 0 };
     // FIXME: add calc for read_bytes;
-    int read_bytes = DEFAULT_CAPTURE_PERIOD_SIZE * CAPTURE_PERIOD_COUNT;
+    int read_bytes = DEFAULT_CAPTURE_PERIOD_SIZE * 2 * 2; // 2ch, 16bits
     int ret = 0, retry = 0;
     audio_format_t cur_aformat  = AUDIO_FORMAT_INVALID;
     audio_format_t last_aformat = AUDIO_FORMAT_INVALID;
@@ -7093,12 +7106,6 @@ void *audio_patch_input_threadloop(void *data)
     int ring_buffer_size = 0;
 
     ALOGI("++%s", __FUNCTION__);
-    /*
-    FIXME: get actual configs from the parser thread
-    We need get the actual audio format and sample rate,ch infromation
-    when HDMIRX is stable, we need to set input/output para for MS12
-    input and endpoint ouput.
-    */
 
     patch->sample_rate = stream_config.sample_rate = 48000;
     patch->chanmask = stream_config.channel_mask = AUDIO_CHANNEL_IN_STEREO;
@@ -7145,42 +7152,28 @@ void *audio_patch_input_threadloop(void *data)
         int period_mul = 1;
         int read_threshold = 0;
 
-        if (patch->input_src == AUDIO_DEVICE_IN_HDMI) {
-            /*get HDMI info*/
-            /*these info is used for open alsa device*/
-            aml_in->config.channels = aml_dev->capture_ch;
-            //aml_in->config.format = PCM_FORMAT_S32_LE;
-            if (aml_in->config.channels == 8) {
-                period_mul = 4;
-            } else {
-                period_mul = 1;
-            }
-            /*this info is used for output*/
-            patch->sample_rate = aml_dev->capture_samplerate;
-            patch->chanmask    = audio_channel_out_mask_from_count(aml_dev->capture_ch);
-
-        } else if (patch->input_src == AUDIO_DEVICE_IN_SPDIF) {
-            /*get spdif info*/
+        ret = get_input_streaminfo(stream_in, &data_format);
+        if (ret < 0) {
+            patch->sample_rate = 48000;
+            patch->chanmask    = AUDIO_CHANNEL_IN_STEREO;
+            patch->ch          = 2;
             aml_in->config.channels = 2;
-            period_mul = 1;
 
-            /*this info is used for output*/
-            patch->sample_rate = 48000;//get_spdifin_samplerate() ; // we will get it from alsa
-            patch->chanmask    = audio_channel_out_mask_from_count(2);
-            //ALOGD("Spdif in samplerate=%d\n",get_spdifin_samplerate());
-
-        } else if (patch->input_src == AUDIO_DEVICE_IN_LINE) {
-            /*Line in use default setting*/
-            aml_in->config.channels = 2;
-            period_mul = 1;
-
-            /*this info is used for output*/
-            patch->sample_rate = 48000 ; // we will get it from alsa
-            patch->chanmask    = audio_channel_out_mask_from_count(2);
         } else {
-            period_mul = 1;
+            patch->sample_rate = data_format.sr;
+            patch->chanmask    = audio_channel_out_mask_from_count(data_format.ch);
+            patch->ch = data_format.ch;
+            aml_in->config.channels = data_format.ch;
         }
 
+        if (patch->ch == 8) {
+            period_mul = 4;
+
+        }
+
+        if (patch->sample_rate == 192000) {
+            period_mul = period_mul * 4;
+        }
 
 #ifdef DATMOS
         /*hdmi in choose i2s device with 8ch/16bits config*/
@@ -7346,15 +7339,13 @@ void *audio_patch_output_threadloop(void *data)
 
     while (!patch->output_thread_exit) {
         int period_mul = 1;
-        switch (patch->aformat) {
-        case AUDIO_FORMAT_E_AC3:
-            period_mul = EAC3_MULTIPLIER;
-            break;
-        case AUDIO_FORMAT_DTS_HD:
-            period_mul = 4 * 4;
-            break;
-        default:
-            period_mul = 1;
+
+        if (patch->ch == 8) {
+            period_mul = 4;
+        }
+
+        if (patch->sample_rate == 192000) {
+            period_mul = period_mul * 4;
         }
 #ifdef DATMOS
         if ((aml_dev->datmos_enable) && (aml_dev->capture_ch == 8)) {
@@ -7465,8 +7456,8 @@ static int create_patch(struct audio_hw_device *dev,
 #ifdef DATMOS
     if (aml_dev->datmos_enable)
         ring_buffer_len = (aml_dev->capture_ch == 8) ? \
-                    (64 * period_size * PATCH_PERIOD_COUNT) : \
-                    (16 * period_size * PATCH_PERIOD_COUNT);
+                          (64 * period_size * PATCH_PERIOD_COUNT) : \
+                          (4 * period_size * PATCH_PERIOD_COUNT);
     else
 #endif
         ring_buffer_len = 16 * period_size * PATCH_PERIOD_COUNT;
