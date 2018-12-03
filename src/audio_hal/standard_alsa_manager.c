@@ -22,11 +22,9 @@
 #include "log.h"
 
 #define PCM_DEVICE_DEFAULT      "default"
-#define PCM_DEVICE_48K          "48K"
-#define PCM_DEVICE_2CH         "2to8"
-#define PCM_DEVICE_8CH         "8to8"
-
-#define PCM_DEVICE_USING        "2to8"
+#define PCM_DEVICE_2CH         "2ch_48K"//"2to8"
+#define PCM_DEVICE_8CH         "8ch_48K"//"8to8"
+#define PCM_DEVICE_8CH_DIRECT  "8to8"
 
 #define PERIOD_SIZE       512
 #define PERIOD_NUM        4
@@ -49,11 +47,21 @@ static int set_alsa_params(alsa_param_t *alsa_params)
     snd_pcm_sw_params_t *swparams;
     snd_pcm_uframes_t bufsize;
     unsigned int rate;
-    static snd_pcm_uframes_t period_size = PERIOD_SIZE;
+    snd_pcm_uframes_t period_size = PERIOD_SIZE;
     snd_pcm_uframes_t start_threshold, stop_threshold;
     snd_pcm_hw_params_alloca(&hwparams);
     snd_pcm_sw_params_alloca(&swparams);
 
+    if (alsa_params->rate > 96000) {
+        period_size = PERIOD_SIZE * 4;
+    } else if (alsa_params->rate > 48000) {
+        period_size = PERIOD_SIZE * 2;
+    } else {
+        period_size = PERIOD_SIZE;
+    }
+    bufsize = PERIOD_NUM * period_size;
+
+    ALOGD("set period=%d bufsize=%d rate=%d\n", period_size, bufsize, alsa_params->rate);
     err = snd_pcm_hw_params_any(alsa_params->handle, hwparams);
     if (err < 0) {
         ALOGE("Broken configuration for this PCM: no configurations available: %s", snd_strerror(err));
@@ -81,20 +89,23 @@ static int set_alsa_params(alsa_param_t *alsa_params)
 
     alsa_params->bitwidth = snd_pcm_format_physical_width(alsa_params->format);
 
-    err = snd_pcm_hw_params_set_buffer_size_near(alsa_params->handle, hwparams, &bufsize);
-    if (err < 0) {
-        ALOGE("Unable to set	buffer	size \n");
-        return err;
-    }
     err = snd_pcm_hw_params_set_period_size_near(alsa_params->handle, hwparams, &period_size, NULL);
+    ALOGD("period_size=%d\n", period_size);
     if (err < 0) {
         ALOGE("Unable to set period size \n");
         return err;
     }
 
+    err = snd_pcm_hw_params_set_buffer_size_near(alsa_params->handle, hwparams, &bufsize);
+    ALOGD("bufsize=%d\n", bufsize);
+    if (err < 0) {
+        ALOGE("Unable to set	buffer	size \n");
+        return err;
+    }
+
     err = snd_pcm_hw_params(alsa_params->handle, hwparams);
     if (err < 0) {
-        ALOGE("Unable to install hw params:");
+        ALOGE("Unable to install hw params: %s\n", snd_strerror(err));
         return err;
     }
 
@@ -103,9 +114,6 @@ static int set_alsa_params(alsa_param_t *alsa_params)
         ALOGE("Unable to get buffersize \n");
         return err;
     }
-
-    bufsize = PERIOD_NUM * PERIOD_SIZE;
-
 
     alsa_params->buffer_size = bufsize * (alsa_params->bitwidth >> 3);
 
@@ -116,12 +124,12 @@ static int set_alsa_params(alsa_param_t *alsa_params)
         return err;
     }
 
-
     err = snd_pcm_sw_params_set_start_threshold(alsa_params->handle, swparams, bufsize >> 1);
     if (err < 0) {
         ALOGE("Unable to set start threshold \n");
         return err;
     }
+#if 0
 
     err = snd_pcm_sw_params_set_stop_threshold(alsa_params->handle, swparams, bufsize);
     if (err < 0) {
@@ -129,7 +137,7 @@ static int set_alsa_params(alsa_param_t *alsa_params)
         return err;
     }
     ALOGD("buffer size=%d\n", bufsize);
-#if 0
+
     err = snd_pcm_sw_params_set_silence_size(alsa_params->handle, swparams, bufsize);
     if (err < 0) {
         ALOGD("Unable to set silence size \n");
@@ -172,10 +180,17 @@ int standard_alsa_output_open(void **handle, aml_stream_config_t * stream_config
     alsa_param->rate     = stream_config->rate;
     if (alsa_param->channels == 2) {
         device_name = PCM_DEVICE_2CH;
+    } else if (alsa_param->channels == 8) {
+        // due to resample performance issue, we currently only support bypass
+        if (alsa_param->rate >= 176400) {
+            device_name = PCM_DEVICE_8CH_DIRECT;
+        } else {
+            device_name = PCM_DEVICE_8CH_DIRECT;
+        }
     } else {
-        device_name = PCM_DEVICE_8CH;
+        device_name = PCM_DEVICE_DEFAULT;
     }
-    ALOGD("Open ALSA rate=%d ch=%d format=%d in format=%d\n", alsa_param->rate, alsa_param->channels, alsa_param->format, stream_config->format);
+    ALOGD("Open ALSA device=%s rate=%d ch=%d format=%d in format=%d\n", device_name, alsa_param->rate, alsa_param->channels, alsa_param->format, stream_config->format);
     ret = snd_pcm_open(&alsa_param->handle, device_name, SND_PCM_STREAM_PLAYBACK, block ? 0 : SND_PCM_NONBLOCK);
 
     if (ret < 0) {
@@ -184,8 +199,6 @@ int standard_alsa_output_open(void **handle, aml_stream_config_t * stream_config
     } else {
         ALOGE("[%s::%d]--[audio open(snd_pcm_open) successfully]\n", __FUNCTION__, __LINE__);
     }
-
-
 
     ret  = set_alsa_params(alsa_param);
 
@@ -231,6 +244,9 @@ size_t standard_alsa_output_write(void *handle, const void *buffer, size_t bytes
     size_t result = 0;
     unsigned char * data = NULL;
     int bytes_per_frame = 0;
+    struct timespec before;
+    struct timespec now;
+    int64_t interval_us;
 
     if (handle == NULL) {
         return -1;
@@ -242,10 +258,20 @@ size_t standard_alsa_output_write(void *handle, const void *buffer, size_t bytes
     data = (unsigned char *)buffer;
     count = frames;
 
+    clock_gettime(CLOCK_MONOTONIC, &before);
+
     while (count > 0) {
-        ret = snd_pcm_writei(alsa_param->handle, buffer, frames);
+        ret = snd_pcm_writei(alsa_param->handle, buffer, count);
         if (ret  < 0) {
             ALOGE("[%s::%d]--[audio write error: %s]\n", __FUNCTION__, __LINE__, snd_strerror(ret));
+        }
+        clock_gettime(CLOCK_MONOTONIC, &now);
+
+        interval_us = (now.tv_sec * 1000000LL + now.tv_nsec / 1000LL) - (before.tv_sec * 1000000LL + before.tv_nsec / 1000LL);
+
+        if (interval_us > 1 * 1000 * 1000) {
+            ALOGE("tried 1s but still failed, we return\n");
+            break;
         }
 
 
@@ -259,8 +285,9 @@ size_t standard_alsa_output_write(void *handle, const void *buffer, size_t bytes
         }
 
         if (ret < 0) {
-            ALOGD("xun in\n");
+            ALOGD("xun in =%d -EPIPE=%d\n", ret, -EPIPE);
             if ((ret = snd_pcm_prepare(alsa_param->handle)) < 0) {
+                ALOGD("snd_pcm_prepare error=%s \n", snd_strerror(ret));
                 result = 0;
                 return result;
             }
