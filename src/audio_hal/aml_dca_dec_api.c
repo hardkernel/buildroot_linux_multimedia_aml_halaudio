@@ -337,7 +337,7 @@ int dca_decoder_init_patch(aml_dec_t **ppdts_dec, audio_format_t format, aml_dec
 
     aml_dec->status = dca_decoder_init(dca_config->digital_raw);
     if (aml_dec->status < 0) {
-        return -1;
+        goto exit;
     }
     aml_dec->remain_size = 0;
     aml_dec->outlen_pcm = 0;
@@ -349,12 +349,12 @@ int dca_decoder_init_patch(aml_dec_t **ppdts_dec, audio_format_t format, aml_dec
     aml_dec->inbuf = (unsigned char*) malloc(MAX_DECODER_FRAME_LENGTH * 4 * 2);
     if (!aml_dec->inbuf) {
         ALOGE("malloc buffer failed\n");
-        return -1;
+        goto exit;
     }
     aml_dec->outbuf = (unsigned char*) malloc(MAX_DECODER_FRAME_LENGTH * 4 + MAX_DECODER_FRAME_LENGTH + 8);
     if (!aml_dec->outbuf) {
         ALOGE("malloc buffer failed\n");
-        return -1;
+        goto exit;
     }
     aml_dec->outbuf_raw = aml_dec->outbuf + MAX_DECODER_FRAME_LENGTH;
     dts_dec->decoder_process = dca_decode_process;

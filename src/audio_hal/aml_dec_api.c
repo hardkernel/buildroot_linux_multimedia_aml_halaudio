@@ -41,9 +41,9 @@
 
 
 #ifdef USE_AUDIOSERVICE
-    static int gdolby_strategy = AML_DOLBY_DECODER;
+static int gdolby_strategy = AML_DOLBY_DECODER;
 #else
-    static int gdolby_strategy = AML_DOLBY_ATMOS;
+static int gdolby_strategy = AML_DOLBY_ATMOS;
 #endif
 
 
@@ -52,10 +52,11 @@ static aml_dec_func_t * get_decoder_function(audio_format_t format, int dolby_st
     switch (format) {
     case AUDIO_FORMAT_AC3:
     case AUDIO_FORMAT_E_AC3: {
-        if (dolby_strategy == AML_DOLBY_DECODER)
+        if (dolby_strategy == AML_DOLBY_DECODER) {
             return &aml_dcv_func;
-        else if (dolby_strategy == AML_DOLBY_ATMOS)
+        } else if (dolby_strategy == AML_DOLBY_ATMOS) {
             return &aml_datmos_func;
+        }
     }
     case AUDIO_FORMAT_DOLBY_TRUEHD:
         return &aml_datmos_func;
@@ -84,9 +85,13 @@ int aml_decoder_init(aml_dec_t **ppaml_dec, audio_format_t format, aml_dec_confi
     ALOGD("dec_fun->f_init=%p\n", dec_fun->f_init);
     if (dec_fun->f_init) {
         ret = dec_fun->f_init(ppaml_dec, format, dec_config);
+        if (ret < 0) {
+            return -1;
+        }
     } else {
         return -1;
     }
+
     aml_dec_handel = *ppaml_dec;
     if (aml_dec_handel) {
         aml_dec_handel->dec_info.output_sr = 48000;
@@ -165,9 +170,9 @@ int aml_decoder_process(aml_dec_t *aml_dec, unsigned char*buffer, int bytes, int
     }
 
     if (dump_iec) {
-        FILE *fpa=fopen(IEC61937_IN_FILE,"a+");
+        FILE *fpa = fopen(IEC61937_IN_FILE, "a+");
         // convert_format(aml_dec->inbuf, aml_dec->burst_payload_size);
-        fwrite((char *)buffer, 1, bytes,fpa);
+        fwrite((char *)buffer, 1, bytes, fpa);
         fclose(fpa);
     }
 
@@ -176,8 +181,9 @@ int aml_decoder_process(aml_dec_t *aml_dec, unsigned char*buffer, int bytes, int
         return -1;
     }
 
-    if (aml_dec->format == AUDIO_FORMAT_DOLBY_TRUEHD)
+    if (aml_dec->format == AUDIO_FORMAT_DOLBY_TRUEHD) {
         aml_dec->next_PAPB = aml_dec->first_PAPB;
+    }
 
     fill_bytes = fill_in_the_remaining_data(buffer, bytes, &(aml_dec->raw_deficiency), aml_dec->inbuf, &aml_dec->inbuf_wt, aml_dec->inbuf_max_len);
     // ALOGE("bytes %#x fill_bytes %#x\n", bytes, fill_bytes);
@@ -189,14 +195,14 @@ int aml_decoder_process(aml_dec_t *aml_dec, unsigned char*buffer, int bytes, int
         int got_format = 0;
         aml_dec->last_consumed_bytes += fill_bytes;
         parser_raw = decode_IEC61937_to_raw_data(buffer + fill_bytes
-            , bytes - fill_bytes
-            , aml_dec->inbuf
-            , &aml_dec->inbuf_wt
-            , aml_dec->inbuf_max_len
-            , &(aml_dec->raw_deficiency)
-            , &(aml_dec->burst_payload_size)
-            , &offset
-            , &got_format);
+                     , bytes - fill_bytes
+                     , aml_dec->inbuf
+                     , &aml_dec->inbuf_wt
+                     , aml_dec->inbuf_max_len
+                     , &(aml_dec->raw_deficiency)
+                     , &(aml_dec->burst_payload_size)
+                     , &offset
+                     , &got_format);
 
         // ALOGE("parser_raw %#x offset %#x got_format %d\n", parser_raw, offset, got_format);
         if (got_format == TRUEHD) {
@@ -213,35 +219,33 @@ int aml_decoder_process(aml_dec_t *aml_dec, unsigned char*buffer, int bytes, int
             aml_dec->last_consumed_bytes += offset;
             if ((aml_dec->last_consumed_bytes != IEC61937_MAT_BYTES) || \
                 ((aml_dec->inbuf_wt > aml_dec->burst_payload_size) && ((aml_dec->inbuf_wt - new_truehd_bytes) % aml_dec->burst_payload_size != 0))
-                ) {
+               ) {
                 ALOGE("@@end last_consumed_bytes %#x wt %#x new %#x burst %#x\n", aml_dec->last_consumed_bytes, aml_dec->inbuf_wt, new_truehd_bytes, aml_dec->burst_payload_size);
-                #ifdef CHECK_HERE
+#ifdef CHECK_HERE
                 memset((void *)aml_dec->inbuf, 0, aml_dec->inbuf_max_len);
                 aml_dec->inbuf_wt = 0;
-                #else
+#else
                 /*
                  *new store data is right, so remove the early data
                  */
                 memmove(aml_dec->inbuf
-                    , aml_dec->inbuf + aml_dec->inbuf_wt - new_truehd_bytes
-                    , new_truehd_bytes);
+                        , aml_dec->inbuf + aml_dec->inbuf_wt - new_truehd_bytes
+                        , new_truehd_bytes);
                 aml_dec->inbuf_wt = new_truehd_bytes;
                 // char *sync_header = aml_dec->inbuf;
                 // ALOGE("sync_header %2x %2x", sync_header[0], sync_header[1]);
-                #endif
+#endif
             }
 
             memcpy(&(aml_dec->first_PAPB), buffer + fill_bytes + offset, sizeof(aml_dec->first_PAPB));
             // ALOGE("##begin first_PAPB %#x fill_bytes %#x offset %#x\n", aml_dec->first_PAPB, fill_bytes, offset);
             aml_dec->last_consumed_bytes = bytes - fill_bytes - offset;
-        }
-        else {
+        } else {
             /*suppose it as the burst spacing*/
             aml_dec->last_consumed_bytes += parser_raw;
         }
         // ALOGE("last_consumed_bytes %#x\n", aml_dec->last_consumed_bytes);
-    }
-    else {
+    } else {
         aml_dec->last_consumed_bytes += fill_bytes;
         // ALOGE("last_consumed_bytes %#x\n", aml_dec->last_consumed_bytes);
     }
@@ -249,7 +253,7 @@ int aml_decoder_process(aml_dec_t *aml_dec, unsigned char*buffer, int bytes, int
     if (dec_fun->f_process) {
         if (check_data && (aml_dec->inbuf_wt >= aml_dec->burst_payload_size) && (aml_dec->burst_payload_size > 0)) {
             char *dec_data = aml_dec->inbuf;
-            ALOGE("header %2x %2x",dec_data[0], dec_data[1]);
+            ALOGE("header %2x %2x", dec_data[0], dec_data[1]);
         }
         ret = dec_fun->f_process(aml_dec, buffer, bytes);
     } else {
@@ -257,7 +261,7 @@ int aml_decoder_process(aml_dec_t *aml_dec, unsigned char*buffer, int bytes, int
     }
 
     // change it later
-     *used_bytes = bytes;
+    *used_bytes = bytes;
     return ret;
 
 }

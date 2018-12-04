@@ -6234,6 +6234,8 @@ static void config_output(struct audio_stream_out *stream)
             }
             status = aml_decoder_init(&aml_out->aml_dec, aml_out->hal_internal_format, (aml_dec_config_t *)&dec_config);
             if (status < 0) {
+                ALOGE("Init decoder failed\n");
+                aml_out->aml_dec = NULL;
                 return;
             }
             adev->decode_format = aml_out->hal_internal_format;
@@ -6588,7 +6590,7 @@ ssize_t mixer_main_buffer_write(struct audio_stream_out *stream, const void *buf
                 adev->is_truehd_within_mat = aml_dec->is_truehd_within_mat;
                 adev->is_dolby_atmos = aml_dec->is_dolby_atmos;
                 adev->audio_sample_rate = aml_dec->dec_info.output_sr;
-#ifdef DATMOS
+#ifndef USE_AUDIOSERVICE
                 /*decoder return error, reinit here*/
                 if ((ret < 0) && IS_DATMOS_DECODER_SUPPORT(aml_out->hal_internal_format)) {
                     aml_decoder_release(aml_dec);
@@ -6604,6 +6606,9 @@ ssize_t mixer_main_buffer_write(struct audio_stream_out *stream, const void *buf
 #endif
             } else {
                 config_output(stream);
+            }
+            if (aml_dec == NULL) {
+                return -1;
             }
             if (ret < 0) {
                 return bytes;

@@ -143,7 +143,7 @@ int aml_output_close(struct audio_stream_out *stream)
         }
     }
 
-    ALOGD("Exit %s = %d\n", __func__);
+    ALOGD("Exit %s\n", __func__);
 
     return 0;
 }

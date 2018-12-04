@@ -365,7 +365,7 @@ int aml_alsa_input_open(void **handle, aml_stream_config_t * stream_config, aml_
 
     if (config->rate == 0 || config->channels == 0) {
 
-        ALOGE("Invalid sampleate=%d channel=%d\n", config->rate == 0, config->channels);
+        ALOGE("Invalid sampleate=%d channel=%d\n", config->rate, config->channels);
         goto exit;
     }
 
