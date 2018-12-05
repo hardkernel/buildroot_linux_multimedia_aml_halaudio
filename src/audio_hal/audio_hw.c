@@ -6586,7 +6586,7 @@ ssize_t mixer_main_buffer_write(struct audio_stream_out *stream, const void *buf
                 /*update information*/
                 adev->is_truehd_within_mat = aml_dec->is_truehd_within_mat;
                 adev->is_dolby_atmos = aml_dec->is_dolby_atmos;
-                adev->audio_sample_rate = aml_dec->dec_info.output_sr;
+                adev->audio_sample_rate = aml_dec->dec_info.stream_sr;
 #ifndef USE_AUDIOSERVICE
                 /*decoder return error, reinit here*/
                 if ((ret < 0) && IS_DATMOS_DECODER_SUPPORT(aml_out->hal_internal_format)) {

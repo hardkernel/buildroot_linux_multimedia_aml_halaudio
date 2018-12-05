@@ -271,6 +271,20 @@ int datmos_set_parameters(struct audio_hw_device *dev, struct str_parms *parms)
         return 0;
     }
 
+    ret = str_parms_get_int(parms, "noupresampler", &val);
+    if (ret >= 0) {
+        adev->datmos_param.noupresampler = val;
+        ALOGI("novlamp set to %d\n", adev->datmos_param.noupresampler);
+        /*datmos parameter*/
+        if (adev->datmos_enable) {
+            if (adev->datmos_param.noupresampler)
+                add_datmos_option(opts, "-noupresampler", "1");
+            else
+                add_datmos_option(opts, "-noupresampler", "0");
+        }
+        return 0;
+    }
+
     ret = str_parms_get_str(parms, "verbose", value, sizeof(value));
     if (ret >= 0) {
         ALOGI("get value %s\n", value);
@@ -324,7 +338,7 @@ int get_datmos_func(struct aml_datmos_param *datmos_handle)
             return 1;
         }
 
-        datmos_handle->get_audio_info = (int (*)(void *, int *))dlsym(datmos_handle->fd, "get_audio_info");
+        datmos_handle->get_audio_info = (int (*)(void *, int *, int *, int *))dlsym(datmos_handle->fd, "get_audio_info");
         if (datmos_handle->get_audio_info == NULL) {
             ALOGI("cant find lib interface %s", dlerror());
             goto error;
@@ -430,7 +444,7 @@ static int datmos_get_output_info(aml_dec_t *aml_dec, aml_dec_info_t *dec_info)
 
 }
 
-static int datmos_get_atmos_info(aml_dec_t *aml_dec)
+static int datmos_get_audio_info(aml_dec_t *aml_dec)
 {
     struct dolby_atmos_dec *datmos_dec = (struct dolby_atmos_dec *)aml_dec;
     int ret = 0;
@@ -441,8 +455,13 @@ static int datmos_get_atmos_info(aml_dec_t *aml_dec)
     }
     else {
         if (datmos_dec->get_audio_info && aml_dec->dec_ptr) {
-            ret = datmos_dec->get_audio_info(aml_dec->dec_ptr, &datmos_dec->is_dolby_atmos);
-            ALOGV("is_dolby_atmos %d",datmos_dec->is_dolby_atmos);
+            ret = datmos_dec->get_audio_info(aml_dec->dec_ptr
+                    , &datmos_dec->is_dolby_atmos
+                    , &datmos_dec->audio_samplerate
+                    , &datmos_dec->system_latency);
+            ALOGV("is_dolby_atmos %d Audio sr %d latency %d",
+                datmos_dec->is_dolby_atmos, datmos_dec->audio_samplerate, datmos_dec->system_latency);
+            aml_dec->dec_info.stream_sr = datmos_dec->audio_samplerate;
             ret = 0;
         }
         else
@@ -700,7 +719,7 @@ int datmos_decoder_process_patch(aml_dec_t *aml_dec, unsigned char*in_buffer, in
 
         aml_dec->outlen_pcm = pcm_produced_bytes;
         datmos_get_output_info(aml_dec, &(aml_dec->dec_info));
-        datmos_get_atmos_info(aml_dec);
+        datmos_get_audio_info(aml_dec);
 
         aml_dec->is_truehd_within_mat = datmos_dec->is_truehd_within_mat;
         aml_dec->is_dolby_atmos = datmos_dec->is_dolby_atmos;

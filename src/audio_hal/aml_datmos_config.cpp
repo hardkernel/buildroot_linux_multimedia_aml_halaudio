@@ -84,6 +84,7 @@ extern "C" void *datmos_default_options()
     opts.push_back(Option("sidk", ""));
     opts.push_back(Option("-bo", "24"));
     opts.push_back(Option("-speakers", "lr:c:lfe:lrs:lrrs"));
+    opts.push_back(Option("-noupresampler", "1"));
 
     return (void *)&opts;
 }
