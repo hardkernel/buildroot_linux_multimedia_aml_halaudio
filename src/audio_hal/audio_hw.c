@@ -5520,7 +5520,7 @@ ssize_t audio_hal_data_processing(struct audio_stream_out *stream
     size_t convert_size = 0;
 
     if (out_channel == 0 || bytes == 0) {
-        ALOGI("Wrong Input\n");
+        //ALOGI("Wrong Input\n");
         return -1;
 
     }

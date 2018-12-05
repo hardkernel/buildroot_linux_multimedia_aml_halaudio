@@ -122,9 +122,8 @@ extern "C" void delete_datmos_option(void *opt_handle, const char *key)
     ALOGI("key:%s", key);
 
     vector<Option> *opt = (vector<Option>*)opt_handle;
-    int size = opt->size();
 
-    for (int i = 0; i < size; i++) {
+    for (int i = 0; i < opt->size(); i++) {
         Option item = opt->at(i);
         string item_key = item.get_key();
         if (0 == item_key.compare(key)) {
