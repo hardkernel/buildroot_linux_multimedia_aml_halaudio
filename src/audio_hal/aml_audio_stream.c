@@ -31,18 +31,6 @@
  *@brief get sink capability
  */
 
-static const char * const spdifin_sample_rate_text[] = {
-    "N/A",
-    "32000",
-    "44100",
-    "48000",
-    "88200",
-    "96000",
-    "176400",
-    "192000"
-
-};
-
 
 static audio_format_t get_sink_capability(struct aml_audio_device *adev)
 {
@@ -299,20 +287,6 @@ int get_hdmiin_samplerate(void)
     return aml_mixer_ctrl_get_int(AML_MIXER_ID_HDMI_IN_SAMPLERATE);
 }
 
-int get_spdifin_samplerate(void)
-{
-    int index = 0;
-
-    index = aml_mixer_ctrl_get_int(AML_MIXER_ID_SPDIFIN_SAMPLE_RATE);
-    if (index <= 0 || index > 6) {
-        return 48000;
-    }
-
-    return atoi(spdifin_sample_rate_text[index]);
-}
-
-
-
 int enable_HW_resample(int sr, int enable)
 {
     int value = 0;
@@ -345,7 +319,10 @@ int enable_HW_resample(int sr, int enable)
 int get_input_streaminfo(struct audio_stream_in *stream, aml_data_format_t *data_format)
 {
     struct aml_stream_in *in = (struct aml_stream_in *)stream;
-    struct aml_audio_device *aml_dev = NULL;
+    struct aml_audio_device *aml_dev = in->dev;
+    struct aml_audio_patch *patch = aml_dev->audio_patch;
+    int original_samplerate = 0;
+    int output_rate = 0;
 
     if (stream == NULL || data_format == NULL) {
         return -1;
@@ -358,8 +335,15 @@ int get_input_streaminfo(struct audio_stream_in *stream, aml_data_format_t *data
         data_format->sr = aml_dev->capture_samplerate;
 
     } else if (in->device & AUDIO_DEVICE_IN_SPDIF) {
+        if (patch == NULL) {
+            data_format->ch = 2;
+            data_format->sr = 0;
+            return -1;
+        }
+        aml_spdifin_getinfo(patch->spdif_in,&original_samplerate,&output_rate);
         data_format->ch = 2;
-        data_format->sr = 48000;//get_spdifin_samplerate();
+        data_format->sr = output_rate;
+        patch->original_rate = original_samplerate;
 
 
     } else if (in->device & AUDIO_DEVICE_IN_LINE) {

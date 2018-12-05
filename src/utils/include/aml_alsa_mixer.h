@@ -118,6 +118,7 @@ typedef enum AML_MIXER_CTRL_ID {
     AML_MIXER_ID_EQ_MASTER_VOLUME,
     AML_MIXER_ID_SPDIFIN_PAO,
     AML_MIXER_ID_SPDIFIN_SAMPLE_RATE,
+    AML_MIXER_ID_HW_RESAMPLE_MODULE,
     AML_MIXER_ID_MAX,
 } eMixerCtrlID;
 
@@ -142,11 +143,13 @@ struct aml_mixer_list {
     char mixer_name[50];
 };
 
+
 /*
  * get interface
  **/
 int aml_mixer_ctrl_get_int(int mixer_id);
 int aml_mixer_ctrl_get_enum_str_to_int(int mixer_id, int *ret);
+int close_mixer_handle();
 
 //int aml_mixer_ctrl_get_str(int mixer_id, char *value);
 // or

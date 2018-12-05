@@ -5394,10 +5394,10 @@ static void aml_tinymix_set_spdif_format(audio_format_t output_format)
     } else {
         aml_spdif_format = AML_STEREO_PCM;
     }
-    aml_mixer_ctrl_set_int(AML_MIXER_ID_SPDIF_FORMAT, aml_spdif_format);
-    aml_mixer_ctrl_set_int(AML_MIXER_ID_SPDIF_MUTE, spdif_mute);
-    ALOGI("%s tinymix AML_MIXER_ID_SPDIF_FORMAT %d,spdif mute %d\n",
-          __FUNCTION__, aml_spdif_format, spdif_mute);
+    //aml_mixer_ctrl_set_int(AML_MIXER_ID_SPDIF_FORMAT, aml_spdif_format);
+    //aml_mixer_ctrl_set_int(AML_MIXER_ID_SPDIF_MUTE, spdif_mute);
+    //ALOGI("%s tinymix AML_MIXER_ID_SPDIF_FORMAT %d,spdif mute %d\n",
+    //__FUNCTION__, aml_spdif_format, spdif_mute);
 }
 
 audio_format_t get_output_format(struct audio_stream_out *stream)
@@ -5758,7 +5758,7 @@ ssize_t hw_write(struct audio_stream_out *stream
             if (data_format->sr != output_config.rate ||
                 data_format->ch != output_config.channels) {
                 ALOGD("Output format changed from rate=%d ch=%d to rate=%d ch=%d\n",
-                      output_config.rate, output_config.channels, data_format->ch, data_format->sr);
+                      output_config.rate, output_config.channels, data_format->sr, data_format->ch);
                 aml_output_close(stream);
                 aml_out->status = STREAM_STANDBY;
             }
@@ -5775,9 +5775,6 @@ ssize_t hw_write(struct audio_stream_out *stream
         } else {
             aml_tinymix_set_spdif_format(output_format);
         }
-        // hank currently  set it, we need get it somewhere
-
-        ALOGD("Output format=%d\n", output_format);
         if (!is_digital_raw_format(output_format)) {
             output_config.channels = data_format->ch;
             output_config.rate     = data_format->sr;
@@ -6652,8 +6649,8 @@ ssize_t mixer_main_buffer_write(struct audio_stream_out *stream, const void *buf
                 data_format.sr = patch->sample_rate;
                 data_format.ch = patch->ch;
                 adev->decode_format = output_format;
-                // if the resample is enabled, we need get the input sample rate
-                adev->audio_sample_rate = get_spdifin_samplerate();
+                adev->audio_sample_rate = patch->original_rate;;
+
             } else {
                 adev->decode_format = output_format;
                 adev->audio_sample_rate = 48000;
@@ -7501,6 +7498,10 @@ static int create_patch(struct audio_hw_device *dev,
         }
     }
 
+    if (input == AUDIO_DEVICE_IN_SPDIF) {
+        aml_spdifin_init(&patch->spdif_in);
+    }
+
     // init callback for patch
     init_audio_callback(&patch->callback_handle);
 
@@ -7551,8 +7552,16 @@ static int release_patch(struct aml_audio_device *aml_dev)
         //exit_pthread_for_audio_type_parse(patch->audio_parse_threadID, &patch->audio_parse_para);
         release_audio_type_parse(&patch->audio_parse_para);
     }
+
     pthread_join(patch->audio_input_threadID, NULL);
     pthread_join(patch->audio_output_threadID, NULL);
+
+    if (patch->input_src == AUDIO_DEVICE_IN_SPDIF) {
+        aml_spdifin_release(patch->spdif_in);
+        patch->spdif_in = NULL;
+    }
+
+
     ring_buffer_release(& (patch->aml_ringbuffer));
 
     exit_audio_callback(&patch->callback_handle);
@@ -8331,6 +8340,7 @@ static int adev_close(hw_device_t *device)
         audio_route_free(adev->ar);
     }
     eq_drc_release(&adev->eq_data);
+    close_mixer_handle();
     free(device);
     aml_log_exit();
     return 0;

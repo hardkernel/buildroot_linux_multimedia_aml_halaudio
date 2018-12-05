@@ -23,6 +23,7 @@
 #include "aml_audio_resampler.h"
 //#include "audio_hw.h"
 #include "aml_callback_api.h"
+#include "aml_spdif_in.h"
 
 
 #ifndef __unused
@@ -288,7 +289,8 @@ struct aml_audio_patch {
     void *audio_parse_para;
     audio_devices_t input_src;
     audio_format_t  aformat;
-    unsigned int  sample_rate;
+    unsigned int  sample_rate;   // it is used for output
+    unsigned int  original_rate; // it is the input rate, used for app info
     unsigned int  ch;
     audio_channel_mask_t chanmask;
 #if 0
@@ -338,6 +340,7 @@ struct aml_audio_patch {
 
     /** callback info*/
     aml_audiocb_handle_t * callback_handle;
+    aml_spdif_in_t       * spdif_in;
 };
 
 struct audio_stream_out;

@@ -27,12 +27,19 @@
 #include <errno.h>
 #include "log.h"
 #include <fcntl.h>
+#include <pthread.h>
 #include <tinyalsa/asoundlib.h>
 #include <aml_hw_profile.h>
 #include <aml_alsa_mixer.h>
 
 #undef  LOG_TAG
 #define LOG_TAG "audio_alsa_mixer"
+
+struct aml_mixer_handle {
+    struct mixer *pMixer;
+    pthread_mutex_t lock;
+};
+
 
 static struct aml_mixer_list gAmlMixerList[] = {
     /* for i2s out status */
@@ -64,6 +71,7 @@ static struct aml_mixer_list gAmlMixerList[] = {
     /* for enable PAO on SPDIFIN*/
     {AML_MIXER_ID_SPDIFIN_PAO,          "SPDIFIN PAO"},
     {AML_MIXER_ID_SPDIFIN_SAMPLE_RATE, "SPDIFIN Sample Rate"},
+    {AML_MIXER_ID_HW_RESAMPLE_MODULE,  "Hardware resample module"}
 };
 
 static struct aml_mixer_ctrl gCtlI2sMute[] = {
@@ -117,6 +125,9 @@ static struct aml_mixer_ctrl gCtlOutputSwap[] = {
     {OUTPUT_SWAP_RL, "RL"},
 };
 
+
+static struct aml_mixer_handle * mixer_handle = NULL;
+
 static char *_get_mixer_name_by_id(int mixer_id)
 {
     int i;
@@ -136,6 +147,12 @@ static struct mixer *_open_mixer_handle(void)
     int card = 0;
     struct mixer *pmixer = NULL;
 
+    if (mixer_handle != NULL) {
+        return mixer_handle->pMixer;
+    }
+
+    mixer_handle = calloc(1,sizeof(struct aml_mixer_handle));
+
     card = aml_get_sound_card_main();
     if (card < 0) {
         ALOGE("[%s:%d] Failed to get sound card\n", __FUNCTION__, __LINE__);
@@ -148,15 +165,19 @@ static struct mixer *_open_mixer_handle(void)
         return NULL;
     }
 
+    mixer_handle->pMixer = pmixer;
+    pthread_mutex_init(&mixer_handle->lock, NULL);
+
     return pmixer;
 }
 
-static int _close_mixer_handle(struct mixer *pmixer)
+int close_mixer_handle( )
 {
-    if (NULL != pmixer) {
-        mixer_close(pmixer);
-    }
-
+    if (mixer_handle == NULL)
+        return -1;
+    mixer_close(mixer_handle->pMixer);
+    free(mixer_handle);
+    mixer_handle = NULL;
     return 0;
 }
 
@@ -183,18 +204,18 @@ int aml_mixer_ctrl_get_int(int mixer_id)
         ALOGE("[%s:%d] Failed to open mixer\n", __FUNCTION__, __LINE__);
         return -1;
     }
+    pthread_mutex_lock (&mixer_handle->lock);
 
     pCtrl = _get_mixer_ctl_handle(pMixer, mixer_id);
     if (pCtrl == NULL) {
         ALOGE("[%s:%d] Failed to open mixer %s\n", __FUNCTION__, __LINE__,
               _get_mixer_name_by_id(mixer_id));
-        _close_mixer_handle(pMixer);
+        pthread_mutex_unlock (&mixer_handle->lock);
         return -1;
     }
 
     value = mixer_ctl_get_value(pCtrl, 0);
-
-    _close_mixer_handle(pMixer);
+    pthread_mutex_unlock (&mixer_handle->lock);
     return value;
 }
 
@@ -210,18 +231,20 @@ int aml_mixer_ctrl_get_enum_str_to_int(int mixer_id, int *ret)
         ALOGE("[%s:%d] Failed to open mixer\n", __FUNCTION__, __LINE__);
         return -1;
     }
+    pthread_mutex_lock (&mixer_handle->lock);
 
     pCtrl = _get_mixer_ctl_handle(pMixer, mixer_id);
     if (pCtrl == NULL) {
         ALOGE("[%s:%d] Failed to open mixer %s\n", __FUNCTION__, __LINE__,
               _get_mixer_name_by_id(mixer_id));
-        _close_mixer_handle(pMixer);
+        pthread_mutex_unlock (&mixer_handle->lock);
         return -1;
     }
 
     value = mixer_ctl_get_value(pCtrl, 0);
     string = mixer_ctl_get_enum_string(pCtrl, value);
-    _close_mixer_handle(pMixer);
+    pthread_mutex_unlock (&mixer_handle->lock);
+    
     if (string) {
         *ret = atoi(string);
         return 0;
@@ -230,32 +253,6 @@ int aml_mixer_ctrl_get_enum_str_to_int(int mixer_id, int *ret)
     }
 }
 
-#if 0
-int aml_mixer_ctrl_get_str(int mixer_id, char *value)
-{
-    struct mixer     *pMixer;
-    struct mixer_ctl *pCtrl;
-
-    pMixer = _open_mixer_handle();
-    if (pMixer == NULL) {
-        ALOGE("[%s:%d] Failed to open mixer\n", __FUNCTION__, __LINE__);
-        return -1;
-    }
-
-    pCtrl = _get_mixer_ctl_handle(pMixer, mixer_id);
-    if (pCtrl == NULL) {
-        ALOGE("[%s:%d] Failed to open mixer %s\n", __FUNCTION__, __LINE__,
-              _get_mixer_name_by_id(mixer_id));
-        _close_mixer_handle(pMixer);
-        return -1;
-    }
-
-    strcpy(value, mixer_ctl_get_value(pctl, 0));
-
-    _close_mixer_handle(pMixer);
-    return 0;
-}
-#endif
 
 int aml_mixer_ctrl_set_int(int mixer_id, int value)
 {
@@ -267,18 +264,20 @@ int aml_mixer_ctrl_set_int(int mixer_id, int value)
         ALOGE("[%s:%d] Failed to open mixer\n", __FUNCTION__, __LINE__);
         return -1;
     }
+    pthread_mutex_lock (&mixer_handle->lock);
 
     pCtrl = _get_mixer_ctl_handle(pMixer, mixer_id);
     if (pCtrl == NULL) {
         ALOGE("[%s:%d] Failed to open mixer %s\n", __FUNCTION__, __LINE__,
               _get_mixer_name_by_id(mixer_id));
-        _close_mixer_handle(pMixer);
+        pthread_mutex_unlock (&mixer_handle->lock);
         return -1;
     }
 
     mixer_ctl_set_value(pCtrl, 0, value);
+    pthread_mutex_unlock (&mixer_handle->lock);
 
-    _close_mixer_handle(pMixer);
+
     return 0;
 }
 
@@ -292,17 +291,17 @@ int aml_mixer_ctrl_set_str(int mixer_id, char *value)
         ALOGE("[%s:%d] Failed to open mixer\n", __FUNCTION__, __LINE__);
         return -1;
     }
+    pthread_mutex_lock (&mixer_handle->lock);
 
     pCtrl = _get_mixer_ctl_handle(pMixer, mixer_id);
     if (pCtrl == NULL) {
         ALOGE("[%s:%d] Failed to open mixer %s\n", __FUNCTION__, __LINE__,
               _get_mixer_name_by_id(mixer_id));
-        _close_mixer_handle(pMixer);
+        pthread_mutex_unlock (&mixer_handle->lock);
         return -1;
     }
-
     mixer_ctl_set_enum_by_string(pCtrl, value);
+    pthread_mutex_unlock (&mixer_handle->lock);
 
-    _close_mixer_handle(pMixer);
     return 0;
 }

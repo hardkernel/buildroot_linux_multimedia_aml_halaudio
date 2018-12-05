@@ -168,6 +168,11 @@ int standard_alsa_output_open(void **handle, aml_stream_config_t * stream_config
         return -1;
     }
 
+    if (stream_config->channels == 0 || stream_config->rate == 0) {
+        ALOGE("Wrong Input parameter ch=%d rate=%d\n",stream_config->channels,stream_config->rate);
+        return -1;
+    }
+
     if (stream_config->format == AUDIO_FORMAT_PCM_16_BIT) {
         alsa_param->format = SND_PCM_FORMAT_S16_LE;
     } else if (stream_config->format == AUDIO_FORMAT_PCM_32_BIT) {
