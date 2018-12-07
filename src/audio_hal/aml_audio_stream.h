@@ -182,16 +182,17 @@ typedef union output_info {
     aml_stream_config_t config_info;
 
 } output_info_t;
-
+#define AML_MAX_CHANNELS 16
 typedef enum channel_id {
-    LEFT_FRONT,
-    RIGHT_FRONT,
-    CENTER,
-    LFE,
-    LEFT_SURROUND,
-    RIGHT_SURROUND,
-    LEFT_REAR_SURROUND,
-    RIGHT_REAR_SURROUND,
+    CHANNEL_BASE = 1,
+    CHANNEL_LEFT_FRONT = CHANNEL_BASE,
+    CHANNEL_RIGHT_FRONT,
+    CHANNEL_CENTER,
+    CHANNEL_LFE,
+    CHANNEL_LEFT_SURROUND,
+    CHANNEL_RIGHT_SURROUND,
+    CHANNEL_LEFT_TOP_FRONT,
+    CHANNEL_RIGHT_TOP_FRONT,
 } channel_id_t;
 
 typedef struct channel_item {
@@ -201,8 +202,18 @@ typedef struct channel_item {
 } channel_item_t;
 
 typedef struct channel_info {
-    channel_item_t channel_items[16];
+    channel_item_t channel_items[AML_MAX_CHANNELS];
 } channel_info_t;
+
+typedef struct ch_volume {
+    channel_id_t ch_id;
+    int          bOn;
+    float        volume;
+} ch_volume_t;
+
+typedef struct volume_info {
+    ch_volume_t volume_item[AML_MAX_CHANNELS];
+} volume_info_t;
 
 
 enum sample_bitwidth {

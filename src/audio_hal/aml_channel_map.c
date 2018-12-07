@@ -32,13 +32,12 @@ int aml_channelinfo_set(channel_info_t * channel_info, audio_channel_mask_t chan
     ch = audio_channel_count_from_out_mask(channel_mask);
     memset(channel_info, 0, sizeof(channel_info_t));
     for (i = 0; i < ch; i++) {
-        channel_info->channel_items[i].ch_id = LEFT_FRONT + i;
+        channel_info->channel_items[i].ch_id = CHANNEL_BASE + i;
         channel_info->channel_items[i].present = 1;
         channel_info->channel_items[i].order = i;
     }
 
     return 0;
-
 }
 
 
@@ -210,6 +209,8 @@ int aml_channelmap_process(aml_channel_map_t * handle, aml_data_format_t *src, v
         }
         dst_channel_item++;
     }
+
+    memcpy(&src->channel_info, &dst->channel_info,sizeof(channel_info_t));
     //ALOGE("exit\n");
     return 0 ;
 }

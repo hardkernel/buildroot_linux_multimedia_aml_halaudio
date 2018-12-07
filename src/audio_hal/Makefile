@@ -29,6 +29,7 @@ CC_OBJS=audio_hw.o \
 	aml_mat_parser.o \
 	aml_spdif_in.o \
 	aml_channel_map.o \
+	aml_audio_volume.o \
 	standard_alsa_manager.o
 
 

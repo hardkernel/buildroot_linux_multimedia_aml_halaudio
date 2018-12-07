@@ -365,6 +365,8 @@ struct aml_audio_device {
     int audio_sample_rate;//audio source samplerate
     audio_format_t decode_format;
 #endif
+
+    volume_info_t volume_info;
 };
 
 struct aml_stream_out {

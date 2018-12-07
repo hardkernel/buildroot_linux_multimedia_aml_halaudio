@@ -79,7 +79,7 @@
 #include "aml_input_manager.h"
 #include "aml_callback_api.h"
 #include "aml_sample_conv.h"
-
+#include "aml_audio_volume.h"
 
 // for invoke bluetooth rc hal
 //#include "audio_hal_thunks.h"
@@ -4788,7 +4788,10 @@ static int adev_set_parameters(struct audio_hw_device *dev, const char *kvpairs)
         return 0;
     }
 
-
+    ret = volume_info_setparameters((struct audio_hw_device *)adev, parms);
+    if (ret >= 0) {
+        goto exit;
+    }
 
 
 #ifdef DATMOS
@@ -5618,21 +5621,14 @@ ssize_t audio_hal_data_processing(struct audio_stream_out *stream
         for (i = 0; i < adev->native_postprocess.num_postprocessors; i++) {
             audio_post_process(adev->native_postprocess.postprocessors[i], effect_tmp_buf, out_frames);
         }
-        if (aml_getprop_bool("media.audiohal.outdump")) {
-            FILE *fp1 = fopen("/data/audio_spk.pcm", "a+");
-            if (fp1) {
-                int flen = fwrite((char *)effect_tmp_buf, 1, bytes, fp1);
-                ALOGV("%s buffer %p size %zu\n", __FUNCTION__, effect_tmp_buf, bytes);
-                fclose(fp1);
-            }
-        }
+
         /* apply volume for spk/hp, SPDIF/HDMI keep the max volume */
         gain_speaker *= (adev->sink_gain[OUTPORT_SPEAKER] * source_gain);
         //gain_headphone *= (adev->sink_gain[OUTPORT_HEADPHONE]*source_gain);
         //gain_spdif_arc *= source_gain;
         //ALOGD("gain speaker=%f sink=%f source=%f\n",gain_speaker,adev->sink_gain[OUTPORT_SPEAKER],source_gain);
-        apply_volume(gain_speaker, effect_tmp_buf, sizeof(uint16_t), bytes);
-        apply_volume(gain_speaker, hp_tmp_buf, sizeof(uint16_t), bytes);
+        //apply_volume(gain_speaker, effect_tmp_buf, sizeof(uint16_t), bytes);
+        //apply_volume(gain_speaker, hp_tmp_buf, sizeof(uint16_t), bytes);
         //apply_volume(gain_spdif_arc, tmp_buffer, sizeof(uint16_t), bytes);
 
 #if 0//def USE_ALSA_PLUGINS
@@ -5706,6 +5702,8 @@ ssize_t audio_hal_data_processing(struct audio_stream_out *stream
                 fclose(fp1);
             }
         }
+
+        volume_control_process(&adev->hw_device,*output_buffer, *output_buffer_bytes, data_format);
 
 
     }
@@ -8749,6 +8747,7 @@ static int adev_open(const hw_module_t* module, const char* name,
     aml_output_init();
     aml_input_init();
     aml_alsa_init();
+    volume_control_init(&adev->hw_device);
 
     /* init callback function */
     adev->hw_device.install_callback_audio_patch = install_callback_audio_patch;
