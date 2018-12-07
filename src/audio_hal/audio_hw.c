@@ -93,6 +93,8 @@
 
 /*dolby amtos api*/
 #include "aml_datmos_api.h"
+
+
 //#define ENABLE_AVSYNC_TUNING //debug  zz
 /* ALSA cards for AML */
 #define CARD_AMLOGIC_BOARD 0
@@ -4771,25 +4773,32 @@ static int adev_set_parameters(struct audio_hw_device *dev, const char *kvpairs)
     if (ret >= 0) {
         adev->capture_device = val;
         ALOGI("capture_device set to %d\n", adev->capture_device);
-        return 0;
+        goto exit;
     }
 
     ret = str_parms_get_int(parms, "capture_ch", &val);
     if (ret >= 0) {
         adev->capture_ch = val;
         ALOGI("capture_ch set to %d\n", adev->capture_ch);
-        return 0;
+        goto exit;
     }
 
     ret = str_parms_get_int(parms, "capture_samplerate", &val);
     if (ret >= 0) {
         adev->capture_samplerate = val;
         ALOGI("capture_samplerate set to %d\n", adev->capture_samplerate);
-        return 0;
+        goto exit;
     }
+
 
     ret = volume_info_setparameters((struct audio_hw_device *)adev, parms);
     if (ret >= 0) {
+        goto exit;
+    }
+
+    ret = str_parms_get_int(parms, "bass_management", &val);
+    if (ret >= 0) {
+        ret = aml_bm_init(adev, val);
         goto exit;
     }
 
@@ -5631,6 +5640,7 @@ ssize_t audio_hal_data_processing(struct audio_stream_out *stream
         //apply_volume(gain_speaker, hp_tmp_buf, sizeof(uint16_t), bytes);
         //apply_volume(gain_spdif_arc, tmp_buffer, sizeof(uint16_t), bytes);
 
+
 #if 0//def USE_ALSA_PLUGINS
         // if ALSA plugins is enabled, we can bypass the data to alsa
         *output_buffer = (void*) buffer;
@@ -5685,14 +5695,21 @@ ssize_t audio_hal_data_processing(struct audio_stream_out *stream
         } else {
             convert_buf = (unsigned char *)tmp_buffer;
             convert_size = bytes;
-
         }
 
         /* do channel mapping*/
         aml_channelmap_process(aml_out->channel_map, data_format, convert_buf, out_frames);
+        data_format->ch = aml_out->channel_map->format.ch;
+
+        /*fix the input as 8ch-32bits format and suppose the LFE is the ch3 of ch0~7*/
+        ret = aml_bm_process(stream, (const void *)aml_out->channel_map->map_buffer, aml_out->channel_map->map_buffer_size, data_format);
+        if (ret) {
+            ALOGE("%s failed", __func__);
+            return ret;
+        }
+
         *output_buffer = aml_out->channel_map->map_buffer;
         *output_buffer_bytes = aml_out->channel_map->map_buffer_size;
-        data_format->ch = aml_out->channel_map->format.ch;
         //ALOGD("out channel=%d\n",data_format->ch);
 
         if (0) {
@@ -6164,7 +6181,7 @@ static void config_output(struct audio_stream_out *stream)
     if (adev->bypass_enable != 1) {
         if (aml_dec == NULL) {
             ALOGD("decoder init format=0x%x\n", aml_out->hal_internal_format);
-            if (IS_DATMOS_SUPPORT(aml_out->hal_internal_format)) {
+            if (IS_DATMOS_DECODER_SUPPORT(aml_out->hal_internal_format)) {
                 ((aml_datmos_config_t *)&dec_config)->reserved = &adev->datmos_param;
             }
             status = aml_decoder_init(&aml_out->aml_dec, aml_out->hal_internal_format, (aml_dec_config_t *)&dec_config);
@@ -6529,7 +6546,7 @@ ssize_t mixer_main_buffer_write(struct audio_stream_out *stream, const void *buf
                 if ((ret < 0) && IS_DATMOS_DECODER_SUPPORT(aml_out->hal_internal_format)) {
                     aml_decoder_release(aml_dec);
                     aml_dec_config_t dec_config;
-                    if (IS_DATMOS_SUPPORT(aml_out->hal_internal_format)) {
+                    if (IS_DATMOS_DECODER_SUPPORT(aml_out->hal_internal_format)) {
                         ((aml_datmos_config_t *)&dec_config)->reserved = &adev->datmos_param;
                     }
                     int init_status = aml_decoder_init(&aml_out->aml_dec, aml_out->hal_internal_format, (aml_dec_config_t *)&dec_config);
@@ -8741,6 +8758,7 @@ static int adev_open(const hw_module_t* module, const char* name,
     if (adev->datmos_enable) {
         datmos_default_options();
     }
+    adev->bm_enable = 0;
 #endif
 
     /* init the input/output function */

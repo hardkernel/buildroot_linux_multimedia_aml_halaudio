@@ -30,6 +30,7 @@ CC_OBJS=audio_hw.o \
 	aml_spdif_in.o \
 	aml_channel_map.o \
 	aml_audio_volume.o \
+	aml_bm_api.o \
 	standard_alsa_manager.o
 
 
@@ -51,11 +52,11 @@ TARGET=libhalaudio.so
 
 INSTALL_DIR=${LIB_DIR}
 
-LDFLAGS += -shared -ltinyalsa -lamaudioutils -lstdc++ -lsupc++ -lcjson
-
+LDFLAGS += -shared
+LDLIBS += -ltinyalsa -lamaudioutils -lstdc++ -lsupc++ -lcjson
 
 ifeq ($(ENABLE_PULSEAUDIO),yes)
-LDFLAGS += -lpulse-simple
+LDLIBS += -lpulse-simple
 CFLAGS  += -DUSE_PULSE_AUDIO
 endif
 
@@ -77,6 +78,8 @@ CFLAGS+=-I$(SRC) -I$(SRC)/include -I$(SRC)/../include -I$(SRC)/../utils/ini/incl
 DEFINES = -DDATMOS -DMAX_OUTPUT_CH=8 -DBYTES_PER_SAMPLE=4
 CFLAGS += $(DEFINES)
 
+DEP_PROJ_LINK = $(SRC)/lib_bassmanagement.a
+
 EXPORT_API = $(SRC)/../include/audio_base.h \
 	$(SRC)/../include/audio_core.h \
 	$(SRC)/../include/audio_effect_hal.h \
@@ -96,9 +99,9 @@ $(CXX_OBJS): %.o: %.cpp
 
 all: $(TARGET)
 
-$(TARGET): $(CC_OBJS) $(CXX_OBJS)
-	$(CC) $(CFLAGS) $(LDFLAGS) $(TARGET_OBJS) -o $@
-	
+$(TARGET): $(TARGET_OBJS) $(DEP_PROJ_LINK)
+	$(CC) $(LDFLAGS) -o $@ $+ $(LDLIBS)
+
 install:
 	-install -m 644 ${TARGET} $(INSTALL_DIR)
 	-install -m 644 $(TARGET) $(TARGET_DIR)/usr/lib

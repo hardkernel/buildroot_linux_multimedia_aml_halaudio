@@ -573,6 +573,10 @@ int datmos_decoder_init_patch(aml_dec_t ** ppdatmos_dec, audio_format_t format, 
 
     *ppdatmos_dec = (aml_dec_t *)datmos_dec;
     if (init_argv) {
+        for (int i = 0; i < MAX_PARAM_COUNT; i++) {
+            if (init_argv[i])
+                free(init_argv[i]);
+        }
         free(init_argv);
         init_argv = NULL;
     }
@@ -580,6 +584,14 @@ int datmos_decoder_init_patch(aml_dec_t ** ppdatmos_dec, audio_format_t format, 
     return 1;
 
 exit:
+    if (init_argv) {
+        for (int i = 0; i < MAX_PARAM_COUNT; i++) {
+            if (init_argv[i])
+                free(init_argv[i]);
+        }
+        free(init_argv);
+        init_argv = NULL;
+    }
 
     if (aml_dec->inbuf) {
         free(aml_dec->inbuf);

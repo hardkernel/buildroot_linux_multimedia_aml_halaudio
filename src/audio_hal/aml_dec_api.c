@@ -217,14 +217,12 @@ int aml_decoder_process(aml_dec_t *aml_dec, unsigned char*buffer, int bytes, int
             /*PA | PB | PC | PD | burst payload | burst spacing*/
             /*truehd/mat iec61937 len is 61440bytes*/
             aml_dec->last_consumed_bytes += offset;
-            if ((aml_dec->last_consumed_bytes != IEC61937_MAT_BYTES) || \
-                ((aml_dec->inbuf_wt > aml_dec->burst_payload_size) && ((aml_dec->inbuf_wt - new_truehd_bytes) % aml_dec->burst_payload_size != 0))
+            if ((aml_dec->last_consumed_bytes != IEC61937_MAT_BYTES)
+                /* || \
+                 *((aml_dec->inbuf_wt > aml_dec->burst_payload_size) && ((aml_dec->inbuf_wt - new_truehd_bytes) % aml_dec->burst_payload_size != 0))
+                 */
                ) {
                 ALOGE("@@end last_consumed_bytes %#x wt %#x new %#x burst %#x\n", aml_dec->last_consumed_bytes, aml_dec->inbuf_wt, new_truehd_bytes, aml_dec->burst_payload_size);
-#ifdef CHECK_HERE
-                memset((void *)aml_dec->inbuf, 0, aml_dec->inbuf_max_len);
-                aml_dec->inbuf_wt = 0;
-#else
                 /*
                  *new store data is right, so remove the early data
                  */
@@ -234,7 +232,6 @@ int aml_decoder_process(aml_dec_t *aml_dec, unsigned char*buffer, int bytes, int
                 aml_dec->inbuf_wt = new_truehd_bytes;
                 // char *sync_header = aml_dec->inbuf;
                 // ALOGE("sync_header %2x %2x", sync_header[0], sync_header[1]);
-#endif
             }
 
             memcpy(&(aml_dec->first_PAPB), buffer + fill_bytes + offset, sizeof(aml_dec->first_PAPB));

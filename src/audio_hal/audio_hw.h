@@ -364,6 +364,8 @@ struct aml_audio_device {
     int is_dolby_atmos;
     int audio_sample_rate;//audio source samplerate
     audio_format_t decode_format;
+    int bm_corner_freq;//corner frequency for bass management
+    bool bm_enable;
 #endif
 
     volume_info_t volume_info;
@@ -599,9 +601,10 @@ ssize_t hw_write(struct audio_stream_out *stream
                  , aml_data_format_t * data_format);
 
 
-#define IS_DATMOS_SUPPORT(format) ((format == AUDIO_FORMAT_AC3) || (format == AUDIO_FORMAT_E_AC3) || (format == AUDIO_FORMAT_DOLBY_TRUEHD))
+#define IS_DATMOS_DECODER_SUPPORT(format) ((format == AUDIO_FORMAT_AC3) || (format == AUDIO_FORMAT_E_AC3) || (format == AUDIO_FORMAT_DOLBY_TRUEHD))
 #define EAC3_MULTIPLIER 4
 #define TRUEHD_MULTIPLIER 16
+
 
 #ifdef DATMOS
 #define IS_DECODER_SUPPORT(format)   ((format == AUDIO_FORMAT_DTS) || \
@@ -609,12 +612,8 @@ ssize_t hw_write(struct audio_stream_out *stream
                                     (format == AUDIO_FORMAT_AC3) || \
                                     (format == AUDIO_FORMAT_E_AC3) || \
                                     (format == AUDIO_FORMAT_DOLBY_TRUEHD))
-
-#define IS_DATMOS_DECODER_SUPPORT(format)   ((format == AUDIO_FORMAT_AC3) || \
-                                            (format == AUDIO_FORMAT_E_AC3) || \
-                                            (format == AUDIO_FORMAT_DOLBY_TRUEHD))
 #else
-#define IS_DATMOS_SUPPORT(format)   ((format == AUDIO_FORMAT_DTS) || \
+#define IS_DECODER_SUPPORT(format)   ((format == AUDIO_FORMAT_DTS) || \
                                     (format == AUDIO_FORMAT_DTS_HD) || \
                                     (format == AUDIO_FORMAT_AC3) || \
                                     (format == AUDIO_FORMAT_E_AC3))
