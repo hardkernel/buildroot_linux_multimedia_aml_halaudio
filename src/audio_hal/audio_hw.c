@@ -3908,6 +3908,7 @@ static int adev_open_output_stream(struct audio_hw_device *dev,
         out->config.channels = 4;
 #else
         out->config.channels = 8;
+
 #endif
         out->config.format = PCM_FORMAT_S32_LE;
         out->tmp_buffer_8ch = (int32_t *)calloc(1, out->config.period_size * 4 * 8);
@@ -3930,7 +3931,11 @@ static int adev_open_output_stream(struct audio_hw_device *dev,
             goto err_open;
         }
 
-
+        ret = aml_channelmap_init(&out->channel_map, out->config.channels);
+        if (ret < 0) {
+            ALOGE("aml_channelmap_init faild\n");
+            goto err_open;
+        }
     }
     out->hwsync =  calloc(1, sizeof(audio_hwsync_t));
     if (!out->hwsync) {
@@ -3976,6 +3981,8 @@ static void adev_close_output_stream(struct audio_hw_device *dev,
         free(out->audioeffect_tmp_buffer);
         aml_sampleconv_close(out->sample_convert);
         out->sample_convert = NULL;
+        aml_channelmap_close(out->channel_map);
+        out->channel_map = NULL;
     }
     int channel_count = popcount(out->hal_channel_mask);
     hwsync_lpcm = (out->flags & AUDIO_OUTPUT_FLAG_HW_AV_SYNC && out->config.rate  <= 48000 &&
@@ -5628,7 +5635,7 @@ ssize_t audio_hal_data_processing(struct audio_stream_out *stream
         apply_volume(gain_speaker, hp_tmp_buf, sizeof(uint16_t), bytes);
         //apply_volume(gain_spdif_arc, tmp_buffer, sizeof(uint16_t), bytes);
 
-#ifdef USE_ALSA_PLUGINS
+#if 0//def USE_ALSA_PLUGINS
         // if ALSA plugins is enabled, we can bypass the data to alsa
         *output_buffer = (void*) buffer;
         *output_buffer_bytes = bytes;
@@ -5638,7 +5645,7 @@ ssize_t audio_hal_data_processing(struct audio_stream_out *stream
 
 
 
-
+#if 0
         need_bytes = out_frames * (SAMPLE_32BITS >> 3) * out_channel;
 
         /* we should do 32 bit out, we may need increase the buffer size. */
@@ -5670,7 +5677,7 @@ ssize_t audio_hal_data_processing(struct audio_stream_out *stream
             *output_buffer_bytes = bytes;
             return 0;
         }
-
+#endif
         /* convert the original sample bit to target sample bit */
         nsamples = bytes / (data_format->bitwidth >> 3);
         if (data_format->bitwidth != dst_format.bitwidth) {
@@ -5685,36 +5692,21 @@ ssize_t audio_hal_data_processing(struct audio_stream_out *stream
 
         }
 
-        need_bytes = out_frames * (SAMPLE_32BITS >> 3) * out_channel;
-        if (out_channel > in_ch) {
-            /* we should do 32 bit out, we may need increase the buffer size. */
-            if (aml_out->tmp_buffer_8ch_size < need_bytes) {
-                ALOGI("realloc tmp_buffer_8ch size from %zu to %zu\n", aml_out->tmp_buffer_8ch_size, need_bytes);
-                aml_out->tmp_buffer_8ch = realloc(aml_out->tmp_buffer_8ch, need_bytes);
-                if (aml_out->tmp_buffer_8ch == NULL) {
-                    ALOGE("realloc tmp_buffer_8ch buf failed size %zu\n", need_bytes);
-                    return -ENOMEM;
-                }
-                aml_out->tmp_buffer_8ch_size = need_bytes;
-            }
-            int32_t * buf_ptr = (int32_t*)convert_buf;
-            // map the channel
-            for (i = 0; i < out_frames; i++) {
-                for (j = 0; j < out_channel; j += 2) {
-                    aml_out->tmp_buffer_8ch[out_channel * i + j]     = buf_ptr[in_ch * i];
-                    aml_out->tmp_buffer_8ch[out_channel * i + j + 1] = buf_ptr[in_ch * i + 1];
-                }
+        /* do channel mapping*/
+        aml_channelmap_process(aml_out->channel_map, data_format, convert_buf, out_frames);
+        *output_buffer = aml_out->channel_map->map_buffer;
+        *output_buffer_bytes = aml_out->channel_map->map_buffer_size;
+        data_format->ch = aml_out->channel_map->format.ch;
+        //ALOGD("out channel=%d\n",data_format->ch);
 
+        if (0) {
+            FILE *fp1 = fopen("/tmp/8ch.pcm", "a+");
+            if (fp1) {
+                int flen = fwrite((char *)aml_out->channel_map->map_buffer, 1, aml_out->channel_map->map_buffer_size, fp1);
+                fclose(fp1);
             }
-            data_format->ch = out_channel;
-            *output_buffer = aml_out->tmp_buffer_8ch;
-            *output_buffer_bytes = need_bytes;
-        } else {
-            data_format->ch = in_ch;
-            *output_buffer = convert_buf;
-            *output_buffer_bytes = convert_size;
-
         }
+
 
     }
 
@@ -5807,58 +5799,6 @@ ssize_t hw_write(struct audio_stream_out *stream
     }
 #endif
     if (1)/*(aml_out->pcm)*/ {
-        if (adjust_ms) {
-            int adjust_bytes = 0;
-            memset((void*)buffer, 0, bytes);
-            if (output_format == AUDIO_FORMAT_E_AC3) {
-                adjust_bytes = 192 * 4 * abs(adjust_ms);
-            } else if (output_format == AUDIO_FORMAT_AC3) {
-                adjust_bytes = 48 * 4 * abs(adjust_ms);
-            } else {
-                adjust_bytes = 48 * 32 * abs(adjust_ms);    //8ch 32 bit.
-            }
-            adjust_bytes &= ~255;
-            ALOGI("%s hwsync audio need %s %d ms,adjust bytes %d",
-                  __func__, adjust_ms > 0 ? "insert" : "skip", abs(adjust_ms), adjust_bytes);
-            if (adjust_ms > 0) {
-                char *buf = malloc(1024);
-                int write_size = 0;
-                if (!buf) {
-                    ALOGE("%s malloc failed", __func__);
-                    pthread_mutex_unlock(&adev->alsa_pcm_lock);
-                    pthread_mutex_unlock(&adev->trans_lock);
-                    return -1;
-                }
-                memset(buf, 0, 1024);
-                while (adjust_bytes > 0) {
-                    write_size = adjust_bytes > 1024 ? 1024 : adjust_bytes;
-
-                    if (!is_digital_raw_format(output_format)) {
-                        ret = aml_output_write_pcm(stream, (void*)buf, write_size);
-
-                    } else if (is_digital_raw_format(output_format)) {
-                        ret = aml_output_write_raw(stream, (void*)buf, write_size);
-
-                    }
-
-
-                    if (ret < 0) {
-                        ALOGE("%s alsa write fail when insert", __func__);
-                        break;
-                    }
-                    adjust_bytes -= write_size;
-                }
-                free(buf);
-            } else {
-                //do nothing.
-                /*
-                if (bytes > (size_t)adjust_bytes)
-                    bytes -= adjust_bytes;
-                else
-                    bytes = 0;
-                */
-            }
-        }
 
         if (!is_digital_raw_format(output_format)) {
             ret = aml_output_write_pcm(stream, (void*)buffer, bytes);
@@ -6297,7 +6237,8 @@ ssize_t mixer_main_buffer_write(struct audio_stream_out *stream, const void *buf
     int total_write = 0;
     size_t used_size = 0;
     int write_retry = 0;
-    aml_data_format_t data_format;
+    int i = 0;
+    aml_data_format_t data_format = {0};
     audio_hwsync_t *hw_sync = aml_out->hwsync;
     if (adev->debug_flag) {
         ALOGI("%s write in %zu!, format = 0x%x\n", __FUNCTION__, bytes, aml_out->hal_internal_format);
@@ -6315,8 +6256,6 @@ ssize_t mixer_main_buffer_write(struct audio_stream_out *stream, const void *buf
     data_format.sr     = 48000;
     data_format.ch     = 2;
     data_format.bitwidth = SAMPLE_16BITS;
-
-
 
     case_cnt = popcount(adev->usecase_masks);
     if (adev->mix_init_flag == false) {
@@ -6625,6 +6564,8 @@ ssize_t mixer_main_buffer_write(struct audio_stream_out *stream, const void *buf
             data_format.sr     = aml_dec->dec_info.output_sr;
             data_format.ch     = aml_dec->dec_info.output_ch;
             data_format.bitwidth = aml_dec->dec_info.output_bitwidth;
+            aml_channelinfo_set(&data_format.channel_info, audio_channel_out_mask_from_count(data_format.ch));
+
             if (audio_hal_data_processing(stream, tmp_buffer, aml_dec->outlen_pcm, &output_buffer, &output_buffer_bytes, &data_format) == 0) {
                 hw_write(stream, output_buffer, output_buffer_bytes, &data_format);
                 aml_out->frame_write_sum = aml_out->input_bytes_size  / audio_stream_out_frame_size(stream) ;
@@ -6657,6 +6598,7 @@ ssize_t mixer_main_buffer_write(struct audio_stream_out *stream, const void *buf
             }
         }
 
+        aml_channelinfo_set(&data_format.channel_info, audio_channel_out_mask_from_count(data_format.ch));
 
         void *tmp_buffer = (void *) write_buf;
         if (aml_out->hw_sync_mode) {

@@ -290,9 +290,9 @@ size_t standard_alsa_output_write(void *handle, const void *buffer, size_t bytes
         }
 
         if (ret < 0) {
-            ALOGD("xun in =%d -EPIPE=%d\n", ret, -EPIPE);
+            ALOGE("xun in =%d -EPIPE=%d\n", ret, -EPIPE);
             if ((ret = snd_pcm_prepare(alsa_param->handle)) < 0) {
-                ALOGD("snd_pcm_prepare error=%s \n", snd_strerror(ret));
+                ALOGE("snd_pcm_prepare error=%s \n", snd_strerror(ret));
                 result = 0;
                 return result;
             }

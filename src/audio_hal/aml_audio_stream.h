@@ -183,6 +183,26 @@ typedef union output_info {
 
 } output_info_t;
 
+typedef enum channel_id {
+    LEFT_FRONT,
+    RIGHT_FRONT,
+    CENTER,
+    LFE,
+    LEFT_SURROUND,
+    RIGHT_SURROUND,
+    LEFT_REAR_SURROUND,
+    RIGHT_REAR_SURROUND,
+} channel_id_t;
+
+typedef struct channel_item {
+    channel_id_t ch_id;  // left, right ***
+    int present;    /* whether the channel is present*/
+    int order;      /* what is the channel order */
+} channel_item_t;
+
+typedef struct channel_info {
+    channel_item_t channel_items[16];
+} channel_info_t;
 
 
 enum sample_bitwidth {
@@ -203,6 +223,7 @@ typedef struct aml_data_format {
     int ch ;   /**  channels*/
     int bitwidth; /**the sample bit width, refer to sample_bitwidth*/
     int endian;   /*refer to sample_endian*/
+    channel_info_t channel_info; /*the channel detailed present&order info*/
 
 } aml_data_format_t;
 

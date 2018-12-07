@@ -43,6 +43,7 @@
 #include "audio_format_parse.h"
 #include "aml_alsa_mixer.h"
 #include "aml_sample_conv.h"
+#include "aml_channel_map.h"
 #include "aml_datmos_api.h"
 
 /* number of frames per period */
@@ -447,6 +448,7 @@ struct aml_stream_out {
 
     aml_dec_t *aml_dec;                        /*store the decoder handle*/
     aml_sample_conv_t * sample_convert;        /*store the sample convert handle*/
+    aml_channel_map_t * channel_map;           /*store the channel map handle*/
 };
 
 typedef ssize_t (*write_func)(struct audio_stream_out *stream, const void *buffer, size_t bytes);
