@@ -366,6 +366,7 @@ struct aml_audio_device {
     audio_format_t decode_format;
     int bm_corner_freq;//corner frequency for bass management
     bool bm_enable;
+    unsigned int dec_params_update_mask;
 #endif
 
     volume_info_t volume_info;

@@ -95,6 +95,7 @@ int datmos_set_parameters(struct audio_hw_device *dev, struct str_parms *parms)
         goto error_exit;
     }
 
+    /*static param*/
     ret = str_parms_get_str(parms, "speakers", value, sizeof(value));
     if (ret >= 0) {
         memset(adev->datmos_param.speaker_config, 0, sizeof(adev->datmos_param.speaker_config));
@@ -106,6 +107,7 @@ int datmos_set_parameters(struct audio_hw_device *dev, struct str_parms *parms)
         return 0;
     }
 
+    /*static param*/
     ret = str_parms_get_str(parms, "directdec", value, sizeof(value));
     if (ret >= 0) {
         ALOGI("get value %s\n", value);
@@ -130,9 +132,14 @@ int datmos_set_parameters(struct audio_hw_device *dev, struct str_parms *parms)
         return 0;
     }
 
+    /*dynamic param*/
     ret = str_parms_get_str(parms, "drc", value, sizeof(value));
     if (ret >= 0) {
         ALOGI("get value %s\n", value);
+        if (strcmp(adev->datmos_param.drc_config, value)) {
+            adev->dec_params_update_mask |=  (1 << AML_DATMOS_PARAMS_ID_DRC_MODE);
+            adev->dec_params_update_mask |=  (1 << AML_DATMOS_PARAMS_ID_DRC_SCALE_FACOTR);
+        }
         memset(adev->datmos_param.drc_config, 0, sizeof(adev->datmos_param.drc_config));
         strncpy(adev->datmos_param.drc_config, value, strlen(value));
         ALOGI("drc_config set to %s\n", adev->datmos_param.drc_config);
@@ -143,6 +150,7 @@ int datmos_set_parameters(struct audio_hw_device *dev, struct str_parms *parms)
         return 0;
     }
 
+    /*static param*/
     ret = str_parms_get_str(parms, "virt", value, sizeof(value));
     if (ret >= 0) {
         ALOGI("get value %s\n", value);
@@ -156,8 +164,11 @@ int datmos_set_parameters(struct audio_hw_device *dev, struct str_parms *parms)
         return 0;
     }
 
+    /*dynamic param*/
     ret = str_parms_get_int(parms, "post", &val);
     if (ret >= 0) {
+        if (adev->datmos_param.post != val)
+            adev->dec_params_update_mask |=  (1 << AML_DATMOS_PARAMS_ID_POST_PROCESSING_ENABLE);
         adev->datmos_param.post = val;
         ALOGI("post set to %d\n", adev->datmos_param.post);
         /*datmos parameter*/
@@ -170,8 +181,11 @@ int datmos_set_parameters(struct audio_hw_device *dev, struct str_parms *parms)
         return 0;
     }
 
+    /*dynamic param*/
     ret = str_parms_get_int(parms, "mode", &val);
     if (ret >= 0) {
+        if (adev->datmos_param.mode != val)
+            adev->dec_params_update_mask |=  (1 << AML_DATMOS_PARAMS_ID_AUDIO_PROCESSING_MODE);
         adev->datmos_param.mode = val;
         ALOGI("mode set to %d\n", adev->datmos_param.mode);
         /*datmos parameter*/
@@ -198,8 +212,11 @@ int datmos_set_parameters(struct audio_hw_device *dev, struct str_parms *parms)
         return 0;
     }
 
+    /*dynamic param*/
     ret = str_parms_get_int(parms, "vmcal", &val);
     if (ret >= 0) {
+        if (adev->datmos_param.vmcal != val)
+            adev->dec_params_update_mask |=  (1 << AML_DATMOS_PARAMS_ID_VOLUME_MODELER_CALIBRATION);
         adev->datmos_param.vmcal = val;
         ALOGI("vmcal set to %d\n", adev->datmos_param.vmcal);
         /*datmos parameter*/
@@ -215,8 +232,11 @@ int datmos_set_parameters(struct audio_hw_device *dev, struct str_parms *parms)
         return 0;
     }
 
+    /*dynamic param*/
     ret = str_parms_get_int(parms, "hfilt", &val);
     if (ret >= 0) {
+        if (adev->datmos_param.hfilt != val)
+            adev->dec_params_update_mask |=  (1 << AML_DATMOS_PARAMS_ID_HEIGHT_FILTER_ENABLE);
         adev->datmos_param.hfilt = val;
         ALOGI("hfilt set to %d\n", adev->datmos_param.hfilt);
         /*datmos parameter*/
@@ -229,8 +249,11 @@ int datmos_set_parameters(struct audio_hw_device *dev, struct str_parms *parms)
         return 0;
     }
 
+    /*dynamic param*/
     ret = str_parms_get_int(parms, "nolm", &val);
     if (ret >= 0) {
+        if (adev->datmos_param.nolm != val)
+            adev->dec_params_update_mask |=  (1 << AML_DATMOS_PARAMS_ID_LOUDNESS_MANAGEMENT_ENABLE);
         adev->datmos_param.nolm = val;
         ALOGI("nolm set to %d\n", adev->datmos_param.nolm);
         /*datmos parameter*/
@@ -243,8 +266,11 @@ int datmos_set_parameters(struct audio_hw_device *dev, struct str_parms *parms)
         return 0;
     }
 
+    /*dynamic param*/
     ret = str_parms_get_int(parms, "noupmix", &val);
     if (ret >= 0) {
+        if (adev->datmos_param.noupmix != val)
+            adev->dec_params_update_mask |=  (1 << AML_DATMOS_PARAMS_ID_UPMIX_ENABLE);
         adev->datmos_param.noupmix = val;
         ALOGI("noupmix set to %d\n", adev->datmos_param.noupmix);
         /*datmos parameter*/
@@ -257,8 +283,11 @@ int datmos_set_parameters(struct audio_hw_device *dev, struct str_parms *parms)
         return 0;
     }
 
+    /*dynamic param*/
     ret = str_parms_get_int(parms, "novlamp", &val);
     if (ret >= 0) {
+        if (adev->datmos_param.novlamp != val)
+            adev->dec_params_update_mask |=  (1 << AML_DATMOS_PARAMS_ID_VLAMP);
         adev->datmos_param.novlamp = val;
         ALOGI("novlamp set to %d\n", adev->datmos_param.novlamp);
         /*datmos parameter*/
@@ -271,6 +300,7 @@ int datmos_set_parameters(struct audio_hw_device *dev, struct str_parms *parms)
         return 0;
     }
 
+    /*static param*/
     ret = str_parms_get_int(parms, "noupresampler", &val);
     if (ret >= 0) {
         adev->datmos_param.noupresampler = val;
@@ -285,6 +315,7 @@ int datmos_set_parameters(struct audio_hw_device *dev, struct str_parms *parms)
         return 0;
     }
 
+    /*static param*/
     ret = str_parms_get_str(parms, "verbose", value, sizeof(value));
     if (ret >= 0) {
         ALOGI("get value %s\n", value);
@@ -318,7 +349,7 @@ error_exit:
 
 int datmos_get_parameters(struct audio_hw_device *dev, const char *keys, char *temp_buf, size_t temp_buf_size)
 {
-    return 1;
+    return 0;
 }
 
 
@@ -343,7 +374,7 @@ int get_datmos_func(struct aml_datmos_param *datmos_handle)
             ALOGI("cant find lib interface %s", dlerror());
             goto error;
         }
-        datmos_handle->aml_atmos_init = (int (*)(unsigned int, void **, bool, const int, const char **))dlsym(datmos_handle->fd, "aml_atmos_init");
+        datmos_handle->aml_atmos_init = (int (*)(unsigned int, void **, const int, const char **))dlsym(datmos_handle->fd, "aml_atmos_init");
         if (datmos_handle->aml_atmos_init == NULL) {
             ALOGI("cant find lib interface %s", dlerror());
             goto error;
@@ -363,12 +394,18 @@ int get_datmos_func(struct aml_datmos_param *datmos_handle)
             ALOGI("cant find lib interface %s", dlerror());
             goto error;
         }
+        datmos_handle->aml_datmos_dynamic_parameter_set = (int (*)(void *, const int, const char **))dlsym(datmos_handle->fd, "aml_datmos_dynamic_parameter_set");
+        if (datmos_handle->aml_datmos_dynamic_parameter_set == NULL) {
+            ALOGI("cant find lib interface %s", dlerror());
+            goto error;
+        }
         ALOGI("fd=%p", datmos_handle->fd);
         ALOGI("get_audio_info=%p", datmos_handle->get_audio_info);
         ALOGI("aml_atmos_init=%p", datmos_handle->aml_atmos_init);
         ALOGI("aml_atmos_process=%p", datmos_handle->aml_atmos_process);
         ALOGI("aml_atmos_cleanup=%p", datmos_handle->aml_atmos_cleanup);
         ALOGI("aml_get_output_info=%p", datmos_handle->aml_get_output_info);
+        ALOGI("aml_datmos_dynamic_parameter_set=%p", datmos_handle->aml_datmos_dynamic_parameter_set);
         return 0;
     } else {
         ALOGI("");
@@ -394,6 +431,7 @@ int cleanup_atmos_func(struct aml_datmos_param *datmos_handle)
     datmos_handle->aml_atmos_process = NULL;
     datmos_handle->aml_atmos_cleanup = NULL;
     datmos_handle->aml_get_output_info = NULL;
+    datmos_handle->aml_datmos_dynamic_parameter_set = NULL;
 
     /* close the shared object */
     if (datmos_handle->fd) {
@@ -475,8 +513,6 @@ int datmos_decoder_init_patch(aml_dec_t ** ppdatmos_dec, audio_format_t format, 
 {
     struct dolby_atmos_dec *datmos_dec;
     aml_dec_t  *aml_dec = NULL;
-    int init_argc = 0;
-    char **init_argv = NULL;
     struct aml_datmos_param *datmos_handle = NULL;
     void *opts = NULL;
 
@@ -492,14 +528,15 @@ int datmos_decoder_init_patch(aml_dec_t ** ppdatmos_dec, audio_format_t format, 
         return -1;
     }
 
+    aml_dec = &datmos_dec->aml_dec;
 
-    if (init_argv == NULL) {
-        init_argv = (char **)malloc(MAX_PARAM_COUNT * VALUE_BUF_SIZE);
-        if (init_argv) {
-            memset(init_argv, 0, sizeof(MAX_PARAM_COUNT * VALUE_BUF_SIZE));
+    if (aml_dec && aml_dec->init_argv == NULL) {
+        aml_dec->init_argv = (char **)malloc(MAX_PARAM_COUNT * VALUE_BUF_SIZE);
+        if (aml_dec->init_argv) {
+            memset(aml_dec->init_argv, 0, sizeof(MAX_PARAM_COUNT * VALUE_BUF_SIZE));
             for (int i = 0; i < MAX_PARAM_COUNT; i++) {
-                init_argv[i] = (char *)malloc(VALUE_BUF_SIZE);
-                memset(init_argv[i], 0, sizeof(VALUE_BUF_SIZE));
+                aml_dec->init_argv[i] = (char *)malloc(VALUE_BUF_SIZE);
+                memset(aml_dec->init_argv[i], 0, sizeof(VALUE_BUF_SIZE));
             }
         }
     }
@@ -507,15 +544,38 @@ int datmos_decoder_init_patch(aml_dec_t ** ppdatmos_dec, audio_format_t format, 
     datmos_config->audio_type = android_audio_format_t_convert_to_andio_type(format);
     /*Fixme: how to get the eb3 extension?*/
     datmos_config->is_eb3_extension = 0;
+
     datmos_handle = (struct aml_datmos_param *)datmos_config->reserved;
     opts = get_datmos_current_options();
 
-    if (get_datmos_config(opts, init_argv, &init_argc) != 0) {
+    switch (datmos_config->audio_type) {
+        case TRUEHD: {
+            add_datmos_option(opts, "-i", "/media/test.mat");
+        }
+        break;
+        case EAC3: {
+            if (datmos_config->is_eb3_extension) {
+                add_datmos_option(opts, "-i", "/media/test.eb3");
+            }
+            else
+                add_datmos_option(opts, "-i", "/media/test.ec3");
+        }
+        break;
+        case AC3: {
+            add_datmos_option(opts, "-i", "/media/test.ac3");
+        }
+        break;
+        default: {
+            ALOGE("unsuitable audio format %d!\n", datmos_config->audio_type);
+            return -1;
+        }
+    }
+
+    if (get_datmos_config(opts, aml_dec->init_argv, &aml_dec->init_argc) != 0) {
         ALOGE("get datmos config fail\n");
         return -1;
     }
 
-    aml_dec = &datmos_dec->aml_dec;
     ALOGI("audio_type %s is_eb3_extension %d\n", AUDIO_FORMAT_STRING(datmos_config->audio_type), datmos_config->is_eb3_extension);
 
     if (datmos_handle->aml_atmos_init)
@@ -523,9 +583,8 @@ int datmos_decoder_init_patch(aml_dec_t ** ppdatmos_dec, audio_format_t format, 
             datmos_handle->aml_atmos_init(
                     datmos_config->audio_type
                     , &(aml_dec->dec_ptr)
-                    , datmos_config->is_eb3_extension
-                    , init_argc
-                    , init_argv);
+                    , aml_dec->init_argc
+                    , aml_dec->init_argv);
 
     ALOGI("aml_dec %p status %d format %#x\n", aml_dec, aml_dec->status, aml_dec->format);
 
@@ -569,28 +628,22 @@ int datmos_decoder_init_patch(aml_dec_t ** ppdatmos_dec, audio_format_t format, 
     datmos_dec->aml_atmos_process = datmos_handle->aml_atmos_process;
     datmos_dec->aml_atmos_cleanup = datmos_handle->aml_atmos_cleanup;
     datmos_dec->aml_get_output_info = datmos_handle->aml_get_output_info;
+    datmos_dec->aml_datmos_dynamic_parameter_set = datmos_handle->aml_datmos_dynamic_parameter_set;
     aml_dec->status = 1;
 
     *ppdatmos_dec = (aml_dec_t *)datmos_dec;
-    if (init_argv) {
-        for (int i = 0; i < MAX_PARAM_COUNT; i++) {
-            if (init_argv[i])
-                free(init_argv[i]);
-        }
-        free(init_argv);
-        init_argv = NULL;
-    }
+
     ALOGV("<<OUT>>");
     return 1;
 
 exit:
-    if (init_argv) {
+    if (aml_dec->init_argv) {
         for (int i = 0; i < MAX_PARAM_COUNT; i++) {
-            if (init_argv[i])
-                free(init_argv[i]);
+            if (aml_dec->init_argv[i])
+                free(aml_dec->init_argv[i]);
         }
-        free(init_argv);
-        init_argv = NULL;
+        free(aml_dec->init_argv);
+        aml_dec->init_argv = NULL;
     }
 
     if (aml_dec->inbuf) {
@@ -605,10 +658,7 @@ exit:
         free(datmos_dec);
         datmos_dec = NULL;
     }
-    if (init_argv) {
-        free(init_argv);
-        init_argv = NULL;
-    }
+
     *ppdatmos_dec = NULL;
     ALOGV("<<OUT>>");
     return -1;
@@ -629,23 +679,37 @@ int datmos_decoder_release_patch(aml_dec_t *aml_dec)
         aml_dec->remain_size = 0;
         aml_dec->outlen_pcm = 0;
         aml_dec->outlen_raw = 0;
+
+        if (aml_dec->init_argv) {
+            for (int i = 0; i < MAX_PARAM_COUNT; i++) {
+                if (aml_dec->init_argv[i])
+                    free(aml_dec->init_argv[i]);
+            }
+            free(aml_dec->init_argv);
+            aml_dec->init_argv = NULL;
+        }
+
         if (aml_dec->inbuf) {
             free(aml_dec->inbuf);
             aml_dec->inbuf = NULL;
         }
+
         if (aml_dec->outbuf) {
             free(aml_dec->outbuf);
             aml_dec->outbuf = NULL;
         }
+
         if (aml_dec->outbuf_raw) {
             free(aml_dec->outbuf_raw);
             aml_dec->outbuf_raw = NULL;
         }
+
         datmos_dec->get_audio_info = NULL;
         datmos_dec->aml_atmos_init = NULL;
         datmos_dec->aml_atmos_process = NULL;
         datmos_dec->aml_atmos_cleanup = NULL;
         datmos_dec->aml_get_output_info = NULL;
+        datmos_dec->aml_datmos_dynamic_parameter_set = NULL;
         free(aml_dec);
         aml_dec = NULL;
     }
@@ -763,10 +827,38 @@ EXIT:
     return -1;
 }
 
+int datmos_decoder_dynamic_param_set_patch(aml_dec_t *aml_dec)
+{
+    int ret = 0;
+    void *opts = NULL;
+    struct dolby_atmos_dec *datmos_dec = (struct dolby_atmos_dec *)aml_dec;
+
+    if (!aml_dec) {
+        ALOGE("aml_dec %p\n", aml_dec);
+        goto EXIT;
+    }
+
+    opts = get_datmos_current_options();
+
+    if (get_datmos_config(opts, aml_dec->init_argv, &aml_dec->init_argc) != 0) {
+        ALOGE("get datmos config fail\n");
+        return -1;
+    }
+    ret = datmos_dec->aml_datmos_dynamic_parameter_set
+                    (aml_dec->dec_ptr
+                    , (const int) aml_dec->init_argc
+                    , (const char **)aml_dec->init_argv);
+
+    return ret;
+EXIT:
+    return -1;
+}
+
 aml_dec_func_t aml_datmos_func = {
-    .f_init      = datmos_decoder_init_patch,
-    .f_release   = datmos_decoder_release_patch,
-    .f_process   = datmos_decoder_process_patch,
+    .f_init                 = datmos_decoder_init_patch,
+    .f_release              = datmos_decoder_release_patch,
+    .f_process              = datmos_decoder_process_patch,
+    .f_dynamic_param_set    = datmos_decoder_dynamic_param_set_patch,
 };
 #endif
 

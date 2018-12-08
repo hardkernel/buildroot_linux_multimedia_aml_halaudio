@@ -625,7 +625,7 @@ void feeddata_audio_type_parse(void **status, char * input, int size)
                     audio_type_status->parsed_size += size;
                     if (audio_type_status->parsed_size <= IEC61937_CHECK_SIZE) {
                          // during IEC header finding£¬we mute it
-                         // memset(input, 0, size);
+                         memset(input, 0, size);
                          audio_type_status->audio_type = MUTE;
                     } else {
                         // we alread checked some bytes, not found IEC header, we will treate it as PCM
@@ -638,11 +638,11 @@ void feeddata_audio_type_parse(void **status, char * input, int size)
 
             } else if (type == PAUSE) {
                 // set all the data as 0, keep the original data type
-                // memset(input, 0, size);
+                memset(input, 0, size);
 
             } else {
                 audio_type_status->state = IEC61937_SYNCING;
-                // memset(input, 0, size);
+                memset(input, 0, size);
                 audio_type_status->audio_type = LPCM;
                 audio_type_status->parsed_size = 0;
             }
@@ -671,7 +671,7 @@ void feeddata_audio_type_parse(void **status, char * input, int size)
 
             }
             // mute all the data during syncing
-            // memset(input, 0, size);
+            memset(input, 0, size);
             break;
         }
         case IEC61937_SYNCED:

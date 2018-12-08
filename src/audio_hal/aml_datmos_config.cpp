@@ -82,6 +82,7 @@ extern "C" void *datmos_default_options()
 {
     opts.clear();
     opts.push_back(Option("sidk", ""));
+    opts.push_back(Option("-o", "/tmp/out_dut.wav"));
     opts.push_back(Option("-bo", "24"));
     opts.push_back(Option("-speakers", "lr:c:lfe:lrs:lrrs"));
     opts.push_back(Option("-noupresampler", "1"));
@@ -168,17 +169,17 @@ extern "C" bool get_datmos_config(void *opt_handle, char **init_argv, int *init_
         }
     }
 
-    ALOGI("params count:%d\n", k);
+    ALOGI("params count:%d\n\n", k);
+    // ALOGI("\n\n*****************************************************************\n\n");
     for (i = 0; i < k; i++) {
         printf("%s ", init_argv[i]);
     }
+    printf("\n");
+    // ALOGI("\n\n*****************************************************************\n");
     *init_argc = k;
 
     return 0;
 }
-
-
-
 
 
 

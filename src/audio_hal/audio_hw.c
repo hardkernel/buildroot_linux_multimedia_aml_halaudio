@@ -6191,6 +6191,7 @@ static void config_output(struct audio_stream_out *stream)
                 return;
             }
             adev->decode_format = aml_out->hal_internal_format;
+            adev->dec_params_update_mask = 0;
             aml_dec = aml_out->aml_dec;
             /*check if the input format is contained with 61937 format*/
             if (aml_out->hal_format == AUDIO_FORMAT_IEC61937) {
@@ -6536,6 +6537,12 @@ ssize_t mixer_main_buffer_write(struct audio_stream_out *stream, const void *buf
             }
 
             if (aml_dec) {
+                if (adev->dec_params_update_mask) {
+                    if (aml_decoder_dynamic_param_set(aml_dec)) {
+                        ALOGE("set dec dynamic param occur error");
+                    }
+                    adev->dec_params_update_mask = 0;
+                }
                 ret = aml_decoder_process(aml_dec, (unsigned char *)buffer, bytes, &used_size);
                 /*update information*/
                 adev->is_truehd_within_mat = aml_dec->is_truehd_within_mat;
@@ -8759,6 +8766,7 @@ static int adev_open(const hw_module_t* module, const char* name,
         datmos_default_options();
     }
     adev->bm_enable = 0;
+    adev->dec_params_update_mask = 0;
 #endif
 
     /* init the input/output function */

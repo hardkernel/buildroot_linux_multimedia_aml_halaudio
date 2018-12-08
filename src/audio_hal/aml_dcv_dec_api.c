@@ -1026,7 +1026,8 @@ EXIT:
 }
 
 aml_dec_func_t aml_dcv_func = {
-    .f_init      = dcv_decoder_init_patch,
-    .f_release   = dcv_decoder_release_patch,
-    .f_process   = dcv_decoder_process_patch,
+    .f_init                 = dcv_decoder_init_patch,
+    .f_release              = dcv_decoder_release_patch,
+    .f_process              = dcv_decoder_process_patch,
+    .f_dynamic_param_set    = NULL,
 };

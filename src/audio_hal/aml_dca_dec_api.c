@@ -830,8 +830,9 @@ int dca_decode_release(struct aml_audio_parser *parser)
 }
 
 aml_dec_func_t aml_dca_func = {
-    .f_init      = dca_decoder_init_patch,
-    .f_release   = dca_decoder_release_patch,
-    .f_process   = dca_decoder_process_patch,
+    .f_init                 = dca_decoder_init_patch,
+    .f_release              = dca_decoder_release_patch,
+    .f_process              = dca_decoder_process_patch,
+    .f_dynamic_param_set    = NULL,
 };
 

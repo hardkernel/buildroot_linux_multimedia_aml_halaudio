@@ -263,4 +263,28 @@ int aml_decoder_process(aml_dec_t *aml_dec, unsigned char*buffer, int bytes, int
 
 }
 
+int aml_decoder_dynamic_param_set(aml_dec_t *aml_dec)
+{
+    int ret = -1;
+    aml_dec_func_t *dec_fun = NULL;
+    if (aml_dec == NULL) {
+        ALOGE("%s aml_dec is NULL\n", __func__);
+        return -1;
+    }
+
+    dec_fun = get_decoder_function(aml_dec->format, gdolby_strategy);
+    if (dec_fun == NULL) {
+        return -1;
+    }
+
+    if (dec_fun->f_dynamic_param_set) {
+        ret = dec_fun->f_dynamic_param_set(aml_dec);
+    } else {
+        return -1;
+    }
+
+    return ret;
+
+
+}
 

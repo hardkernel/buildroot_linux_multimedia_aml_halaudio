@@ -62,7 +62,6 @@ void delete_datmos_option(void *opt_handle, const char *key);
             others: fail
  */
 bool get_datmos_config(void *opt_handle, char **init_argv, int *init_argc);
-
 #ifdef __cplusplus
 }
 #endif

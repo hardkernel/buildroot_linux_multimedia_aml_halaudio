@@ -72,6 +72,8 @@ typedef struct aml_dec {
     int last_consumed_bytes;
     int is_truehd_within_mat;
     int is_dolby_atmos;
+    int init_argc;
+    char **init_argv;
 } aml_dec_t;
 
 typedef struct aml_dcv_config {
@@ -116,13 +118,14 @@ typedef int (*F_Init)(aml_dec_t **ppaml_dec, audio_format_t format, aml_dec_conf
 typedef int (*F_Release)(aml_dec_t *aml_dec);
 typedef int (*F_Process)(aml_dec_t *aml_dec, unsigned char* buffer, int bytes);
 typedef int (*F_Config)(aml_dec_t *aml_dec, int config_type, aml_dec_config_t * config_value);
-
+typedef int (*F_Dynamic_param_set)(aml_dec_t *aml_dec);
 
 typedef struct aml_dec_func {
-    F_Init    f_init;
-    F_Release f_release;
-    F_Process f_process;
-    F_Config  f_config;
+    F_Init                  f_init;
+    F_Release               f_release;
+    F_Process               f_process;
+    F_Config                f_config;
+    F_Dynamic_param_set     f_dynamic_param_set;
 } aml_dec_func_t;
 
 
@@ -132,5 +135,15 @@ int aml_decoder_release(aml_dec_t *aml_dec);
 int aml_decoder_config(aml_dec_t *aml_dec, aml_dec_config_t * config);
 int aml_decoder_process(aml_dec_t *aml_dec, unsigned char*buffer, int bytes, int * used_bytes);
 
+/*
+ *@brief amlogic decoder dynamic param set
+ * input params:
+ *          aml_dec_t *aml_dec: decoder handle
+ *
+ * return value:
+ *          0: success;
+*           otherwise errror occur.
+ */
+int aml_decoder_dynamic_param_set(aml_dec_t *aml_dec);
 
 #endif

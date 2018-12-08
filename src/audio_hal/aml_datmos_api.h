@@ -31,10 +31,11 @@ struct aml_datmos_param {
     bool is_dolby_atmos;
     void *fd;
     int (*get_audio_info)(void *, int *, int *, int *);
-    int (*aml_atmos_init)(unsigned int, void **, bool, const int, const char **);
+    int (*aml_atmos_init)(unsigned int, void **, const int, const char **);
     int (*aml_atmos_process)(void *, unsigned int, void *, size_t *, char *, unsigned int , size_t *);
     void (*aml_atmos_cleanup)(void *);
     int (*aml_get_output_info)(void *, int *, int *, int *);
+    int (*aml_datmos_dynamic_parameter_set)(void *, const int, const char **);
     char speaker_config[CONFIG_MAX];
     bool directdec;
     char drc_config[CONFIG_MAX];
@@ -50,14 +51,30 @@ struct aml_datmos_param {
     bool noupresampler;
 };
 
+typedef enum
+{
+    AML_DATMOS_PARAMS_NONE = -1,
+    AML_DATMOS_PARAMS_ID_UPMIX_ENABLE,
+    AML_DATMOS_PARAMS_ID_CENTER_SPREAD_ENABLE,
+    AML_DATMOS_PARAMS_ID_LOUDNESS_MANAGEMENT_ENABLE,
+    AML_DATMOS_PARAMS_ID_POST_PROCESSING_ENABLE,
+    AML_DATMOS_PARAMS_ID_HEIGHT_FILTER_ENABLE,
+    AML_DATMOS_PARAMS_ID_AUDIO_PROCESSING_MODE,
+    AML_DATMOS_PARAMS_ID_DRC_MODE,
+    AML_DATMOS_PARAMS_ID_DRC_SCALE_FACOTR,
+    AML_DATMOS_PARAMS_ID_VOLUME_MODELER_CALIBRATION,
+    AML_DATMOS_PARAMS_ID_VLAMP,
+    AML_DATMOS_PARAMS_ID_LAST
+} aml_datmos_dynamic_params_id;
 
 struct dolby_atmos_dec {
     aml_dec_t  aml_dec;
     int (*get_audio_info)(void *, int *, int *, int *);
-    int (*aml_atmos_init)(unsigned int, void **, bool, const int, const char **);
+    int (*aml_atmos_init)(unsigned int, void **, const int, const char **);
     int (*aml_atmos_process)(void *, unsigned int, void *, size_t *, char *, unsigned int , size_t *);
     void (*aml_atmos_cleanup)(void *);
     int (*aml_get_output_info)(void *, int *, int *, int *);
+    int (*aml_datmos_dynamic_parameter_set)(void *, const int, const char **);
     int is_truehd_within_mat;
     int is_dolby_atmos;
     int audio_samplerate;
@@ -109,7 +126,16 @@ int get_datmos_func(struct aml_datmos_param *datmos_handle);
  *          0, success cleanup datmos function
  */
 int cleanup_atmos_func(struct aml_datmos_param *datmos_handle);
-
+/*
+ *@brief datmos decoder dynamic param set
+ * input params:
+ *          struct aml_datmos_param *datmos_handle: aml_datmos_param handle
+ *
+ * return value:
+ *          0, success
+ *          other, error occur
+ */
+int datmos_decoder_dynamic_param_set_patch(aml_dec_t *aml_dec);
 extern aml_dec_func_t aml_datmos_func;
 #endif
 
