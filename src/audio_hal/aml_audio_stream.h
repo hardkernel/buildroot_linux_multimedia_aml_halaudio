@@ -212,9 +212,9 @@ typedef struct ch_volume {
 } ch_volume_t;
 
 typedef struct volume_info {
+    float master_vol;
     ch_volume_t volume_item[AML_MAX_CHANNELS];
 } volume_info_t;
-
 
 enum sample_bitwidth {
     SAMPLE_8BITS =  8,

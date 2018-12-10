@@ -370,6 +370,8 @@ struct aml_audio_device {
 #endif
 
     volume_info_t volume_info;
+    void * level_handle;
+
 };
 
 struct aml_stream_out {

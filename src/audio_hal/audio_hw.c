@@ -79,7 +79,9 @@
 #include "aml_input_manager.h"
 #include "aml_callback_api.h"
 #include "aml_sample_conv.h"
+#include "aml_bm_api.h"
 #include "aml_audio_volume.h"
+#include "aml_audio_level.h"
 
 // for invoke bluetooth rc hal
 //#include "audio_hal_thunks.h"
@@ -3985,6 +3987,7 @@ static void adev_close_output_stream(struct audio_hw_device *dev,
         out->sample_convert = NULL;
         aml_channelmap_close(out->channel_map);
         out->channel_map = NULL;
+        aml_audiolevel_reset(&adev->hw_device);
     }
     int channel_count = popcount(out->hal_channel_mask);
     hwsync_lpcm = (out->flags & AUDIO_OUTPUT_FLAG_HW_AV_SYNC && out->config.rate  <= 48000 &&
@@ -4791,7 +4794,7 @@ static int adev_set_parameters(struct audio_hw_device *dev, const char *kvpairs)
     }
 
 
-    ret = volume_info_setparameters((struct audio_hw_device *)adev, parms);
+    ret = aml_volctl_setparameters((struct audio_hw_device *)adev, parms);
     if (ret >= 0) {
         goto exit;
     }
@@ -4921,6 +4924,11 @@ static char * adev_get_parameters(const struct audio_hw_device *dev,
     }
 
     ret = get_stream_parameters((struct audio_hw_device *)adev, keys, temp_buf, sizeof(temp_buf));
+    if (ret == 0) {
+        return  strdup(temp_buf);
+    }
+
+    ret = aml_audiolevel_getparam((struct audio_hw_device *)adev, keys, temp_buf, sizeof(temp_buf));
     if (ret == 0) {
         return  strdup(temp_buf);
     }
@@ -5720,8 +5728,9 @@ ssize_t audio_hal_data_processing(struct audio_stream_out *stream
             }
         }
 
-        volume_control_process(&adev->hw_device,*output_buffer, *output_buffer_bytes, data_format);
+        aml_volctl_process(&adev->hw_device,*output_buffer, *output_buffer_bytes, data_format);
 
+        aml_audiolevel_cal(&adev->hw_device,*output_buffer, *output_buffer_bytes, data_format);
 
     }
 
@@ -7198,10 +7207,8 @@ void *audio_patch_input_threadloop(void *data)
                     retry++;
                     pthread_cond_signal(&patch->cond);
                     //Fixme: if ringbuffer is full enough but no output, reset ringbuffer
-                    if (retry > 5) {
-                        ring_buffer_reset(ringbuffer);
-                        ALOGE("%s(), no space to input, in read audio discontinue!\n", __func__);
-                    }
+                    ring_buffer_reset(ringbuffer);
+                    ALOGE("%s(), no space to input, in read audio discontinue!\n", __func__);
 
                     usleep(3000);
                 }
@@ -7360,7 +7367,8 @@ void *audio_patch_output_threadloop(void *data)
             int us = 0;
             clock_gettime(CLOCK_MONOTONIC, &before_read);
 #endif
-
+            //if (get_buffer_read_space(ringbuffer) > 2048)
+              //  ALOGD("ch=%d rate=%d size=%d write=%d available=%d\n",patch->ch,patch->sample_rate,ringbuffer->size,ret,get_buffer_read_space(ringbuffer));
             ret = out_write_new(stream_out, patch->out_buf, ret);
 
 #if 0
@@ -8305,6 +8313,7 @@ static int adev_close(hw_device_t *device)
     }
     eq_drc_release(&adev->eq_data);
     close_mixer_handle();
+    aml_audiolevel_close(&adev->hw_device);
     free(device);
     aml_log_exit();
     return 0;
@@ -8773,7 +8782,8 @@ static int adev_open(const hw_module_t* module, const char* name,
     aml_output_init();
     aml_input_init();
     aml_alsa_init();
-    volume_control_init(&adev->hw_device);
+    aml_volctl_init(&adev->hw_device);
+    aml_audiolevel_init(&adev->hw_device);
 
     /* init callback function */
     adev->hw_device.install_callback_audio_patch = install_callback_audio_patch;

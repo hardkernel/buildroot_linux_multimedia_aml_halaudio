@@ -31,6 +31,7 @@ CC_OBJS=audio_hw.o \
 	aml_channel_map.o \
 	aml_audio_volume.o \
 	aml_bm_api.o \
+	aml_audio_level.o \
 	standard_alsa_manager.o
 
 

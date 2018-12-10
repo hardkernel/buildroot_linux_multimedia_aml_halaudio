@@ -26,6 +26,7 @@ struct ch_name_pair {
     channel_id_t ch_id;
 };
 
+#define MASTER_VOLUME_NAME "master_vol"
 
 static struct ch_name_pair ch_vol_pair[ ] = {
     {"lf_ch_vol",  CHANNEL_LEFT_FRONT},
@@ -86,25 +87,24 @@ static void set_channel_mute(volume_info_t *volume_info, channel_id_t ch, int bO
 }
 
 
-int volume_control_init(struct audio_hw_device *dev)
+int aml_volctl_init(struct audio_hw_device *dev)
 {
     struct aml_audio_device *adev = (struct aml_audio_device *) dev;
     volume_info_t *volume_info = &adev->volume_info;
 
     int i = 0;
 
+    volume_info->master_vol = 1.0;
 
     for (i = 0; i < AML_MAX_CHANNELS; i++) {
         volume_info->volume_item[i].ch_id = CHANNEL_BASE + i;
         volume_info->volume_item[i].volume = 1.0;
         volume_info->volume_item[i].bOn = 1;
     }
-
-
     return 0;
 }
 
-int volume_info_setparameters(struct audio_hw_device *dev, struct str_parms *parms)
+int aml_volctl_setparameters(struct audio_hw_device *dev, struct str_parms *parms)
 {
     float volume = 1.0;
     int bOn = 1;
@@ -118,7 +118,22 @@ int volume_info_setparameters(struct audio_hw_device *dev, struct str_parms *par
 
     if (!adev || !parms) {
         ALOGE("Fatal Error adev %p parms %p", adev, parms);
-        goto error_exit;
+        return -1;
+    }
+
+    ret = str_parms_get_float(parms, MASTER_VOLUME_NAME, &volume);
+    if (ret >= 0) {
+        if (volume > 1.0) {
+            volume = 1.0;
+        }
+        
+        if (volume < 0.0) {
+            volume = 0.0;
+        }
+
+        volume_info->master_vol = volume;
+
+        return 0;
     }
 
     for (i = 0; i < item; i++) {
@@ -139,11 +154,6 @@ int volume_info_setparameters(struct audio_hw_device *dev, struct str_parms *par
     }
 
     return -1;
-
-error_exit:
-    ret = -1;
-    ALOGE("Error exit!");
-    return ret;
 }
 
 static ch_volume_t* volume_find_chinfo(volume_info_t *volume_info , channel_id_t ch_id)
@@ -158,7 +168,7 @@ static ch_volume_t* volume_find_chinfo(volume_info_t *volume_info , channel_id_t
     return NULL;
 }
 
-int volume_control_process(struct audio_hw_device *dev, void * in_data, size_t size, aml_data_format_t *format)
+int aml_volctl_process(struct audio_hw_device *dev, void * in_data, size_t size, aml_data_format_t *format)
 {
 
     struct aml_audio_device *adev = (struct aml_audio_device *) dev;
@@ -190,7 +200,7 @@ int volume_control_process(struct audio_hw_device *dev, void * in_data, size_t s
                     if (ch_volume->bOn == 0) {
                         data[j * ch + i] = 0;
                     } else {
-                        data[j * ch + i] = data[j * ch + i] * ch_volume->volume;
+                        data[j * ch + i] = data[j * ch + i] * ch_volume->volume * volume_info->master_vol;
                     }
                 }
             }
@@ -212,7 +222,7 @@ int volume_control_process(struct audio_hw_device *dev, void * in_data, size_t s
                     if (ch_volume->bOn == 0) {
                         data[j * ch + i] = 0;
                     } else {
-                        data[j * ch + i] = data[j * ch + i] * ch_volume->volume;
+                        data[j * ch + i] = data[j * ch + i] * ch_volume->volume * volume_info->master_vol;
                     }
                 }
             }

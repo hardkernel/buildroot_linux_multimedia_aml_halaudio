@@ -13,17 +13,17 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#ifndef AML_AUDIO_VOLUME_H
-#define AML_AUDIO_VOLUME_H
+#ifndef AML_AUDIO_LEVEL_H
+#define AML_AUDIO_LEVEL_H
 
-#include <cutils/str_parms.h>
+//#include <cutils/str_parms.h>
 #include "aml_audio_stream.h"
 #include "audio_hw.h"
 
-int aml_volctl_init(struct audio_hw_device *dev);
-
-int aml_volctl_setparameters(struct audio_hw_device *dev, struct str_parms *parms);
-
-int aml_volctl_process(struct audio_hw_device *dev, void * in_data, size_t size, aml_data_format_t *format);
+int aml_audiolevel_init(struct audio_hw_device *dev);
+int aml_audiolevel_reset(struct audio_hw_device *dev) ;
+int aml_audiolevel_getparam(struct audio_hw_device *dev, const char *keys, char *temp_buf, size_t temp_buf_size);
+int aml_audiolevel_close(struct audio_hw_device *dev);
+int aml_audiolevel_cal(struct audio_hw_device *dev, void * in_data, size_t size, aml_data_format_t *format);
 
 #endif
