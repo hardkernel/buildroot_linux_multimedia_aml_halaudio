@@ -600,8 +600,8 @@ int datmos_decoder_init_patch(aml_dec_t ** ppdatmos_dec, audio_format_t format, 
     aml_dec->inbuf = NULL;
     aml_dec->outbuf = NULL;
     aml_dec->outbuf_raw = NULL;
-    if ((datmos_config->audio_type == AC3) || (datmos_config->audio_type == EAC3)) 
-        aml_dec->inbuf_max_len = MAX_DECODER_DDP_FRAME_LENGTH;
+    if ((datmos_config->audio_type == AC3) || (datmos_config->audio_type == EAC3))
+        aml_dec->inbuf_max_len = MAX_DECODER_DDP_FRAME_LENGTH*4;
     else if (datmos_config->audio_type == TRUEHD)
         aml_dec->inbuf_max_len = MAX_DECODER_MAT_FRAME_LENGTH*4;
     ALOGV("aml_dec inbuf_max_len %x\n", aml_dec->inbuf_max_len);
@@ -809,7 +809,7 @@ int datmos_decoder_process_patch(aml_dec_t *aml_dec, unsigned char*in_buffer, in
             FILE *fp1=fopen(DATMOS_PCM_OUT_FILE,"a+");
             fwrite((char *)aml_dec->outbuf, 1, aml_dec->outlen_pcm ,fp1);
             fclose(fp1);
-            aml_dec->outlen_pcm = 0;
+            // aml_dec->outlen_pcm = 0;
         }
 
 
