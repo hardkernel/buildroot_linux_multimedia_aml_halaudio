@@ -3935,7 +3935,7 @@ static int adev_open_output_stream(struct audio_hw_device *dev,
             goto err_open;
         }
 
-        ret = aml_channelmap_init(&out->channel_map, out->config.channels);
+        ret = aml_channelmap_init(&out->channel_map, out->config.channels, ladev->datmos_param.speaker_config);
         if (ret < 0) {
             ALOGE("aml_channelmap_init faild\n");
             goto err_open;
@@ -5692,6 +5692,7 @@ ssize_t audio_hal_data_processing(struct audio_stream_out *stream
             return 0;
         }
 #endif
+
         /* convert the original sample bit to target sample bit */
         nsamples = bytes / (data_format->bitwidth >> 3);
         if (data_format->bitwidth != dst_format.bitwidth) {
@@ -5710,27 +5711,36 @@ ssize_t audio_hal_data_processing(struct audio_stream_out *stream
         data_format->ch = aml_out->channel_map->format.ch;
 
         /*fix the input as 8ch-32bits format and suppose the LFE is the ch3 of ch0~7*/
-        ret = aml_bm_process(stream, (const void *)aml_out->channel_map->map_buffer, aml_out->channel_map->map_buffer_size, data_format);
+        ret = aml_bm_process(stream, (const void *)aml_out->channel_map->map_buffer, aml_out->channel_map->out_buffer_size, data_format);
         if (ret) {
             ALOGE("%s failed", __func__);
             return ret;
         }
 
         *output_buffer = aml_out->channel_map->map_buffer;
-        *output_buffer_bytes = aml_out->channel_map->map_buffer_size;
+        *output_buffer_bytes = aml_out->channel_map->out_buffer_size;
         //ALOGD("out channel=%d\n",data_format->ch);
 
         if (0) {
             FILE *fp1 = fopen("/tmp/8ch.pcm", "a+");
             if (fp1) {
-                int flen = fwrite((char *)aml_out->channel_map->map_buffer, 1, aml_out->channel_map->map_buffer_size, fp1);
+                int flen = fwrite((char *)aml_out->channel_map->map_buffer, 1, aml_out->channel_map->out_buffer_size, fp1);
                 fclose(fp1);
             }
         }
 
-        aml_volctl_process(&adev->hw_device,*output_buffer, *output_buffer_bytes, data_format);
+        ret = aml_volctl_process(&adev->hw_device, *output_buffer, *output_buffer_bytes, data_format);
+        if (ret < 0) {
+            ALOGE("%s failed", aml_volctl_process);
+            return ret;
+        }
 
-        aml_audiolevel_cal(&adev->hw_device,*output_buffer, *output_buffer_bytes, data_format);
+        ret = aml_audiolevel_cal(&adev->hw_device, *output_buffer, *output_buffer_bytes, data_format);
+        if (ret < 0) {
+            ALOGE("%s failed", aml_audiolevel_cal);
+            return ret;
+        }
+
 
     }
 
@@ -6595,7 +6605,7 @@ ssize_t mixer_main_buffer_write(struct audio_stream_out *stream, const void *buf
             data_format.sr     = aml_dec->dec_info.output_sr;
             data_format.ch     = aml_dec->dec_info.output_ch;
             data_format.bitwidth = aml_dec->dec_info.output_bitwidth;
-            aml_channelinfo_set(&data_format.channel_info, audio_channel_out_mask_from_count(data_format.ch));
+            aml_channelinfo_set(&data_format.channel_info, audio_channel_out_mask_from_count(data_format.ch), CHANNEL_ORDER_DOLBY);
 
             if (audio_hal_data_processing(stream, tmp_buffer, aml_dec->outlen_pcm, &output_buffer, &output_buffer_bytes, &data_format) == 0) {
                 hw_write(stream, output_buffer, output_buffer_bytes, &data_format);
@@ -6629,7 +6639,7 @@ ssize_t mixer_main_buffer_write(struct audio_stream_out *stream, const void *buf
             }
         }
 
-        aml_channelinfo_set(&data_format.channel_info, audio_channel_out_mask_from_count(data_format.ch));
+        aml_channelinfo_set(&data_format.channel_info, audio_channel_out_mask_from_count(data_format.ch), CHANNEL_ORDER_HDMIPCM);
 
         void *tmp_buffer = (void *) write_buf;
         if (aml_out->hw_sync_mode) {
@@ -7209,7 +7219,6 @@ void *audio_patch_input_threadloop(void *data)
                     //Fixme: if ringbuffer is full enough but no output, reset ringbuffer
                     ring_buffer_reset(ringbuffer);
                     ALOGE("%s(), no space to input, in read audio discontinue!\n", __func__);
-
                     usleep(3000);
                 }
             } while (retry && !patch->input_thread_exit);
@@ -7368,7 +7377,7 @@ void *audio_patch_output_threadloop(void *data)
             clock_gettime(CLOCK_MONOTONIC, &before_read);
 #endif
             //if (get_buffer_read_space(ringbuffer) > 2048)
-              //  ALOGD("ch=%d rate=%d size=%d write=%d available=%d\n",patch->ch,patch->sample_rate,ringbuffer->size,ret,get_buffer_read_space(ringbuffer));
+            //  ALOGD("ch=%d rate=%d size=%d write=%d available=%d\n",patch->ch,patch->sample_rate,ringbuffer->size,ret,get_buffer_read_space(ringbuffer));
             ret = out_write_new(stream_out, patch->out_buf, ret);
 
 #if 0

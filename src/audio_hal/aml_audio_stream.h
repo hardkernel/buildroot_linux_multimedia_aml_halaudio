@@ -193,7 +193,15 @@ typedef enum channel_id {
     CHANNEL_RIGHT_SURROUND,
     CHANNEL_LEFT_TOP_FRONT,
     CHANNEL_RIGHT_TOP_FRONT,
+    CHANNEL_LEFT_TOP_MIDDLE,
+    CHANNEL_RIGHT_TOP_MIDDLE,
 } channel_id_t;
+
+typedef enum channel_order_type {
+    CHANNEL_ORDER_DOLBY,
+    CHANNEL_ORDER_DTS,
+    CHANNEL_ORDER_HDMIPCM,
+}channel_order_type_t;
 
 typedef struct channel_item {
     channel_id_t ch_id;  // left, right ***

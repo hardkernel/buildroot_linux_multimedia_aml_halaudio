@@ -37,6 +37,8 @@ static struct ch_name_pair ch_vol_pair[ ] = {
     {"rs_ch_vol",  CHANNEL_RIGHT_SURROUND},
     {"ltf_ch_vol", CHANNEL_LEFT_TOP_FRONT},
     {"rtf_ch_vol", CHANNEL_RIGHT_TOP_FRONT},
+    {"ltm_ch_vol", CHANNEL_LEFT_TOP_MIDDLE},
+    {"rtm_ch_vol", CHANNEL_RIGHT_TOP_MIDDLE},
 };
 
 
@@ -49,6 +51,8 @@ static struct ch_name_pair ch_on_pair[ ] = {
     {"rs_ch_on",  CHANNEL_RIGHT_SURROUND},
     {"ltf_ch_on", CHANNEL_LEFT_TOP_FRONT},
     {"rtf_ch_on", CHANNEL_RIGHT_TOP_FRONT},
+    {"ltm_ch_on", CHANNEL_LEFT_TOP_MIDDLE},
+    {"rtm_ch_on", CHANNEL_RIGHT_TOP_MIDDLE},
 };
 
 
@@ -126,7 +130,7 @@ int aml_volctl_setparameters(struct audio_hw_device *dev, struct str_parms *parm
         if (volume > 1.0) {
             volume = 1.0;
         }
-        
+
         if (volume < 0.0) {
             volume = 0.0;
         }

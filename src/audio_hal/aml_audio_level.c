@@ -56,6 +56,8 @@ static struct level_name_pair ch_level_pair[ ] = {
     {"rs_ch_level",  CHANNEL_RIGHT_SURROUND},
     {"ltf_ch_level", CHANNEL_LEFT_TOP_FRONT},
     {"rtf_ch_level", CHANNEL_RIGHT_TOP_FRONT},
+    {"ltm_ch_level", CHANNEL_LEFT_TOP_MIDDLE},
+    {"rtm_ch_level", CHANNEL_RIGHT_TOP_MIDDLE},
 };
 
 static inline level_update_item_t* find_chlevel_item(level_handle_t *handle , channel_id_t ch_id)
@@ -259,7 +261,7 @@ int aml_audiolevel_cal(struct audio_hw_device *dev, void * in_data, size_t size,
             level_item = find_chlevel_item(level_handle, ch_id);
             if (cal_item && level_item) {
                 level_item->level = sqrt(cal_item->cal_level / cal_item->cal_frames);
-                //ALOGD("ch =%d level=%f total=%f total frame=%d\n",i,level_item->level, cal_item->cal_level, cal_item->cal_frames);
+                //ALOGD("ch =%d id=%d level=%f total=%f total frame=%d\n",i,ch_id,level_item->level, cal_item->cal_level, cal_item->cal_frames);
             }
             if (cal_item) {
                 cal_item->cal_frames = 0;

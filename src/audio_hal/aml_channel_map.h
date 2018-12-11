@@ -23,14 +23,22 @@ typedef struct aml_channel_mapping {
     aml_data_format_t format;
     void *map_buffer;
     size_t map_buffer_size;
+    size_t out_buffer_size;
 } aml_channel_map_t;
 
-
-int aml_channelmap_init(aml_channel_map_t ** handle, int dst_ch);
+/**
+  ch is same with channel number opened in ALSA,
+  speaker_config is used to tell how is the hardware speaker connected.
+  In some project, the 4*I2S is always connected in different speaker config,
+  so we need map the speaker config to the method of I2S connecting.
+  For example, 3.1--> L R C LFE will map to 8ch--> L R C LFE 0 0 0 0
+  4.0--> L R LS RS will map to 8ch--> L R 0 0 LS RS 0 0
+*/
+int aml_channelmap_init(aml_channel_map_t ** handle, int ch, char * speaker_config);
 int aml_channelmap_close(aml_channel_map_t * handle);
 int aml_channelmap_process(aml_channel_map_t * handle, aml_data_format_t *src, void * in_data, size_t nframes);
 
-int aml_channelinfo_set(channel_info_t * channel_info, audio_channel_mask_t channel_mask);
+int aml_channelinfo_set(channel_info_t * channel_info, audio_channel_mask_t channel_mask, channel_order_type_t order_type);
 
 
 
