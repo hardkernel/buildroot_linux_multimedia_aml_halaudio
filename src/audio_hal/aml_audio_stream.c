@@ -333,6 +333,7 @@ int get_input_streaminfo(struct audio_stream_in *stream, aml_data_format_t *data
     if (in->device & AUDIO_DEVICE_IN_HDMI) {
         data_format->ch = aml_dev->capture_ch;
         data_format->sr = aml_dev->capture_samplerate;
+        patch->original_rate = aml_dev->capture_samplerate;
 
     } else if (in->device & AUDIO_DEVICE_IN_SPDIF) {
         if (patch == NULL) {

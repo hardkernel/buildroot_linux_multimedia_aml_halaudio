@@ -11,6 +11,7 @@
 #include <time.h>
 #include <sys/timeb.h>
 
+
 extern int aml_audio_debug_level;
 
 
@@ -75,16 +76,14 @@ inline const char *get_cur_time_str()
 #define ALOGI(...) LOG(LEVEL_INFO, __VA_ARGS__)
 #define ALOGW(...) LOG(LEVEL_WARN, __VA_ARGS__)
 #define ALOGV(...) LOG(LEVEL_VERBOSE, __VA_ARGS__)
+// always print
+#define ALOGA(...) printf(__VA_ARGS__)
+
 #define ALOG_ASSERT
 #define LOG_ALWAYS_FATAL
 #define LOG_ALWAYS_FATAL_IF(cond, ...)
 #define ALOGD_IF(cond, ...)
 #define ALOGI_IF(cond, ...)
-
-
-void aml_log_init();
-
-void aml_log_exit();
 
 #endif
 

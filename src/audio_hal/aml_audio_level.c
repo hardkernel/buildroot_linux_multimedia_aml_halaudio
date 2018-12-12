@@ -21,11 +21,14 @@
 #include <math.h>
 #include "aml_audio_level.h"
 #include "log.h"
+#include "aml_audio_log.h"
 
 #define AUDIO_LEVEL_CAL_THRESHOLD 500   // ms
 
+
 typedef struct level_update_item {
     channel_id_t ch_id;
+    int          present;
     float        level;
 } level_update_item_t;
 
@@ -59,6 +62,9 @@ static struct level_name_pair ch_level_pair[ ] = {
     {"ltm_ch_level", CHANNEL_LEFT_TOP_MIDDLE},
     {"rtm_ch_level", CHANNEL_RIGHT_TOP_MIDDLE},
 };
+
+void aml_audiolevel_dumpinfo(void * private);
+
 
 static inline level_update_item_t* find_chlevel_item(level_handle_t *handle , channel_id_t ch_id)
 {
@@ -106,7 +112,9 @@ int aml_audiolevel_init(struct audio_hw_device *dev)
     for (i = 0; i < AML_MAX_CHANNELS; i++) {
         /*this info is used for update to APP*/
         level_handle->level_update[i].ch_id = CHANNEL_BASE + i;
+        level_handle->level_update[i].present = 0;
         level_handle->level_update[i].level = 0.0;
+
 
         /*this handle will store all the calculated level*/
         level_handle->level_cal[i].cal_frames = 0;
@@ -114,6 +122,8 @@ int aml_audiolevel_init(struct audio_hw_device *dev)
         level_handle->level_cal[i].ch_id = CHANNEL_BASE + i;
 
     }
+
+    aml_log_dumpinfo_install(LOG_TAG, aml_audiolevel_dumpinfo, level_handle);
 
 
     return 0;
@@ -144,6 +154,8 @@ int aml_audiolevel_reset(struct audio_hw_device *dev)
 int aml_audiolevel_close(struct audio_hw_device *dev)
 {
     struct aml_audio_device *adev = (struct aml_audio_device *) dev;
+
+    aml_log_dumpinfo_remove(LOG_TAG);
 
     if (adev->level_handle) {
         free(adev->level_handle);
@@ -198,7 +210,7 @@ int aml_audiolevel_cal(struct audio_hw_device *dev, void * in_data, size_t size,
     int bitwidth = SAMPLE_16BITS;
     ch = format->ch;
     bitwidth = format->bitwidth;
-    if (ch == 0 || bitwidth == 0) {
+    if (ch == 0 || bitwidth == 0 || format->sr == 0) {
         return -1;
     }
 
@@ -261,6 +273,7 @@ int aml_audiolevel_cal(struct audio_hw_device *dev, void * in_data, size_t size,
             level_item = find_chlevel_item(level_handle, ch_id);
             if (cal_item && level_item) {
                 level_item->level = sqrt(cal_item->cal_level / cal_item->cal_frames);
+                level_item->present = 1;
                 //ALOGD("ch =%d id=%d level=%f total=%f total frame=%d\n",i,ch_id,level_item->level, cal_item->cal_level, cal_item->cal_frames);
             }
             if (cal_item) {
@@ -274,4 +287,21 @@ int aml_audiolevel_cal(struct audio_hw_device *dev, void * in_data, size_t size,
 
 }
 
+void aml_audiolevel_dumpinfo(void * private)
+{
+    int i = 0;
+    channel_id_t ch_id = 0;
+    if (private == NULL) {
+        return;
+    }
+    level_handle_t * level_handle = (level_handle_t *)private;
+    for (i = 0; i < AML_MAX_CHANNELS; i++) {
+        ch_id = level_handle->level_update[i].ch_id;
+        if (level_handle->level_update[i].present) {
+            ALOGA("ch_id=%d level=%f\n", ch_id, level_handle->level_update[i].level);
+        }
+    }
+
+    return;
+}
 

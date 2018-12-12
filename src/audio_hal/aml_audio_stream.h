@@ -332,6 +332,8 @@ struct aml_audio_patch {
     unsigned int  sample_rate;   // it is used for output
     unsigned int  original_rate; // it is the input rate, used for app info
     unsigned int  ch;
+    unsigned int in_period_mul;
+    unsigned int out_period_mul;
     audio_channel_mask_t chanmask;
 #if 0
     struct ring_buffer

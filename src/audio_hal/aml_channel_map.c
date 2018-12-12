@@ -155,6 +155,12 @@ static void init_ch_presents(char * speaker_config)
     for (i = 0; i < item; i++) {
         ch_presents[i].present = 0;
     }
+    /*if there is no config, set all the presents on*/
+    if (token == NULL) {
+        for (i = 0; i < item; i++) {
+            ch_presents[i].present = 1;
+        }
+    }
     while (token != NULL) {
 
         for (i = 0; i < item; i++) {

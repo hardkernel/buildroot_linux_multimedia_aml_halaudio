@@ -14,12 +14,13 @@
  * limitations under the License.
  */
 
-#define LOG_TAG "aml_channel_map"
+#define LOG_TAG "aml_channel_vol"
 
 
 #include <unistd.h>
 #include "aml_audio_volume.h"
 #include "log.h"
+#include "aml_audio_log.h"
 
 struct ch_name_pair {
     char name[16];
@@ -91,6 +92,40 @@ static void set_channel_mute(volume_info_t *volume_info, channel_id_t ch, int bO
 }
 
 
+void aml_audiovolume_dumpinfo(void * private)
+{
+    struct aml_audio_device *adev = (struct aml_audio_device *) private;
+    volume_info_t *volume_info = &adev->volume_info;
+    int item = 0;
+    int i = 0, j = 0;
+    item = sizeof(ch_vol_pair) / sizeof(struct ch_name_pair);
+
+    printf("master volume=%f\n" , volume_info->master_vol);
+    for (i = 0; i < item; i++) {
+        for (j = 0; j < AML_MAX_CHANNELS; j++) {
+            if (ch_vol_pair[i].ch_id == volume_info->volume_item[i].ch_id) {
+                ALOGA("ch name=%s volume=%f\n", ch_vol_pair[i].name, volume_info->volume_item[i].volume);
+                break;
+            }
+        }
+    }
+
+    item = sizeof(ch_on_pair) / sizeof(struct ch_name_pair);
+
+    for (i = 0; i < item; i++) {
+        for (j = 0; j < AML_MAX_CHANNELS; j++) {
+            if (ch_on_pair[i].ch_id == volume_info->volume_item[i].ch_id) {
+                ALOGA("ch name=%s on=%d\n", ch_on_pair[i].name, volume_info->volume_item[i].bOn);
+                break;
+            }
+        }
+    }
+
+
+
+}
+
+
 int aml_volctl_init(struct audio_hw_device *dev)
 {
     struct aml_audio_device *adev = (struct aml_audio_device *) dev;
@@ -105,6 +140,7 @@ int aml_volctl_init(struct audio_hw_device *dev)
         volume_info->volume_item[i].volume = 1.0;
         volume_info->volume_item[i].bOn = 1;
     }
+    aml_log_dumpinfo_install(LOG_TAG, aml_audiovolume_dumpinfo, dev);
     return 0;
 }
 

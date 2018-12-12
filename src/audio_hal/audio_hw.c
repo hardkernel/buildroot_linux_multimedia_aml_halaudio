@@ -95,6 +95,7 @@
 
 /*dolby amtos api*/
 #include "aml_datmos_api.h"
+#include "aml_audio_log.h"
 
 
 //#define ENABLE_AVSYNC_TUNING //debug  zz
@@ -5731,13 +5732,13 @@ ssize_t audio_hal_data_processing(struct audio_stream_out *stream
 
         ret = aml_volctl_process(&adev->hw_device, *output_buffer, *output_buffer_bytes, data_format);
         if (ret < 0) {
-            ALOGE("%s failed", aml_volctl_process);
+            ALOGE("aml_volctl_process failed\n");
             return ret;
         }
 
         ret = aml_audiolevel_cal(&adev->hw_device, *output_buffer, *output_buffer_bytes, data_format);
         if (ret < 0) {
-            ALOGE("%s failed", aml_audiolevel_cal);
+            ALOGE("aml_audiolevel_cal failed\n");
             return ret;
         }
 
@@ -6565,6 +6566,9 @@ ssize_t mixer_main_buffer_write(struct audio_stream_out *stream, const void *buf
                 ret = aml_decoder_process(aml_dec, (unsigned char *)buffer, bytes, &used_size);
                 /*update information*/
                 adev->is_truehd_within_mat = aml_dec->is_truehd_within_mat;
+                if (adev->is_dolby_atmos != aml_dec->is_dolby_atmos) {
+                    trigger_audio_callback(patch->callback_handle, AML_AUDIO_CALLBACK_FORMATCHANGED, (audio_callback_data_t *)&aml_dec->format);
+                }
                 adev->is_dolby_atmos = aml_dec->is_dolby_atmos;
                 adev->audio_sample_rate = aml_dec->dec_info.stream_sr;
 #ifndef USE_AUDIOSERVICE
@@ -6590,11 +6594,16 @@ ssize_t mixer_main_buffer_write(struct audio_stream_out *stream, const void *buf
             if (ret < 0) {
                 return bytes;
             }
+
             //wirte raw data
             if (aml_dec->digital_raw == 1 && aml_out->dual_output_flag) {
                 if (aml_dec->outlen_raw) {
                     aml_audio_spdif_output(stream, (void *)aml_dec->outbuf_raw, aml_dec->outlen_raw);
                 }
+            }
+
+            if (aml_dec->outlen_pcm <= 0) {
+                return bytes;
             }
 
             //write pcm data
@@ -7102,15 +7111,6 @@ void *audio_patch_input_threadloop(void *data)
     patch->aformat = stream_config.format = AUDIO_FORMAT_PCM_16_BIT;
 
 
-#ifdef DATMOS
-    if (aml_dev->datmos_enable) {
-        patch->chanmask = stream_config.channel_mask
-                          = audio_channel_out_mask_from_count(aml_dev->capture_ch);
-        ALOGE("channel_mask %#x, capture_ch %d",
-              stream_config.channel_mask, aml_dev->capture_ch);
-    }
-#endif
-
     ret = adev_open_input_stream(patch->dev,
                                  0,
                                  patch->input_src, //devices,
@@ -7158,19 +7158,12 @@ void *audio_patch_input_threadloop(void *data)
 
         if (patch->ch == 8) {
             period_mul = 4;
-
         }
 
-        if (patch->sample_rate == 192000) {
+        if (patch->sample_rate >= 176400) {
             period_mul = period_mul * 4;
         }
-
-#ifdef DATMOS
-        /*hdmi in choose i2s device with 8ch/16bits config*/
-        if (stream_config.channel_mask == AUDIO_CHANNEL_OUT_7POINT1) {
-            period_mul = TRUEHD_MULTIPLIER;
-        }
-#endif
+        patch->in_period_mul = period_mul;
 
         if (patch->input_src == AUDIO_DEVICE_IN_LINE) {
             read_threshold = 4 * read_bytes * period_mul;
@@ -7331,14 +7324,12 @@ void *audio_patch_output_threadloop(void *data)
             period_mul = 4;
         }
 
-        if (patch->sample_rate == 192000) {
+        if (patch->sample_rate >= 176400) {
             period_mul = period_mul * 4;
         }
-#ifdef DATMOS
-        if ((aml_dev->datmos_enable) && (aml_dev->capture_ch == 8)) {
-            period_mul = TRUEHD_MULTIPLIER;
-        }
-#endif
+
+        patch->out_period_mul = period_mul;
+
         pthread_mutex_lock(&patch->mutex);
         //ALOGV("%s(), ringbuffer level read before wait--%d \n",
         //__func__, get_buffer_read_space(ringbuffer));
@@ -7412,6 +7403,34 @@ exit_open:
     ALOGI("--%s", __FUNCTION__);
     return ((void *)0);
 }
+
+void dump_patch_info(void * private)
+{
+    struct audio_hw_device *dev = (struct audio_hw_device *)private;
+    struct aml_audio_device *aml_dev = (struct aml_audio_device *) dev;
+    struct aml_audio_patch *patch = NULL;
+    ring_buffer_t *ringbuffer = NULL;
+    int read_size = 0;
+    int write_size = 0;
+
+    if (aml_dev->audio_patch == NULL) {
+        ALOGA("There is no Patch info\n");
+        return;
+    }
+
+    patch = aml_dev->audio_patch;
+    ringbuffer = & (patch->aml_ringbuffer);
+
+    read_size = get_buffer_read_space(ringbuffer);
+    write_size = get_buffer_write_space(ringbuffer);
+
+    ALOGA("Patch   Info: ring buffer size=0x%x avail=0x%x empty=0x%x Period in=%d %d\n", ringbuffer->size, read_size, write_size,patch->in_period_mul, patch->out_period_mul);
+    ALOGA("Input   Info: src=0x%x  rate (in=%d out=%d) ch=%d \n", patch->input_src, patch->original_rate, patch->sample_rate , patch->ch);
+    ALOGA("Decoder Info: fomrat=0x%x \n", patch->aformat);
+
+    return;
+}
+
 
 #define PATCH_PERIOD_COUNT 4
 static int create_patch(struct audio_hw_device *dev,
@@ -7491,6 +7510,8 @@ static int create_patch(struct audio_hw_device *dev,
     // init callback for patch
     init_audio_callback(&patch->callback_handle);
 
+    aml_log_dumpinfo_install("aml_audio_patch", dump_patch_info, dev);
+
 
     ALOGI("--%s", __FUNCTION__);
     return 0;
@@ -7549,6 +7570,8 @@ static int release_patch(struct aml_audio_device *aml_dev)
 
 
     ring_buffer_release(& (patch->aml_ringbuffer));
+
+    aml_log_dumpinfo_remove("aml_audio_patch");
 
     exit_audio_callback(&patch->callback_handle);
     free(patch);
