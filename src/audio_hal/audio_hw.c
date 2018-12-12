@@ -7045,9 +7045,14 @@ void adev_close_output_stream_new(struct audio_hw_device *dev,
 {
     struct aml_audio_device *adev = (struct aml_audio_device *) dev;
     struct aml_stream_out *aml_out = (struct aml_stream_out *) stream;
+    aml_dec_t *aml_dec = aml_out->aml_dec;
 
     /* call legacy close to reuse codes */
     ALOGI("%s(), active_outputs[%d] %p", __func__, aml_out->usecase, adev->active_outputs[aml_out->usecase]);
+
+    if (aml_dec)
+        aml_decoder_release(aml_dec);
+    aml_out->aml_dec = NULL;
     adev_close_output_stream(dev, stream);
     adev->dual_decoder_support = false;
     return;
