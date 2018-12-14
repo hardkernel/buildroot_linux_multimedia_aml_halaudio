@@ -61,6 +61,8 @@ static struct level_name_pair ch_level_pair[ ] = {
     {"rtf_ch_level", CHANNEL_RIGHT_TOP_FRONT},
     {"ltm_ch_level", CHANNEL_LEFT_TOP_MIDDLE},
     {"rtm_ch_level", CHANNEL_RIGHT_TOP_MIDDLE},
+    {"le_ch_level",  CHANNEL_LEFT_DOLBY_ENABLE},
+    {"re_ch_level",  CHANNEL_RIGHT_DOLBY_ENABLE},
 };
 
 void aml_audiolevel_dumpinfo(void * private);

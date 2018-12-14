@@ -45,8 +45,8 @@ static const struct channel_order hdmi_pcm8ch = {
         {CHANNEL_CENTER, 1, 3},
         {CHANNEL_LEFT_SURROUND, 1, 4},
         {CHANNEL_RIGHT_SURROUND, 1, 5},
-        {CHANNEL_LEFT_TOP_MIDDLE, 1, 6},
-        {CHANNEL_RIGHT_TOP_MIDDLE, 1, 7},
+        {CHANNEL_LEFT_DOLBY_ENABLE, 1, 6},
+        {CHANNEL_RIGHT_DOLBY_ENABLE, 1, 7},
     }
 };
 
@@ -70,6 +70,7 @@ static struct channel_order dolby_2ch = {
     },
 };
 
+/*currently 8ch is 5.1.2*/
 static struct channel_order dolby_8ch = {
     .order_type = CHANNEL_ORDER_DOLBY,
     .ch = 8,
@@ -81,8 +82,8 @@ static struct channel_order dolby_8ch = {
         {CHANNEL_LFE, 1, 3},
         {CHANNEL_LEFT_SURROUND, 1, 4},
         {CHANNEL_RIGHT_SURROUND, 1, 5},
-        {CHANNEL_LEFT_TOP_MIDDLE, 1, 6},
-        {CHANNEL_RIGHT_TOP_MIDDLE, 1, 7},
+        {CHANNEL_LEFT_DOLBY_ENABLE, 1, 6},
+        {CHANNEL_RIGHT_DOLBY_ENABLE, 1, 7},
     },
 };
 
@@ -114,6 +115,8 @@ static struct ch_present ch_presents[] = {
     {"lrtf", CHANNEL_RIGHT_TOP_FRONT, 0},
     {"lrtm", CHANNEL_LEFT_TOP_MIDDLE, 0},
     {"lrtm", CHANNEL_RIGHT_TOP_MIDDLE, 0},
+    {"lre",  CHANNEL_LEFT_DOLBY_ENABLE, 0},
+    {"lre",  CHANNEL_RIGHT_DOLBY_ENABLE, 0},
 };
 
 static void set_channel_info_default()

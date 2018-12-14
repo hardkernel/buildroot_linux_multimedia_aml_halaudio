@@ -195,6 +195,9 @@ typedef enum channel_id {
     CHANNEL_RIGHT_TOP_FRONT,
     CHANNEL_LEFT_TOP_MIDDLE,
     CHANNEL_RIGHT_TOP_MIDDLE,
+    CHANNEL_LEFT_DOLBY_ENABLE,
+    CHANNEL_RIGHT_DOLBY_ENABLE,
+    
 } channel_id_t;
 
 typedef enum channel_order_type {

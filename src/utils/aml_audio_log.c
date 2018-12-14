@@ -234,7 +234,7 @@ void aml_log_dumpinfo_install(char * name, dump_info_func_t dump_func, void * pr
     list_for_each(node, &aml_log_handle->dumpinfo_list) {
         dump_info = node_to_item(node, aml_log_dump_info_t, listnode);
         if (!strncmp(dump_info->name, name, strlen(name))) {
-            printf("%s name =%s is installed\n", __func__, name);
+            //printf("%s name =%s is installed\n", __func__, name);
             bInstalled = 1;
             break;
         }
@@ -246,7 +246,7 @@ void aml_log_dumpinfo_install(char * name, dump_info_func_t dump_func, void * pr
         dump_info->dump_func = dump_func;
         dump_info->private_date = private;
         bInstalled = 1;
-        printf("%s: %s\n", __func__, name);
+        //printf("%s: %s\n", __func__, name);
         list_add_head(&aml_log_handle->dumpinfo_list, &dump_info->listnode);
     }
 
@@ -262,7 +262,7 @@ void aml_log_dumpinfo_remove(char * name)
         dump_info = node_to_item(node, aml_log_dump_info_t, listnode);
         if (!strncmp(dump_info->name, name, strlen(name))) {
             list_remove(&dump_info->listnode);
-            printf("%s: %s\n", __func__, name);
+            //printf("%s: %s\n", __func__, name);
             free(dump_info);
             break;
         }

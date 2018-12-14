@@ -40,6 +40,8 @@ static struct ch_name_pair ch_vol_pair[ ] = {
     {"rtf_ch_vol", CHANNEL_RIGHT_TOP_FRONT},
     {"ltm_ch_vol", CHANNEL_LEFT_TOP_MIDDLE},
     {"rtm_ch_vol", CHANNEL_RIGHT_TOP_MIDDLE},
+    {"le_ch_vol", CHANNEL_LEFT_DOLBY_ENABLE},
+    {"re_ch_vol", CHANNEL_RIGHT_DOLBY_ENABLE},
 };
 
 
@@ -54,6 +56,8 @@ static struct ch_name_pair ch_on_pair[ ] = {
     {"rtf_ch_on", CHANNEL_RIGHT_TOP_FRONT},
     {"ltm_ch_on", CHANNEL_LEFT_TOP_MIDDLE},
     {"rtm_ch_on", CHANNEL_RIGHT_TOP_MIDDLE},
+    {"le_ch_on",  CHANNEL_LEFT_DOLBY_ENABLE},
+    {"re_ch_on",  CHANNEL_RIGHT_DOLBY_ENABLE},
 };
 
 

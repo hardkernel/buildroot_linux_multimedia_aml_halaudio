@@ -6615,7 +6615,6 @@ ssize_t mixer_main_buffer_write(struct audio_stream_out *stream, const void *buf
             data_format.ch     = aml_dec->dec_info.output_ch;
             data_format.bitwidth = aml_dec->dec_info.output_bitwidth;
             aml_channelinfo_set(&data_format.channel_info, audio_channel_out_mask_from_count(data_format.ch), CHANNEL_ORDER_DOLBY);
-
             if (audio_hal_data_processing(stream, tmp_buffer, aml_dec->outlen_pcm, &output_buffer, &output_buffer_bytes, &data_format) == 0) {
                 hw_write(stream, output_buffer, output_buffer_bytes, &data_format);
                 aml_out->frame_write_sum = aml_out->input_bytes_size  / audio_stream_out_frame_size(stream) ;
@@ -7555,13 +7554,16 @@ static int release_patch(struct aml_audio_device *aml_dev)
     ALOGI("++%s\n", __FUNCTION__);
     patch->output_thread_exit = 1;
     patch->input_thread_exit = 1;
+
+
+    pthread_join(patch->audio_input_threadID, NULL);
+    pthread_join(patch->audio_output_threadID, NULL);
+
     if (patch->input_src == AUDIO_DEVICE_IN_HDMI || patch->input_src == AUDIO_DEVICE_IN_SPDIF)  {
         //exit_pthread_for_audio_type_parse(patch->audio_parse_threadID, &patch->audio_parse_para);
         release_audio_type_parse(&patch->audio_parse_para);
     }
 
-    pthread_join(patch->audio_input_threadID, NULL);
-    pthread_join(patch->audio_output_threadID, NULL);
 
     if (patch->input_src == AUDIO_DEVICE_IN_SPDIF) {
         aml_spdifin_release(patch->spdif_in);
