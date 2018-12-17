@@ -6,7 +6,7 @@ extern "C" {
 #endif
 
 #define MAX_PARAM_COUNT 64
-#define VALUE_BUF_SIZE  64
+#define VALUE_BUF_SIZE  256
 /*
  *@brief reset datmos default options
  * input params:

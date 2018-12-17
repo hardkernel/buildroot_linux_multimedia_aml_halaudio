@@ -4224,7 +4224,7 @@ static int aml_audio_input_routing(struct audio_hw_device *dev,
     return 0;
 }
 
-#define VAL_LEN 64
+#define VAL_LEN 256
 static int adev_set_parameters(struct audio_hw_device *dev, const char *kvpairs)
 {
 
