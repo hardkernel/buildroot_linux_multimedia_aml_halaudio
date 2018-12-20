@@ -6612,6 +6612,12 @@ ssize_t mixer_main_buffer_write(struct audio_stream_out *stream, const void *buf
             aml_hw_mixer_mixing(&adev->hw_mixer, tmp_buffer, write_bytes);
             data_format.format = output_format;
             data_format.sr     = aml_dec->dec_info.output_sr;
+            /*for some hdmi in device, input content is 44.1*4kHz but caputre samplerate is 192kHz*/
+            if (((adev->capture_samplerate % data_format.sr) != 0)
+                && IS_DATMOS_DECODER_SUPPORT(aml_out->hal_internal_format)
+                && adev->datmos_enable) {
+                data_format.sr = adev->datmos_param.noupresampler ? 48000 : adev->capture_samplerate;
+            }
             data_format.ch     = aml_dec->dec_info.output_ch;
             data_format.bitwidth = aml_dec->dec_info.output_bitwidth;
             aml_channelinfo_set(&data_format.channel_info, audio_channel_out_mask_from_count(data_format.ch), CHANNEL_ORDER_DOLBY);

@@ -316,6 +316,21 @@ int datmos_set_parameters(struct audio_hw_device *dev, struct str_parms *parms)
     }
 
     /*static param*/
+    ret = str_parms_get_int(parms, "dec_joc", &val);
+    if (ret >= 0) {
+        adev->datmos_param.dec_joc = val;
+        ALOGI("novlamp set to %d\n", adev->datmos_param.dec_joc);
+        /*datmos parameter*/
+        if (adev->datmos_enable) {
+            if (adev->datmos_param.dec_joc)
+                add_datmos_option(opts, "-dec_joc", "1");
+            else
+                add_datmos_option(opts, "-dec_joc", "0");
+        }
+        return 0;
+    }
+
+    /*static param*/
     ret = str_parms_get_str(parms, "verbose", value, sizeof(value));
     if (ret >= 0) {
         ALOGI("get value %s\n", value);

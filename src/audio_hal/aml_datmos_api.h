@@ -49,6 +49,7 @@ struct aml_datmos_param {
     bool novlamp;
     bool verbose;
     bool noupresampler;
+    bool dec_joc;
 };
 
 typedef enum
