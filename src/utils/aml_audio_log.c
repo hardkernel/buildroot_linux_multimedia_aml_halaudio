@@ -74,7 +74,7 @@ static debug_item_t debugitems[] = {
 };
 
 static aml_audio_log_t * aml_log_handle = NULL;
-int aml_audio_debug_level = LEVEL_ERROR;
+int aml_audio_debug_level = LEVEL_FATAL;
 static char buffer[BUF_LEN];
 
 
@@ -137,6 +137,7 @@ void parse_debug()
     }
     len = fread(buffer, 1, 128, file_fd);
     if (len <= 0) {
+        fclose(file_fd);
         return;
     }
 
@@ -146,6 +147,7 @@ void parse_debug()
             debugitems[i].action(buffer);
         }
     }
+    fclose(file_fd);
     return;
 }
 
@@ -172,6 +174,10 @@ void *aml_log_threadloop(void *data)
             printf("read error\n");
             usleep(10 * 1000);
             continue;
+        }
+
+        if (log_handle->bExit) {
+            break;
         }
 
         parse_debug();
@@ -206,8 +212,9 @@ void aml_log_exit(void)
 
     aml_log_handle->bExit = 1;
     inotify_rm_watch(aml_log_handle->notify_fd, aml_log_handle->watch_desc);
-    close(aml_log_handle->notify_fd);
     pthread_join(aml_log_handle->threadid, NULL);
+    close(aml_log_handle->notify_fd);
+
 
     // release the list resources
     list_for_each(node, &aml_log_handle->dumpinfo_list) {

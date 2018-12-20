@@ -178,16 +178,17 @@ void aml_alsa_init()
     for (i = 0 ; i < sizeof(alsapairs) / sizeof(alsa_pair_t); i++) {
 
         temp = cJSON_GetObjectItem(alsa_root, alsapairs[i].name);
-        if(temp == NULL) {
-            ALOGD("%s is NULL\n",alsapairs[i].name);
+        if (temp == NULL) {
+            ALOGD("%s is NULL\n", alsapairs[i].name);
             continue;
         }
-          
+
         alsapairs[i].alsa_card = alsa_card;
         alsapairs[i].alsa_device = temp->valueint;
         ALOGD("Device name=%s card=%d device=%d\n", alsapairs[i].name, alsapairs[i].alsa_card, alsapairs[i].alsa_device);
 
     }
+    cJSON_Delete(alsa_root);
     return;
 }
 
@@ -258,12 +259,12 @@ int aml_alsa_output_open(void **handle, aml_stream_config_t * stream_config, aml
         return -1;
     }
 
-    ALOGD("In pcm open ch=%d rate=%d\n",config->channels,config->rate);
+    ALOGD("In pcm open ch=%d rate=%d\n", config->channels, config->rate);
     ALOGI("%s, audio open card(%d), device(%d) \n", __func__, card, device);
     ALOGI("ALSA open configs: channels %d format %d period_count %d period_size %d rate %d \n",
-        config->channels, config->format, config->period_count, config->period_size, config->rate);
+          config->channels, config->format, config->period_count, config->period_size, config->rate);
     ALOGI("ALSA open configs: threshold start %u stop %u silence %u silence_size %d avail_min %d \n",
-        config->start_threshold, config->stop_threshold, config->silence_threshold, config->silence_size, config->avail_min);
+          config->start_threshold, config->stop_threshold, config->silence_threshold, config->silence_size, config->avail_min);
     pcm = pcm_open(card, device, PCM_OUT, config);
     if (!pcm || !pcm_is_ready(pcm)) {
         ALOGE("%s, pcm %p open [ready %d] failed \n", __func__, pcm, pcm_is_ready(pcm));

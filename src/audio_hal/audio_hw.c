@@ -97,6 +97,11 @@
 #include "aml_datmos_api.h"
 #include "aml_audio_log.h"
 
+//#define MEM_CHECK
+#ifdef MEM_CHECK
+#include <mcheck.h>
+#endif
+
 
 //#define ENABLE_AVSYNC_TUNING //debug  zz
 /* ALSA cards for AML */
@@ -872,7 +877,7 @@ static size_t out_get_buffer_size(const struct audio_stream *stream)
                 // to match with it, set the size to 1536
                 // (ms12 decoder doesn't encounter this issue, so only handle with DCV decoder case)
                 size = AC3_PERIOD_SIZE / 4;
-                ALOGI("%s AUDIO_FORMAT_IEC61937(DIRECT) (eDolbyDcvLib) size = %zu)", __FUNCTION__, size);
+                //ALOGI("%s AUDIO_FORMAT_IEC61937(DIRECT) (eDolbyDcvLib) size = %zu)", __FUNCTION__, size);
             }
         } else if (out->flags & AUDIO_OUTPUT_FLAG_IEC958_NONAUDIO) {
             size = AC3_PERIOD_SIZE;
@@ -3996,6 +4001,12 @@ static void adev_close_output_stream(struct audio_hw_device *dev,
     adev->active_outputs[out->usecase] = NULL;
     adev->decode_format = AUDIO_FORMAT_INVALID;
     out_standby_new(&stream->common);
+
+    if (out->hwsync) {
+        free(out->hwsync);
+        out->hwsync = NULL;
+    }
+
     pthread_mutex_lock(&adev->lock);
     free(stream);
     pthread_mutex_unlock(&adev->lock);
@@ -5075,7 +5086,7 @@ static int adev_open_input_stream(struct audio_hw_device *dev,
     in->stream.read = in_read;
     in->stream.get_input_frames_lost = in_get_input_frames_lost;
 
-    ALOGI("Amlogic - set in->config.channels to popcount of config->channel_mask.\n");
+    //ALOGI("Amlogic - set in->config.channels to popcount of config->channel_mask.\n");
     in->config.channels = audio_channel_count_from_in_mask(config->channel_mask);
     if (in->config.channels == 1) {
         //config->channel_mask = AUDIO_CHANNEL_IN_MONO;
@@ -5113,6 +5124,7 @@ static int adev_open_input_stream(struct audio_hw_device *dev,
         memcpy(&in->config, &pcm_config_in, sizeof(pcm_config_in));
     }
 
+#ifdef RESAMPLER
     in->buffer = malloc(in->config.period_size *
                         audio_stream_in_frame_size(&in->stream));
     if (!in->buffer) {
@@ -5122,7 +5134,7 @@ static int adev_open_input_stream(struct audio_hw_device *dev,
 
     if (!(in->device & AUDIO_DEVICE_IN_WIRED_HEADSET)) {
         // initiate resampler only if amlogic audio hal is used
-#ifdef RESAMPLER
+
         if (in->requested_rate != in->config.rate) {
             ALOGD("%s(in->requested_rate=%d, in->config.rate=%d)",
                   __FUNCTION__, in->requested_rate, in->config.rate);
@@ -5141,8 +5153,9 @@ static int adev_open_input_stream(struct audio_hw_device *dev,
                 goto err_open;
             }
         }
-#endif
+
     }
+#endif
 
     in->dev = ladev;
     in->standby = 1;
@@ -7064,8 +7077,9 @@ void adev_close_output_stream_new(struct audio_hw_device *dev,
     /* call legacy close to reuse codes */
     ALOGI("%s(), active_outputs[%d] %p", __func__, aml_out->usecase, adev->active_outputs[aml_out->usecase]);
 
-    if (aml_dec)
+    if (aml_dec) {
         aml_decoder_release(aml_dec);
+    }
     aml_out->aml_dec = NULL;
     adev_close_output_stream(dev, stream);
     adev->dual_decoder_support = false;
@@ -7429,7 +7443,7 @@ void dump_patch_info(void * private)
     read_size = get_buffer_read_space(ringbuffer);
     write_size = get_buffer_write_space(ringbuffer);
 
-    ALOGA("Patch   Info: ring buffer size=0x%x avail=0x%x empty=0x%x Period in=%d %d\n", ringbuffer->size, read_size, write_size,patch->in_period_mul, patch->out_period_mul);
+    ALOGA("Patch   Info: ring buffer size=0x%x avail=0x%x empty=0x%x Period in=%d %d\n", ringbuffer->size, read_size, write_size, patch->in_period_mul, patch->out_period_mul);
     ALOGA("Input   Info: src=0x%x  rate (in=%d out=%d) ch=%d \n", patch->input_src, patch->original_rate, patch->sample_rate , patch->ch);
     ALOGA("Decoder Info: fomrat=0x%x \n", patch->aformat);
 
@@ -7861,6 +7875,16 @@ static int adev_create_audio_patch(struct audio_hw_device *dev,
     unsigned int i = 0;
     int ret = -1;
 
+#ifdef MEM_CHECK
+    {
+        static int create_cnt = 1;
+        char log_name[32];
+        snprintf(log_name, 32, "/data/trace_%d.log", create_cnt);
+        setenv("MALLOC_TRACE", log_name, 1);
+        create_cnt++;
+        mtrace();
+    }
+#endif
 
     if (src_config->ext.device.type == AUDIO_DEVICE_IN_WIRED_HEADSET) {
         ALOGD("bluetooth voice search is in use, bypass adev_create_audio_patch()!!\n");
@@ -8206,7 +8230,9 @@ static int adev_release_audio_patch(struct audio_hw_device *dev,
     unregister_audio_patch(dev, patch_set);
     ALOGI("--%s: after releasing patch, patch sets will be:", __func__);
     //dump_aml_audio_patch_sets(dev);
-
+#ifdef MEM_CHECK
+    muntrace();
+#endif
 exit:
     return ret;
 }
@@ -8728,6 +8754,7 @@ static int adev_open(const hw_module_t* module, const char* name,
     adev->in_device = AUDIO_DEVICE_IN_BUILTIN_MIC & ~AUDIO_DEVICE_BIT_IN;
     adev->hi_pcm_mode = false;
     adev->eq_data.card = adev->card;
+#if 0
     if (eq_drc_init(&adev->eq_data) == 0) {
         ALOGI("%s() audio source gain: atv:%f, dtv:%f, hdmiin:%f, av:%f", __func__,
               adev->eq_data.s_gain.atv, adev->eq_data.s_gain.dtv,
@@ -8742,6 +8769,7 @@ static int adev_open(const hw_module_t* module, const char* name,
         ALOGI("%s() audio noise gate level: %fdB, attrack_time = %dms, release_time = %dms", __func__,
               adev->aml_ng_level, adev->aml_ng_attrack_time, adev->aml_ng_release_time);
     }
+#endif
 #ifdef AUDIO_ROUTE
     ret = aml_audio_output_routing(&adev->hw_device, OUTPORT_SPEAKER, false);
     if (ret < 0) {

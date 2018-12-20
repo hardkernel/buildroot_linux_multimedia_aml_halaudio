@@ -596,6 +596,11 @@ void release_audio_type_parse(void **status)
         ALOGD("parse is not existed\n");
         return;
     }
+
+    if (audio_type_status->parse_buffer) {
+        free(audio_type_status->parse_buffer);
+        audio_type_status->parse_buffer = NULL;
+    }
     free(audio_type_status);
     *status = NULL;
 

@@ -8,10 +8,12 @@
 #include <getopt.h>
 #include <errno.h>
 
-
-
 #include "audio_hal.h"
 
+//#define MEM_CHECK
+#ifdef MEM_CHECK
+#include <mcheck.h>
+#endif
 
 
 int format_changed_callback(audio_callback_info_t *info, void * args)
@@ -268,8 +270,10 @@ int main(int argc, char *argv[])
     hw_module_t *mod = NULL;
     int rc;
     int cnt = 0;
-
-
+    char * point = NULL;
+#ifdef MEM_CHECK
+    mtrace();
+#endif
     if (argc != 2 && argc != 3) {
         printf("cmd should be: \n");
         printf("************************\n");
@@ -331,8 +335,9 @@ int main(int argc, char *argv[])
     /* close the audio device*/
     rc = audio_hw_device_close(dev);
     printf("audio_hw_device_close rc=%d\n", rc);
-
-
+#ifdef MEM_CHECK
+    muntrace();
+#endif
     return 0;
 }
 
