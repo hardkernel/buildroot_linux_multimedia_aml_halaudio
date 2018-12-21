@@ -23,8 +23,11 @@
 
 #define PCM_DEVICE_DEFAULT      "default"
 #define PCM_DEVICE_2CH         "2ch_48K"//"2to8"
-#define PCM_DEVICE_8CH         "8ch_48K"//"8to8"
+#define PCM_DEVICE_8CH_48K     "8ch_48K"//"8to8"
+#define PCM_DEVICE_8CH_44K     "8ch_44K"//"8to8"
 #define PCM_DEVICE_8CH_DIRECT  "8to8"
+
+
 
 #define PERIOD_SIZE       512
 #define PERIOD_NUM        4
@@ -187,8 +190,10 @@ int standard_alsa_output_open(void **handle, aml_stream_config_t * stream_config
         device_name = PCM_DEVICE_2CH;
     } else if (alsa_param->channels == 8) {
         // due to resample performance issue, we currently only support bypass
-        if (alsa_param->rate >= 176400) {
-            device_name = PCM_DEVICE_8CH_DIRECT;
+        if (alsa_param->rate == 176400 || alsa_param->rate == 88200) {
+            device_name = PCM_DEVICE_8CH_44K;
+        } else if (alsa_param->rate == 192000 || alsa_param->rate == 96000) {
+            device_name = PCM_DEVICE_8CH_48K;
         } else {
             device_name = PCM_DEVICE_8CH_DIRECT;
         }
