@@ -64,7 +64,7 @@ int aml_bm_process(struct audio_stream_out *stream
     int j = 0;
     int32_t *sample = (int32_t *)buffer;
     int sample_num =  0;
-    int lowpass = 0;
+    int ret = 0;
 
     if (!stream || !buffer || !data_format || (bytes == 0)) {
         ALOGE("stream %p buffer %p data_format %p bytes %d");
@@ -81,15 +81,7 @@ int aml_bm_process(struct audio_stream_out *stream
     }
 
     if ((adev->bm_enable) && (data_format->bitwidth == SAMPLE_32BITS) && (data_format->ch == 8)) {
-        for (i = 0; i < sample_num; i++) {
-            lowpass = 0;
-            for (j = 0; j < data_format->ch; j++) {
-                if (j != LFE_CH_INDEX)
-                    lowpass += aml_bass_management_process(sample[data_format->ch*i + j], j);
-            }
-
-            sample[data_format->ch*i + LFE_CH_INDEX] += lowpass;
-        }
+        ret = aml_bm_lowerpass_process(buffer, bytes, sample_num, data_format->ch);
     }
 
     if (dump_bm && IS_DATMOS_DECODER_SUPPORT(aml_out->hal_internal_format)) {
@@ -98,7 +90,7 @@ int aml_bm_process(struct audio_stream_out *stream
         fclose(fp_bm);
     }
 
-    return 0;
+    return ret;
 }
 
 

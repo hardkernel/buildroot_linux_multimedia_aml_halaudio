@@ -31,7 +31,7 @@ typedef struct aml_conv_handle {
 } aml_conv_handle_t;
 
 
-static void s16_to_s32(unsigned n, const void *a, void *b)
+static inline void s16_to_s32(unsigned n, const void *a, void *b)
 {
     int i = 0;
     int16_t * src = (int16_t *)a;

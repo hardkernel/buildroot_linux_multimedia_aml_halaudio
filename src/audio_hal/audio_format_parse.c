@@ -648,7 +648,7 @@ void feeddata_audio_type_parse(void **status, char * input, int size)
             } else {
                 audio_type_status->state = IEC61937_SYNCING;
                 memset(input, 0, size);
-                audio_type_status->audio_type = LPCM;
+                audio_type_status->audio_type = type;
                 audio_type_status->parsed_size = 0;
             }
             break;
@@ -676,7 +676,7 @@ void feeddata_audio_type_parse(void **status, char * input, int size)
 
             }
             // mute all the data during syncing
-            memset(input, 0, size);
+            // memset(input, 0, size);
             break;
         }
         case IEC61937_SYNCED:
