@@ -4834,7 +4834,8 @@ static int adev_set_parameters(struct audio_hw_device *dev, const char *kvpairs)
         goto exit;
     }
 
-    ret = str_parms_get_int(parms, "bass_management", &val);
+    /*bass management lowerpass corner*/
+    ret = str_parms_get_int(parms, "lowerpass_corner", &val);
     if (ret >= 0) {
         ret = aml_bm_init(adev, val);
         goto exit;

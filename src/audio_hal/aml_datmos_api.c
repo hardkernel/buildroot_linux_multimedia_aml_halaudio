@@ -63,6 +63,12 @@ typedef enum {
     DAP_Night,
 } GUI_DAP_VALUE;
 
+typedef enum {
+    DRC_OFF = 0x00,
+    DRC_ON,
+    DRC_AUTO,
+} GUI_DRC_VALUE;
+
 /*basic fuction*/
 static int convert_format (unsigned char *buffer, int size){
     int idx;
@@ -143,9 +149,16 @@ int datmos_set_parameters(struct audio_hw_device *dev, struct str_parms *parms)
         memset(adev->datmos_param.drc_config, 0, sizeof(adev->datmos_param.drc_config));
         strncpy(adev->datmos_param.drc_config, value, strlen(value));
         ALOGI("drc_config set to %s\n", adev->datmos_param.drc_config);
+        int drc_mode = DRC_OFF;
+        if (strstr(adev->datmos_param.drc_config, "enable"))
+            drc_mode = DRC_ON;
+        else if (strstr(adev->datmos_param.drc_config, "auto"))
+            drc_mode = DRC_AUTO;
         /*datmos parameter*/
         if (adev->datmos_enable) {
             add_datmos_option(opts, "-drc", adev->datmos_param.drc_config);
+            if ((drc_mode == DRC_ON) || (drc_mode == DRC_AUTO))
+                delete_datmos_option(opts, "-post");
         }
         return 0;
     }
@@ -173,10 +186,17 @@ int datmos_set_parameters(struct audio_hw_device *dev, struct str_parms *parms)
         ALOGI("post set to %d\n", adev->datmos_param.post);
         /*datmos parameter*/
         if (adev->datmos_enable) {
-            if (adev->datmos_param.post)
+            if (adev->datmos_param.post) {
                 add_datmos_option(opts, "-post", "");
-            else
+                add_datmos_option(opts, "-drc", "drc_mode=disable");
+            }
+            else {
                 delete_datmos_option(opts, "-post");
+                if (strstr(adev->datmos_param.drc_config, "enable") || \
+                    strstr(adev->datmos_param.drc_config, "disable") || \
+                    strstr(adev->datmos_param.drc_config, "auto"))
+                    add_datmos_option(opts, "-drc", adev->datmos_param.drc_config);
+            }
         }
         return 0;
     }

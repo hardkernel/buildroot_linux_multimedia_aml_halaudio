@@ -365,7 +365,7 @@ struct aml_audio_device {
     int is_dolby_atmos;
     int audio_sample_rate;//audio source samplerate
     audio_format_t decode_format;
-    int bm_corner_freq;//corner frequency for bass management
+    int lowerpass_corner;//lowerpass corner for bass management
     bool bm_enable;
     unsigned int dec_params_update_mask;
 #endif

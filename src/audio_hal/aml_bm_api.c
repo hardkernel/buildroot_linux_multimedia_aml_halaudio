@@ -31,21 +31,21 @@ int aml_bm_init(struct aml_audio_device *adev, int val)
         return 1;
     }
 
-    adev->bm_corner_freq = val;
+    adev->lowerpass_corner = val;
 
-    if (adev->bm_corner_freq == 0)
+    if (adev->lowerpass_corner == 0)
         adev->bm_enable = false;
     else {
-        if (adev->bm_corner_freq < BM_MIN_CORNER_FREQUENCY)
+        if (adev->lowerpass_corner < BM_MIN_CORNER_FREQUENCY)
             bm_init_param = 0;
-        else if (adev->bm_corner_freq > BM_MAX_CORNER_FREQUENCY)
+        else if (adev->lowerpass_corner > BM_MAX_CORNER_FREQUENCY)
             bm_init_param = (BM_MAX_CORNER_FREQUENCY - BM_MIN_CORNER_FREQUENCY)/BM_STEP_LEN_CORNER_FREQ;
         else
-            bm_init_param = (adev->bm_corner_freq - BM_MIN_CORNER_FREQUENCY)/BM_STEP_LEN_CORNER_FREQ;
+            bm_init_param = (adev->lowerpass_corner - BM_MIN_CORNER_FREQUENCY)/BM_STEP_LEN_CORNER_FREQ;
         adev->bm_enable = !aml_bass_management_init(bm_init_param);
     }
-    ALOGE("bm_corner_freq %d HZ bm_enable %d init params %d\n",
-        adev->bm_corner_freq, adev->bm_enable, bm_init_param);
+    ALOGE("lowerpass_corner %d HZ bm_enable %d init params %d\n",
+        adev->lowerpass_corner, adev->bm_enable, bm_init_param);
 
     return 0;
 }
