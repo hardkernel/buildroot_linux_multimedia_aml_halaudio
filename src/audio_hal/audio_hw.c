@@ -3712,6 +3712,7 @@ static int adev_open_output_stream(struct audio_hw_device *dev,
     bool direct = false;
     int ret;
     bool hwsync_lpcm = false;
+    ease_setting_t ease_setting;
     ALOGI("enter %s(devices=0x%04x,format=%#x, ch=0x%04x, SR=%d, flags=0x%x)\n", __FUNCTION__, devices,
           config->format, config->channel_mask, config->sample_rate, flags);
 
@@ -3946,6 +3947,25 @@ static int adev_open_output_stream(struct audio_hw_device *dev,
             ALOGE("aml_channelmap_init faild\n");
             goto err_open;
         }
+
+        ret = aml_audio_ease_init(&out->audio_ease);
+        if (ret < 0) {
+            ALOGE("aml_audio_ease_init faild\n");
+            goto err_open;
+        }
+        /*set ease volume to 0*/
+        ease_setting.ease_type = EaseLinear;
+        ease_setting.duration = 0;
+        ease_setting.target_volume = 0.0;
+        aml_audio_ease_config(out->audio_ease, &ease_setting);
+
+
+        /*ease in the audio*/
+        ease_setting.ease_type = EaseLinear;
+        ease_setting.duration = 50;
+        ease_setting.target_volume = 1.0;
+        aml_audio_ease_config(out->audio_ease, &ease_setting);
+
     }
     out->hwsync =  calloc(1, sizeof(audio_hwsync_t));
     if (!out->hwsync) {
@@ -3994,6 +4014,9 @@ static void adev_close_output_stream(struct audio_hw_device *dev,
         aml_channelmap_close(out->channel_map);
         out->channel_map = NULL;
         aml_audiolevel_reset(&adev->hw_device);
+
+        aml_audio_ease_close(out->audio_ease);
+        out->audio_ease = NULL;
     }
     int channel_count = popcount(out->hal_channel_mask);
     hwsync_lpcm = (out->flags & AUDIO_OUTPUT_FLAG_HW_AV_SYNC && out->config.rate  <= 48000 &&
@@ -5735,10 +5758,18 @@ ssize_t audio_hal_data_processing(struct audio_stream_out *stream
         *output_buffer_bytes = aml_out->channel_map->out_buffer_size;
         //ALOGD("out channel=%d\n",data_format->ch);
 
+
+
+        ret = aml_audio_ease_process(aml_out->audio_ease, *output_buffer, *output_buffer_bytes, data_format);
+        if (ret < 0) {
+            ALOGE("aml_audio_ease_process failed\n");
+            return ret;
+        }
+
         if (0) {
             FILE *fp1 = fopen("/tmp/8ch.pcm", "a+");
             if (fp1) {
-                int flen = fwrite((char *)aml_out->channel_map->map_buffer, 1, aml_out->channel_map->out_buffer_size, fp1);
+                int flen = fwrite((char *)*output_buffer, 1, *output_buffer_bytes, fp1);
                 fclose(fp1);
             }
         }
@@ -6060,12 +6091,12 @@ static void config_output(struct audio_stream_out *stream)
     if (adev->active_outport == OUTPORT_HDMI_ARC && !is_arc_connected) {
         out_port = OUTPORT_SPEAKER;
     }
-
+#ifdef AUDIO_ROUTE
     ret = aml_audio_output_routing((struct audio_hw_device *)adev, out_port, true);
     if (ret < 0) {
         ALOGE("%s() output routing failed\n", __func__);
     }
-
+#endif
     /*get sink format*/
     get_sink_format(stream);
     ALOGE("%s() adev->dolby_lib_type = %d",  __func__, adev->dolby_lib_type);
@@ -7962,14 +7993,14 @@ static int adev_create_audio_patch(struct audio_hw_device *dev,
                 }
             }
         }
-
+#ifdef AUDIO_ROUTE
         if (outport != OUTPORT_SPDIF) {
             ret = aml_audio_output_routing(dev, outport, false);
         }
         if (ret < 0) {
             ALOGE("%s() output routing failed", __func__);
         }
-
+#endif
         aml_dev->out_device = sink_config->ext.device.type;
         ALOGI("%s: mix->device patch: outport(%d)", __func__, outport);
         return 0;

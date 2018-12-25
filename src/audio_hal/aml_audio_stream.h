@@ -249,6 +249,29 @@ typedef struct aml_data_format {
 
 } aml_data_format_t;
 
+typedef enum ease_type{
+    EaseLinear,
+    EaseInQuad,
+    EaseOutQuad,
+    EaseInOutQuad,
+    EaseInCubic,
+    EaseOutCubic,
+    EaseInOutCubic,
+    EaseInQuart,
+    EaseOutQuart,
+    EaseInOutQuart,
+    EaseInQuint,
+    EaseOutQuint,
+    EaseInOutQuint,
+    EaseMax
+} ease_type_t;
+
+
+typedef struct ease_setting{
+    float target_volume;    /*the vol range is 0.0~1.0*/
+    int duration;           /*the value is ms*/
+    ease_type_t ease_type;  /*ease type*/
+} ease_setting_t;
 
 
 static inline alsa_device_t usecase_to_device(stream_usecase_t usecase)

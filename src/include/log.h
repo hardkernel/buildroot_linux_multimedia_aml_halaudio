@@ -76,6 +76,8 @@ inline const char *get_cur_time_str()
 #define ALOGI(...) LOG(LEVEL_INFO, __VA_ARGS__)
 #define ALOGW(...) LOG(LEVEL_WARN, __VA_ARGS__)
 #define ALOGV(...) LOG(LEVEL_VERBOSE, __VA_ARGS__)
+#define ALOGF(...) LOG(LEVEL_FATAL, __VA_ARGS__)
+
 // always print
 #define ALOGA(...) printf(__VA_ARGS__)
 
