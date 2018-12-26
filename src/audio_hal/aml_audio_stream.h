@@ -163,6 +163,7 @@ typedef struct aml_stream_config {
     audio_format_t format;
     unsigned int framesize;
     unsigned int latency; // the value is ms
+    unsigned int start_threshold_coef;
 
 } aml_stream_config_t;
 

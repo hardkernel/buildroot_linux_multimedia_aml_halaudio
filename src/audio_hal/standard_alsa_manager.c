@@ -29,8 +29,9 @@
 
 
 
-#define PERIOD_SIZE       512
-#define PERIOD_NUM        4
+#define PERIOD_SIZE         512
+#define PERIOD_NUM          4
+#define DEFAULT_FRAME_SIZE  512
 
 typedef struct alsa_param {
     snd_pcm_t *handle;
@@ -39,6 +40,8 @@ typedef struct alsa_param {
     int buffer_size;
     unsigned int channels;
     unsigned int rate;
+    unsigned int framesize;
+    unsigned int start_threshold_coef;
 
 } alsa_param_t;
 
@@ -52,16 +55,29 @@ static int set_alsa_params(alsa_param_t *alsa_params)
     unsigned int rate;
     snd_pcm_uframes_t period_size = PERIOD_SIZE;
     snd_pcm_uframes_t start_threshold, stop_threshold;
+    unsigned int rate_coefficient = 1;
+    unsigned int framesize_coefficient = 1;
     snd_pcm_hw_params_alloca(&hwparams);
     snd_pcm_sw_params_alloca(&swparams);
 
     if (alsa_params->rate > 96000) {
-        period_size = PERIOD_SIZE * 4;
+        rate_coefficient = 4;
     } else if (alsa_params->rate > 48000) {
-        period_size = PERIOD_SIZE * 2;
+        rate_coefficient = 2;
     } else {
-        period_size = PERIOD_SIZE;
+        rate_coefficient = 1;
     }
+    /*README:
+     * framesize_coefficient means
+     * if <= 512frame/48kHz or 1024frame/96kHz or 2048frame/192kHz
+     * value it as 1
+     * if <= 1024frame/48kHz or 2048frame/96kHz or 4096frame/192kHz
+     * value it as 2
+     * and so on
+     */
+    framesize_coefficient = ((alsa_params->framesize/rate_coefficient) > DEFAULT_FRAME_SIZE) ? 2 : 1;
+    period_size = period_size * rate_coefficient * framesize_coefficient;
+    ALOGD("rate_coefficient %d framesize_coefficient %d\n", rate_coefficient, framesize_coefficient);
     bufsize = PERIOD_NUM * period_size;
 
     ALOGD("set period=%d bufsize=%d rate=%d\n", period_size, bufsize, alsa_params->rate);
@@ -127,7 +143,7 @@ static int set_alsa_params(alsa_param_t *alsa_params)
         return err;
     }
 
-    err = snd_pcm_sw_params_set_start_threshold(alsa_params->handle, swparams, bufsize >> 1);
+    err = snd_pcm_sw_params_set_start_threshold(alsa_params->handle, swparams, bufsize / alsa_params->start_threshold_coef);
     if (err < 0) {
         ALOGE("Unable to set start threshold \n");
         return err;
@@ -186,6 +202,8 @@ int standard_alsa_output_open(void **handle, aml_stream_config_t * stream_config
 
     alsa_param->channels = stream_config->channels;
     alsa_param->rate     = stream_config->rate;
+    alsa_param->framesize = stream_config->framesize;
+    alsa_param->start_threshold_coef = (stream_config->start_threshold_coef) ? (stream_config->start_threshold_coef) : 1;
     if (alsa_param->channels == 2) {
         device_name = PCM_DEVICE_2CH;
     } else if (alsa_param->channels == 8) {

@@ -5851,13 +5851,19 @@ ssize_t hw_write(struct audio_stream_out *stream
             output_config.rate     = data_format->sr;
             output_config.format   = BitToFormat(data_format->bitwidth);
             output_config.latency  = adev->audio_latency;
+            output_config.framesize = IS_DATMOS_DECODER_SUPPORT(aml_out->hal_internal_format) ? (DEFAULT_PLAYBACK_PERIOD_SIZE*2) : DEFAULT_PLAYBACK_PERIOD_SIZE;
+            output_config.start_threshold_coef = (aml_out->hal_internal_format == AUDIO_FORMAT_DOLBY_TRUEHD) ? 1 : 2;
             device_config.device   = AUDIO_DEVICE_OUT_SPEAKER;
             ret = aml_output_open(stream, &output_config, &device_config);
         } else if (is_digital_raw_format(output_format)) {
             output_config.channels = 2;
             output_config.rate     = MM_FULL_POWER_SAMPLING_RATE;
-            output_config.format   = output_format; //
+            output_config.format   = output_format;
             device_config.device   = AUDIO_DEVICE_OUT_SPDIF;
+            /*TODO:bitstream output
+             *how to set the value of output_config.framesize
+             */
+            //output_config.framesize = 0;
             ret = aml_output_open(stream, &output_config, &device_config);
         }
 
