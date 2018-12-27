@@ -6540,7 +6540,7 @@ ssize_t mixer_main_buffer_write(struct audio_stream_out *stream, const void *buf
                 aml_out->hal_format = AUDIO_FORMAT_PCM_16_BIT;
                 aml_out->hal_internal_format = AUDIO_FORMAT_PCM_16_BIT;
                 memset((void *)buffer, 0, bytes);
-                return 0;
+                //return 0;
             }
 
         }
@@ -6618,11 +6618,13 @@ ssize_t mixer_main_buffer_write(struct audio_stream_out *stream, const void *buf
                 /*update information*/
                 adev->is_truehd_within_mat = aml_dec->is_truehd_within_mat;
                 if (adev->is_dolby_atmos != aml_dec->is_dolby_atmos) {
-                    trigger_audio_callback(patch->callback_handle, AML_AUDIO_CALLBACK_FORMATCHANGED, (audio_callback_data_t *)&aml_dec->format);
+                    if (patch) {
+                        trigger_audio_callback(patch->callback_handle, AML_AUDIO_CALLBACK_FORMATCHANGED, (audio_callback_data_t *)&aml_dec->format);
+                    }
                 }
                 adev->is_dolby_atmos = aml_dec->is_dolby_atmos;
                 adev->audio_sample_rate = aml_dec->dec_info.stream_sr;
-#ifndef USE_AUDIOSERVICE
+
                 /*decoder return error, reinit here*/
                 if ((ret < 0) && IS_DATMOS_DECODER_SUPPORT(aml_out->hal_internal_format)) {
                     aml_decoder_release(aml_dec);
@@ -6635,7 +6637,7 @@ ssize_t mixer_main_buffer_write(struct audio_stream_out *stream, const void *buf
                         ALOGE("Reinit decoder error");
                     }
                 }
-#endif
+
             } else {
                 config_output(stream);
             }

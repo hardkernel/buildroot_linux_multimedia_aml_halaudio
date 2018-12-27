@@ -302,6 +302,8 @@ int main(int argc, char *argv[])
         return -1;
     }
 
+    dev->set_parameters(dev, "speakers=lr:c:lfe:lrs:lre");
+
     if (strcmp(argv[1], "spdifin") == 0) {
         spdif_source(dev);
     } else if (strcmp(argv[1], "linein") == 0) {

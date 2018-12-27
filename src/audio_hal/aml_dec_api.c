@@ -40,7 +40,7 @@
 #include "aml_mat_parser.h"
 
 
-#ifdef USE_AUDIOSERVICE
+#if 0
 static int gdolby_strategy = AML_DOLBY_DECODER;
 #else
 static int gdolby_strategy = AML_DOLBY_ATMOS;
@@ -180,6 +180,21 @@ int aml_decoder_process(aml_dec_t *aml_dec, unsigned char*buffer, int bytes, int
     if (dec_fun == NULL) {
         return -1;
     }
+
+    if (aml_dec->is_iec61937 == 0) {
+        if (dec_fun->f_process) {
+            // below code is temparily for Dolby
+            memcpy(aml_dec->inbuf, buffer, bytes);
+            aml_dec->burst_payload_size = bytes;
+            aml_dec->inbuf_wt = bytes;
+            ret = dec_fun->f_process(aml_dec, buffer, bytes);
+        } else {
+            return -1;
+        }
+        *used_bytes = bytes;
+        return ret;
+    }
+
 
     if (aml_dec->format == AUDIO_FORMAT_DOLBY_TRUEHD) {
         aml_dec->next_PAPB = aml_dec->first_PAPB;
