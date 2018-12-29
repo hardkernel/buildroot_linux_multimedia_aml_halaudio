@@ -6256,12 +6256,13 @@ static void config_output(struct audio_stream_out *stream)
                 ((aml_datmos_config_t *)&dec_config)->reserved = &adev->datmos_param;
             }
             status = aml_decoder_init(&aml_out->aml_dec, aml_out->hal_internal_format, (aml_dec_config_t *)&dec_config);
+            adev->decode_format = aml_out->hal_internal_format;
             if (status < 0) {
+                adev->audio_sample_rate = 0;
                 ALOGE("Init decoder failed\n");
                 aml_out->aml_dec = NULL;
                 return;
             }
-            adev->decode_format = aml_out->hal_internal_format;
             adev->dec_params_update_mask = 0;
             aml_dec = aml_out->aml_dec;
             /*check if the input format is contained with 61937 format*/
@@ -7282,6 +7283,12 @@ void *audio_patch_input_threadloop(void *data)
         } else {
             ALOGV("%s(), read alsa pcm fails, to _read(%d), bytes_avail(%d)!\n",
                   __func__, read_bytes * period_mul, bytes_avail);
+            patch->aformat = AUDIO_FORMAT_INVALID;
+            if (aml_dev->decode_format != patch->aformat) {
+                trigger_audio_callback(patch->callback_handle, AML_AUDIO_CALLBACK_FORMATCHANGED, (audio_callback_data_t *)&(patch->aformat));
+                ALOGI("HDMI/SPDIF input format changed from %#x to %#x\n", aml_dev->decode_format, patch->aformat);
+                aml_dev->decode_format = patch->aformat;
+            }
             if (get_buffer_read_space(ringbuffer) >= bytes_avail) {
                 pthread_cond_signal(&patch->cond);
             }
