@@ -246,6 +246,8 @@ typedef struct aml_data_format {
     int ch ;   /**  channels*/
     int bitwidth; /**the sample bit width, refer to sample_bitwidth*/
     int endian;   /*refer to sample_endian*/
+    int ch_layout; /*the channel layout*/
+    channel_order_type_t ch_order_type;  /*the ch layout type*/
     channel_info_t channel_info; /*the channel detailed present&order info*/
 
 } aml_data_format_t;

@@ -6674,7 +6674,14 @@ ssize_t mixer_main_buffer_write(struct audio_stream_out *stream, const void *buf
             }
             data_format.ch     = aml_dec->dec_info.output_ch;
             data_format.bitwidth = aml_dec->dec_info.output_bitwidth;
-            aml_channelinfo_set(&data_format.channel_info, audio_channel_out_mask_from_count(data_format.ch), CHANNEL_ORDER_DOLBY);
+            if (IS_DATMOS_DECODER_SUPPORT(aml_out->hal_internal_format)) {
+                data_format.ch_order_type = CHANNEL_ORDER_DOLBY;
+            } else if (aml_out->hal_internal_format == AUDIO_FORMAT_DTS || aml_out->hal_internal_format == AUDIO_FORMAT_DTS_HD) {
+                data_format.ch_order_type = CHANNEL_ORDER_DTS;
+            } else {
+                data_format.ch_order_type = CHANNEL_ORDER_HDMIPCM;
+            }
+            
             if (audio_hal_data_processing(stream, tmp_buffer, aml_dec->outlen_pcm, &output_buffer, &output_buffer_bytes, &data_format) == 0) {
                 hw_write(stream, output_buffer, output_buffer_bytes, &data_format);
                 aml_out->frame_write_sum = aml_out->input_bytes_size  / audio_stream_out_frame_size(stream) ;
@@ -6706,8 +6713,7 @@ ssize_t mixer_main_buffer_write(struct audio_stream_out *stream, const void *buf
                 adev->audio_sample_rate = 48000;
             }
         }
-
-        aml_channelinfo_set(&data_format.channel_info, audio_channel_out_mask_from_count(data_format.ch), CHANNEL_ORDER_HDMIPCM);
+        data_format.ch_order_type = CHANNEL_ORDER_HDMIPCM;
 
         void *tmp_buffer = (void *) write_buf;
         if (aml_out->hw_sync_mode) {

@@ -24,6 +24,7 @@ typedef struct aml_channel_mapping {
     void *map_buffer;
     size_t map_buffer_size;
     size_t out_buffer_size;
+    void * map_info;
 } aml_channel_map_t;
 
 /**
@@ -37,10 +38,6 @@ typedef struct aml_channel_mapping {
 int aml_channelmap_init(aml_channel_map_t ** handle, int ch, char * speaker_config);
 int aml_channelmap_close(aml_channel_map_t * handle);
 int aml_channelmap_process(aml_channel_map_t * handle, aml_data_format_t *src, void * in_data, size_t nframes);
-
-int aml_channelinfo_set(channel_info_t * channel_info, audio_channel_mask_t channel_mask, channel_order_type_t order_type);
-
-
 
 #endif
 
