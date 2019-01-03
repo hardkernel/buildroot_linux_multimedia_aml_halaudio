@@ -186,6 +186,9 @@ int datmos_set_parameters(struct audio_hw_device *dev, struct str_parms *parms)
         ALOGI("post set to %d\n", adev->datmos_param.post);
         /*datmos parameter*/
         if (adev->datmos_enable) {
+            /*
+             *If postprocessing is enabled, DRC must be disabled.
+             */
             if (adev->datmos_param.post) {
                 add_datmos_option(opts, "-post", "");
                 add_datmos_option(opts, "-drc", "drc_mode=disable");
@@ -261,7 +264,19 @@ int datmos_set_parameters(struct audio_hw_device *dev, struct str_parms *parms)
         ALOGI("hfilt set to %d\n", adev->datmos_param.hfilt);
         /*datmos parameter*/
         if (adev->datmos_enable) {
-            if (adev->datmos_param.hfilt)
+            /*
+             *The height cue filter can only be enabled for Dolby Atmos enabled speaker pairs.
+                lre
+                    Left/Right Dolby Atmos enabled speakers
+                lrse
+                    Left/Right surround Dolby Atmos enabled speakers
+                lrrse
+                    Left/Right rear surround Dolby Atmos enabled speakers
+             */
+            if ((adev->datmos_param.hfilt) && \
+                (strstr(adev->datmos_param.speaker_config, "lre") || \
+                 strstr(adev->datmos_param.speaker_config, "lrse") || \
+                 strstr(adev->datmos_param.speaker_config, "lrrse")))
                 add_datmos_option(opts, "-hfilt", "");
             else
                 delete_datmos_option(opts, "-hfilt");
@@ -278,10 +293,32 @@ int datmos_set_parameters(struct audio_hw_device *dev, struct str_parms *parms)
         ALOGI("nolm set to %d\n", adev->datmos_param.nolm);
         /*datmos parameter*/
         if (adev->datmos_enable) {
-            if (adev->datmos_param.nolm)
+            /*
+             *If Loudness management is disabled,
+             *then DRC and postprocessing must also be disabled.
+             */
+            if (adev->datmos_param.nolm) {
                 add_datmos_option(opts, "-nolm", "");
-            else
+                add_datmos_option(opts, "-drc", "drc_mode=disable");
+                delete_datmos_option(opts, "-post");
+            }
+            else {
                 delete_datmos_option(opts, "-nolm");
+                /*
+                 *If postprocessing is enabled, DRC must be disabled.
+                 */
+                if (adev->datmos_param.post) {
+                    add_datmos_option(opts, "-post", "");
+                    add_datmos_option(opts, "-drc", "drc_mode=disable");
+                }
+                else {
+                    delete_datmos_option(opts, "-post");
+                    if (strstr(adev->datmos_param.drc_config, "enable") || \
+                        strstr(adev->datmos_param.drc_config, "disable") || \
+                        strstr(adev->datmos_param.drc_config, "auto"))
+                        add_datmos_option(opts, "-drc", adev->datmos_param.drc_config);
+                }
+            }
         }
         return 0;
     }
