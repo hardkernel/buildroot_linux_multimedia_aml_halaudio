@@ -6514,6 +6514,8 @@ ssize_t mixer_main_buffer_write(struct audio_stream_out *stream, const void *buf
                     aml_out->hal_format = cur_aformat ;
                 }
                 aml_out->hal_internal_format = cur_aformat;
+                if (!IS_DECODER_SUPPORT(aml_out->hal_internal_format))
+                    adev->is_dolby_atmos = false;
                 aml_out->hal_channel_mask = audio_parse_get_audio_channel_mask(patch->audio_parse_para);
                 //ALOGI("%s hal_channel_mask %#x\n", __FUNCTION__, aml_out->hal_channel_mask);
                 if (aml_out->hal_internal_format == AUDIO_FORMAT_DTS) {
