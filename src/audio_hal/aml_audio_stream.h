@@ -336,6 +336,28 @@ static inline audio_format_t BitToFormat(int bitwidth)
     return format;
 }
 
+static inline  int FormatToBit(audio_format_t format)
+{
+    int bitwidth = 0;
+    switch (format) {
+    case AUDIO_FORMAT_PCM_8_BIT:
+        bitwidth = SAMPLE_8BITS;
+        break;
+    case AUDIO_FORMAT_PCM_16_BIT:
+        bitwidth = SAMPLE_16BITS;
+        break;
+    case AUDIO_FORMAT_PCM_8_24_BIT:
+        /*24 bit store in 32 bits*/
+        bitwidth = SAMPLE_32BITS;
+        break;
+    case AUDIO_FORMAT_PCM_32_BIT:
+        bitwidth = SAMPLE_32BITS;
+        break;
+    default:
+        bitwidth = SAMPLE_16BITS;
+    }
+    return bitwidth;
+}
 
 
 struct aml_audio_patch {
@@ -364,6 +386,8 @@ struct aml_audio_patch {
     unsigned int in_period_mul;
     unsigned int out_period_mul;
     audio_channel_mask_t chanmask;
+    int hdmi_stable;
+    struct timespec mute_start_ts;
 #if 0
     struct ring_buffer
         struct thread_read

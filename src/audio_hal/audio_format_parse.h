@@ -42,6 +42,9 @@ enum audio_type {
 /*min DTSHD Period 2048; max DTSHD Period 65536*/
 #define DTSHD_PERIOD_SIZE (2048)
 
+#define IEC61937_CHECK_SIZE 32768   // for 48K 2ch, it is about 170ms
+
+
 enum input_source {
     LINEIN = 0,
     ATV,
@@ -68,8 +71,9 @@ typedef struct audio_type_parse {
     int package_size;
 
     int running_flag;
-	int state;
-	int parsed_size;
+    int state;
+    int parsed_size;
+    int iec_check_size;
 } audio_type_parse_t;
 
 int creat_pthread_for_audio_type_parse(
@@ -118,7 +122,8 @@ int audio_parse_get_audio_type_direct(audio_type_parse_t *status);
 int audio_type_parse(void *buffer, size_t bytes, int *package_size, audio_channel_mask_t *cur_ch_mask, int *raw_size, int *offset);
 
 
-int creat_audio_type_parse(void **status);
+int creat_audio_type_parse(void **status, int iec_check_size);
+
 
 void release_audio_type_parse(void **status);
 
@@ -145,14 +150,14 @@ void feeddata_audio_type_parse(void **status, char * input, int size);
                 suppose this is fail
  */
 int decode_IEC61937_to_raw_data(char *buffer
-        , size_t bytes
-        , char *raw_buf
-        , size_t *raw_wt
-        , size_t raw_max_bytes
-        , size_t *raw_deficiency
-        , int *raw_size
-        , int *offset
-        , int *got_format);
+                                , size_t bytes
+                                , char *raw_buf
+                                , size_t *raw_wt
+                                , size_t raw_max_bytes
+                                , size_t *raw_deficiency
+                                , int *raw_size
+                                , int *offset
+                                , int *got_format);
 /*
  *@brief get current audio type from buffer data
  * input params:
