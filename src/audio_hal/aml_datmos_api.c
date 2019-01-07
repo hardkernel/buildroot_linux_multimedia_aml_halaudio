@@ -45,6 +45,7 @@
 #define DATMOS_HT_EPROC_STREAM        5
 #define DATMOS_HT_EPROC_NOT_PREROLLED 6
 
+#define DATMOS_HT_DDP_PROC_INIT_SIZE (6144)
 #define ONE_BLOCK_FRAME_SIZE 256
 #define MAX_BLOCK_NUM 32
 #define AUDIO_FORMAT_STRING(format) ((format) == TRUEHD) ? ("TRUEHD") : (((format) == AC3) ? ("AC3") : (((format) == EAC3) ? ("EAC3") : ("LPCM")))
@@ -808,7 +809,13 @@ int datmos_decoder_process_patch(aml_dec_t *aml_dec, unsigned char*in_buffer, in
     }
 
     /*FIXME, sometimes the data is not right, decoder could not preroll the datmos at all*/
-    input_threshold = aml_dec->burst_payload_size;
+    if (aml_dec->format == AUDIO_FORMAT_E_AC3) {
+        input_threshold = (aml_dec->burst_payload_size < DATMOS_HT_DDP_PROC_INIT_SIZE) ?
+                         (aml_dec->burst_payload_size) : (DATMOS_HT_DDP_PROC_INIT_SIZE);
+        //if more than 6144bytes, decoder show the timeslice is error.
+    }
+    else
+        input_threshold = aml_dec->burst_payload_size;
 
     if ((aml_dec->inbuf_wt >= input_threshold) && (input_threshold > 0)) {
         ALOGV("inbuf_wt %#x burst_payload_size %#x, input_threshold %#x\n", aml_dec->inbuf_wt, aml_dec->burst_payload_size, input_threshold);
@@ -842,9 +849,9 @@ int datmos_decoder_process_patch(aml_dec_t *aml_dec, unsigned char*in_buffer, in
             }
             //update the inbuf_wt and flush the consumed data in the inbuf
             {
-                if (aml_dec->inbuf_wt - aml_dec->burst_payload_size > 0) {
-                    memmove(aml_dec->inbuf, aml_dec->inbuf + aml_dec->burst_payload_size, aml_dec->inbuf_wt - aml_dec->burst_payload_size);
-                    aml_dec->inbuf_wt -= aml_dec->burst_payload_size;
+                if (aml_dec->inbuf_wt - input_threshold > 0) {
+                    memmove(aml_dec->inbuf, aml_dec->inbuf + input_threshold, aml_dec->inbuf_wt - input_threshold);
+                    aml_dec->inbuf_wt -= input_threshold;
                 }
                 else {
                     memset(aml_dec->inbuf, 0, aml_dec->inbuf_wt);
