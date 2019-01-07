@@ -191,12 +191,17 @@ int datmos_set_parameters(struct audio_hw_device *dev, struct str_parms *parms)
              *If postprocessing is enabled, DRC must be disabled.
              */
             if (adev->datmos_param.post) {
+                delete_datmos_option(opts, "-nolm");
                 add_datmos_option(opts, "-post", "");
                 add_datmos_option(opts, "-drc", "drc_mode=disable");
             }
             else {
                 delete_datmos_option(opts, "-post");
-                if (strstr(adev->datmos_param.drc_config, "enable") || \
+                if (adev->datmos_param.nolm) {
+                    add_datmos_option(opts, "-nolm", "");
+                    add_datmos_option(opts, "-drc", "drc_mode=disable");
+                }
+                else if (strstr(adev->datmos_param.drc_config, "enable") || \
                     strstr(adev->datmos_param.drc_config, "disable") || \
                     strstr(adev->datmos_param.drc_config, "auto"))
                     add_datmos_option(opts, "-drc", adev->datmos_param.drc_config);
