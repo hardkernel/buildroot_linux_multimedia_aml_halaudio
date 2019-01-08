@@ -809,7 +809,7 @@ int dcv_decoder_init_patch(aml_dec_t ** ppddp_dec, audio_format_t format, aml_de
     aml_dec->inbuf = NULL;
     aml_dec->outbuf = NULL;
     aml_dec->outbuf_raw = NULL;
-    aml_dec->inbuf = (unsigned char*) malloc(MAX_DECODER_FRAME_LENGTH * 4);
+    aml_dec->inbuf = (unsigned char*) malloc(MAX_DECODER_FRAME_LENGTH * 8);
     if (!aml_dec->inbuf) {
         ALOGE("malloc buffer failed\n");
         goto exit;
