@@ -125,7 +125,7 @@ enum eDolbyLibType detect_dolby_lib_type(void) {
         return eDolbyDcvLib;
     }
 
-    ALOGE("%s, failed to FIND libdolbyms12.so and libHwAudio_dcvdec.so, %s\n", __FUNCTION__, dlerror());
+    ALOGI("%s, failed to FIND libdolbyms12.so and libHwAudio_dcvdec.so, %s\n", __FUNCTION__, dlerror());
     return eDolbyNull;
 }
 

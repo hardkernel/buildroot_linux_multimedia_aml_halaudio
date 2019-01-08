@@ -158,12 +158,12 @@ int audio_type_parse(void *buffer, size_t bytes, int *package_size, audio_channe
         ALOGV("%s() %d data format: %d *package_size %d\n", __FUNCTION__, __LINE__, AudioType, *package_size);
         return AudioType;
     }
-
     if (pos_sync_word >= 0) {
         tmp_pc = (uint32_t*)(temp_buffer + pos_sync_word + 4);
         pc = *tmp_pc;
         *cur_ch_mask = AUDIO_CHANNEL_OUT_STEREO;
         /*Value of 0-4bit is data type*/
+        //ALOGE("0xpc=%x size=0x%x pos=0x%x\n",pc,bytes,pos_sync_word);
         switch (pc & 0x1f) {
         case IEC61937_NULL:
             AudioType = MUTE;
@@ -213,12 +213,12 @@ int audio_type_parse(void *buffer, size_t bytes, int *package_size, audio_channe
             *package_size = 1024 * 4;
             break;
         default:
-            AudioType = LPCM;
+            AudioType = MUTE;
             break;
         }
     }
 
-    if (pos_sync_word >=0) {
+    if (pos_sync_word >= 0) {
         unsigned int idx, data_offset;
         char *p_data = (char *)buffer;
 
@@ -227,12 +227,14 @@ int audio_type_parse(void *buffer, size_t bytes, int *package_size, audio_channe
         pd = *tmp_pd & 0xffff;
         *raw_size = pd;
 
-        if (AudioType == AC3)
-            *raw_size = *raw_size/8;
+        if (AudioType == AC3) {
+            *raw_size = *raw_size / 8;
+        }
 
         if ((p_data[data_offset] == 0x07 && p_data[data_offset + 1] == 0x9e) ||
-            (p_data[data_offset] == 0x9e && p_data[data_offset + 1] == 0x07))
+            (p_data[data_offset] == 0x9e && p_data[data_offset + 1] == 0x07)) {
             AudioType = TRUEHD;
+        }
     }
 
     *offset = pos_sync_word;
@@ -374,13 +376,13 @@ void* audio_type_parse_threadloop(void *data)
             }
 #endif
             audio_type_status->cur_audio_type =
-                            audio_type_parse(
-                                    audio_type_status->parse_buffer
-                                    ,bytes
-                                    , &(audio_type_status->package_size)
-                                    , &(audio_type_status->audio_ch_mask)
-                                    , &raw_size
-                                    , &offset);
+                audio_type_parse(
+                    audio_type_status->parse_buffer
+                    , bytes
+                    , &(audio_type_status->package_size)
+                    , &(audio_type_status->audio_ch_mask)
+                    , &raw_size
+                    , &offset);
             // ALOGD("cur_audio_type=%d\n", audio_type_status->cur_audio_type);
             //for txl chip,the PAO sw audio format detection is not ready yet.
             //we use the hw audio format detection.
@@ -542,14 +544,13 @@ audio_channel_mask_t audio_parse_get_audio_channel_mask(audio_type_parse_t *stat
 }
 
 
-enum parser_state{
-     IEC61937_UNSYNC,
-     IEC61937_SYNCING,
-     IEC61937_SYNCED,
+enum parser_state {
+    IEC61937_UNSYNC,
+    IEC61937_SYNCING,
+    IEC61937_SYNCED,
 };
-#define IEC61937_CHECK_SIZE 16384   // for 48K 2ch, it is about 85ms
 
-int creat_audio_type_parse( void **status)
+int creat_audio_type_parse(void **status, int iec_check_size)
 {
     audio_type_parse_t *audio_type_status = NULL;
     int ret;
@@ -575,7 +576,7 @@ int creat_audio_type_parse( void **status)
     audio_type_status->state = IEC61937_UNSYNC;
     audio_type_status->audio_type = MUTE;
     audio_type_status->cur_audio_type = MUTE;
-
+    audio_type_status->iec_check_size = iec_check_size;
     /*malloc max audio type size, save last 3 byte*/
     audio_type_status->parse_buffer = (char*) malloc(sizeof(char) * (period_size));
     if (NULL == audio_type_status->parse_buffer) {
@@ -619,93 +620,128 @@ void feeddata_audio_type_parse(void **status, char * input, int size)
         return;
     }
 
-    type = audio_type_parse(input,size, &(audio_type_status->package_size), &(audio_type_status->audio_ch_mask), &raw_size, &offset);
+    type = audio_type_parse(input, size, &(audio_type_status->package_size), &(audio_type_status->audio_ch_mask), &raw_size, &offset);
     // if (type == TRUEHD)
     //     ALOGI("parser audio type %s\n", AUDIO_FORMAT_STRING(type));
     switch (audio_type_status->state) {
-        case IEC61937_UNSYNC:
-        {
-            if (type == LPCM) {
-                if (audio_type_status->audio_type == MUTE) {
-                    audio_type_status->parsed_size += size;
-                    if (audio_type_status->parsed_size <= IEC61937_CHECK_SIZE) {
-                         // during IEC header finding£¬we mute it
-                         memset(input, 0, size);
-                         audio_type_status->audio_type = MUTE;
-                    } else {
-                        // we alread checked some bytes, not found IEC header, we will treate it as PCM
-                        audio_type_status->audio_type = LPCM;
-                    }
+    case IEC61937_UNSYNC: {
+        if (type == LPCM) {
+            if (audio_type_status->audio_type == MUTE) {
+                audio_type_status->parsed_size += size;
+                if (audio_type_status->parsed_size <= audio_type_status->iec_check_size) {
+                    // during IEC header finding,we mute it
+                    memset(input, 0, size);
+                    audio_type_status->audio_type = MUTE;
                 } else {
-                    audio_type_status->parsed_size = 0;
+                    // we alread checked some bytes, not found IEC header, we will treate it as PCM
                     audio_type_status->audio_type = LPCM;
                 }
-
-            } else if (type == PAUSE) {
-                // set all the data as 0, keep the original data type
-                memset(input, 0, size);
-
             } else {
-                audio_type_status->state = IEC61937_SYNCING;
-                memset(input, 0, size);
-                audio_type_status->audio_type = type;
+                audio_type_status->parsed_size = 0;
+                audio_type_status->audio_type = LPCM;
+            }
+
+        } else if (type == PAUSE || type == MUTE) {
+            // set all the data as 0, keep the original data type
+            memset(input, 0, size);
+            audio_type_status->parsed_size = 0;
+            audio_type_status->audio_type = MUTE;
+
+        } else {
+            audio_type_status->state = IEC61937_SYNCING;
+            memset(input, 0, size);
+            audio_type_status->audio_type = type;
+            audio_type_status->parsed_size = 0;
+        }
+        break;
+    }
+    case IEC61937_SYNCING: {
+        if (type == LPCM) {
+            audio_type_status->parsed_size += size;
+            // during two package, we don't find a new IEC header
+            if (audio_type_status->parsed_size > audio_type_status->package_size * 2) {
+                // no found new IEC header, back to unsync state
+                audio_type_status->state = IEC61937_UNSYNC;
+                audio_type_status->audio_type = MUTE;
                 audio_type_status->parsed_size = 0;
             }
-            break;
+
+        } else if (type == PAUSE || type == MUTE) {
+            memset(input, 0, size);
+            audio_type_status->state = IEC61937_UNSYNC;
+            audio_type_status->audio_type = MUTE;
+            audio_type_status->parsed_size = 0;
+        } else {
+            // find a new IEC header, we set it as synced
+            audio_type_status->audio_type = type;
+            audio_type_status->state = IEC61937_SYNCED;
+            audio_type_status->parsed_size = 0;
+
         }
-        case IEC61937_SYNCING:
-        {
-            if ( type == LPCM ) {
-                audio_type_status->parsed_size += size;
-                // during two package, we don't find a new IEC header
-                if (audio_type_status->parsed_size > audio_type_status->package_size * 2) {
-                    // no found new IEC header, back to unsync state
-                      audio_type_status->state = IEC61937_UNSYNC;
-                    audio_type_status->audio_type = MUTE;
-                    audio_type_status->parsed_size = 0;
-                }
-
-            }else if (type == PAUSE ) {
-               // to do
-
-            }else {
-                // find a new IEC header, we set it as synced
-                audio_type_status->audio_type = type;
-                audio_type_status->state = IEC61937_SYNCED;
+        // mute all the data during syncing
+        // memset(input, 0, size);
+        break;
+    }
+    case IEC61937_SYNCED: {
+        if (type == LPCM) {
+            audio_type_status->parsed_size += size;
+            // from raw to pcm, we check more data
+            if (audio_type_status->parsed_size > audio_type_status->package_size * 4) {
+                // no found new IEC header, back to unsync state
+                audio_type_status->state = IEC61937_UNSYNC;
+                audio_type_status->audio_type = MUTE;
                 audio_type_status->parsed_size = 0;
-
             }
-            // mute all the data during syncing
-            // memset(input, 0, size);
-            break;
-        }
-        case IEC61937_SYNCED:
-        {
-            if ( type == LPCM ) {
-                audio_type_status->parsed_size += size;
-                // from raw to pcm, we check more data
-                if (audio_type_status->parsed_size > audio_type_status->package_size * 4) {
-                    // no found new IEC header, back to unsync state
-                      audio_type_status->state = IEC61937_UNSYNC;
-                    audio_type_status->audio_type = MUTE;
-                    audio_type_status->parsed_size = 0;
-                }
 
-            } else if (type == PAUSE ) {
-               // to do
+        } else if (type == PAUSE || type == MUTE) {
+            memset(input, 0, size);
+            audio_type_status->state = IEC61937_UNSYNC;
+            audio_type_status->audio_type = MUTE;
+            audio_type_status->parsed_size = 0;
 
-            } else {
-               audio_type_status->audio_type = type;
-               audio_type_status->parsed_size = 0;
-            }
-            break;
+        } else {
+            audio_type_status->audio_type = type;
+            audio_type_status->parsed_size = 0;
         }
-        default:
-            return;
+        break;
+    }
+    default:
+        return;
     }
 
-    //ALOGD("Parsing state=%d cur type=%d parse type=%d\n",audio_type_status->state,audio_type_status->audio_type,type);
+#if 0
+    if (audio_type_status->audio_type == LPCM) {
+        int i = 0;
+        int found = 0;
+        char * data = (char *)input;
+        for (i = 0; i < size; i++) {
+            if (data[i] != 0) {
+                ALOGF("Noise data is found i=%d 0x%hx \n", i, data[i]);
+                found = 1;
+                break;
+            }
+        }
+        if (0) {
+            {
+                FILE *dump_fp = NULL;
+                dump_fp = fopen("/tmp/noise.data", "a+");
+                if (dump_fp != NULL) {
+                    fwrite(input, size, 1, dump_fp);
+                    fclose(dump_fp);
+                } else {
+                    ALOGW("[Error] Can't write to /data/audio_hal/audioraw.dump");
+                }
+            }
 
+
+
+        }
+    }
+#endif
+    if (audio_type_status->audio_type != audio_type_status->cur_audio_type) {
+        ALOGE("Parsing state=%d cur type=%d parse type=%d\n", audio_type_status->state, audio_type_status->audio_type, type);
+        audio_type_status->cur_audio_type = audio_type_status->audio_type;
+    }
     return;
 }
 static bool is_datmos_suitable_format(int audio_type)
@@ -715,14 +751,14 @@ static bool is_datmos_suitable_format(int audio_type)
 
 //suppose the raw_buf has enough space!
 int decode_IEC61937_to_raw_data(char *buffer
-    , size_t bytes
-    , char *raw_buf
-    , size_t *raw_wt
-    , size_t raw_max_bytes
-    , size_t *raw_deficiency
-    , int *raw_size
-    , int *offset
-    , int *got_format)
+                                , size_t bytes
+                                , char *raw_buf
+                                , size_t *raw_wt
+                                , size_t raw_max_bytes
+                                , size_t *raw_deficiency
+                                , int *raw_size
+                                , int *offset
+                                , int *got_format)
 {
     int ret = 0;
     audio_channel_mask_t cur_ch_mask;
@@ -736,8 +772,7 @@ int decode_IEC61937_to_raw_data(char *buffer
         ALOGV("curent audio type %s\n", AUDIO_FORMAT_STRING(*got_format));
         if (bytes - (*offset + IEC61937_HEADER_BYTES) >= *raw_size) {
             valid_bytes = *raw_size;
-        }
-        else {
+        } else {
             valid_bytes = bytes - (*offset + IEC61937_HEADER_BYTES);
         }
 
@@ -756,13 +791,11 @@ int decode_IEC61937_to_raw_data(char *buffer
             *raw_deficiency = *raw_size - valid_bytes;
             // ALOGE("*raw_size %#x raw_wt %#x\n", *raw_size, *raw_wt);
             ret = valid_bytes + (*offset + IEC61937_HEADER_BYTES);
-        }
-        else {
+        } else {
             ret = -1;
             ALOGE("raw_size %#x valid bytes %#x valid space %#x\n", *raw_size, valid_bytes, raw_max_bytes - *raw_wt);
         }
-    }
-    else {
+    } else {
         // ALOGE("curent audio type %s\n", AUDIO_FORMAT_STRING(cur_audio_type));
         ret = bytes;
     }
@@ -792,12 +825,11 @@ int fill_in_the_remaining_data(char *input_data, size_t input_bytes, size_t *raw
             *raw_deficiency -= valid_bytes;
             // ALOGV("raw_deficiency %#x *raw_wt %#x\n", *raw_deficiency , *raw_wt);
             return valid_bytes;
-        }
-        else {
+        } else {
             ALOGE("raw_deficiency %#x > valid bytes = %#x\n", *raw_deficiency , raw_max_bytes - *raw_wt);
             return -1;
         }
-    }
-    else
+    } else {
         return 0;
+    }
 }

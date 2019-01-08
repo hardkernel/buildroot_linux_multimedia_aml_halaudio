@@ -44,5 +44,6 @@ int aml_audio_get_arc_tuning_latency(audio_format_t arc_afmt);
 int aml_audio_get_src_tune_latency(enum patch_src_assortion patch_src);
 int sysfs_get_sysfs_str(const char *path, const char *val, int len);
 int is_txlx_chip();
+int set_thread_affinity(int cpu_num);
 
 #endif
