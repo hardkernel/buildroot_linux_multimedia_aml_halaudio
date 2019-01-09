@@ -5853,7 +5853,7 @@ ssize_t hw_write(struct audio_stream_out *stream
             output_config.format   = BitToFormat(data_format->bitwidth);
             output_config.latency  = adev->audio_latency;
             output_config.framesize = IS_DATMOS_DECODER_SUPPORT(aml_out->hal_internal_format) ? (DEFAULT_PLAYBACK_PERIOD_SIZE * 2) : DEFAULT_PLAYBACK_PERIOD_SIZE;
-            output_config.start_threshold_coef = (aml_out->hal_internal_format == AUDIO_FORMAT_DOLBY_TRUEHD) ? 1 : 2;
+            output_config.start_threshold_coef = IS_DATMOS_DECODER_SUPPORT(aml_out->hal_internal_format) ? 1 : 2;
             device_config.device   = AUDIO_DEVICE_OUT_SPEAKER;
             ret = aml_output_open(stream, &output_config, &device_config);
         } else if (is_digital_raw_format(output_format)) {
@@ -7458,11 +7458,16 @@ static int create_patch(struct audio_hw_device *dev,
     pthread_cond_init(&patch->cond, NULL);
 
 #ifdef DATMOS
-    if (aml_dev->datmos_enable)
-        ring_buffer_len = (aml_dev->capture_ch == 8) ? \
-                          (64 * period_size * PATCH_PERIOD_COUNT) : \
-                          (4 * period_size * PATCH_PERIOD_COUNT);
-    else
+    if (aml_dev->datmos_enable) {
+        if (aml_dev->capture_ch == 8) {
+            ring_buffer_len = 64 * period_size * PATCH_PERIOD_COUNT;
+        } else if (aml_dev->capture_samplerate >= 176400) {
+            ring_buffer_len = 16 * period_size * PATCH_PERIOD_COUNT;
+
+        } else {
+            ring_buffer_len = 4 * period_size * PATCH_PERIOD_COUNT;
+        }
+    } else
 #endif
         ring_buffer_len = 16 * period_size * PATCH_PERIOD_COUNT;
 

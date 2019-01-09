@@ -36,6 +36,7 @@
 #define MAX_DECODER_DDP_FRAME_LENGTH 0X1800
 #define MAX_DECODER_THD_FRAME_LENGTH 8190
 
+#define AC3_FRAMELENGTH   1536
 
 #define DATMOS_HT_OK                  0
 #define DATMOS_HT_ENOMEM              1
@@ -679,7 +680,7 @@ int datmos_decoder_init_patch(aml_dec_t ** ppdatmos_dec, audio_format_t format, 
     aml_dec->outbuf = NULL;
     aml_dec->outbuf_raw = NULL;
     if ((datmos_config->audio_type == AC3) || (datmos_config->audio_type == EAC3))
-        aml_dec->inbuf_max_len = MAX_DECODER_DDP_FRAME_LENGTH*4;
+        aml_dec->inbuf_max_len = MAX_DECODER_DDP_FRAME_LENGTH*8;
     else if (datmos_config->audio_type == TRUEHD)
         aml_dec->inbuf_max_len = MAX_DECODER_MAT_FRAME_LENGTH*4;
     ALOGV("aml_dec inbuf_max_len %x\n", aml_dec->inbuf_max_len);
@@ -814,16 +815,18 @@ int datmos_decoder_process_patch(aml_dec_t *aml_dec, unsigned char*in_buffer, in
     }
 
     /*FIXME, sometimes the data is not right, decoder could not preroll the datmos at all*/
-    if (aml_dec->format == AUDIO_FORMAT_E_AC3) {
+    /*if (aml_dec->format == AUDIO_FORMAT_E_AC3) {
         input_threshold = (aml_dec->burst_payload_size < DATMOS_HT_DDP_PROC_INIT_SIZE) ?
                          (aml_dec->burst_payload_size) : (DATMOS_HT_DDP_PROC_INIT_SIZE);
         //if more than 6144bytes, decoder show the timeslice is error.
     }
-    else
+    else*/
         input_threshold = aml_dec->burst_payload_size;
-
+    aml_dec->outlen_pcm = 0;
+    //ALOGE("begin decode\n");
+    while((aml_dec->inbuf_wt >= input_threshold) && (input_threshold > 0)){
     if ((aml_dec->inbuf_wt >= input_threshold) && (input_threshold > 0)) {
-        ALOGV("inbuf_wt %#x burst_payload_size %#x, input_threshold %#x\n", aml_dec->inbuf_wt, aml_dec->burst_payload_size, input_threshold);
+        //ALOGE("inbuf_wt %#x burst_payload_size %#x, input_threshold %#x 0x%x 0x%x\n", aml_dec->inbuf_wt, aml_dec->burst_payload_size, input_threshold,aml_dec->inbuf[0],aml_dec->inbuf[1]);
         datmos_dec->is_truehd_within_mat = is_truehd_within_mat(aml_dec->inbuf, input_threshold);
 
         /*begin to decode the data*/
@@ -832,7 +835,7 @@ int datmos_decoder_process_patch(aml_dec_t *aml_dec, unsigned char*in_buffer, in
                         , input_threshold
                         , aml_dec->dec_ptr
                         , &bytes_consumed
-                        , aml_dec->outbuf
+                        , aml_dec->outbuf + aml_dec->outlen_pcm
                         , aml_dec->outbuf_max_len
                         , &pcm_produced_bytes);
 
@@ -841,8 +844,21 @@ int datmos_decoder_process_patch(aml_dec_t *aml_dec, unsigned char*in_buffer, in
             char *datmos_data = aml_dec->inbuf;
             ALOGE("header %2x %2x", datmos_data[0], datmos_data[1]);
         }
+        //ALOGD("ret=%d valid bytes %#x outlen_pcm %#x consume=0x%x", ret, aml_dec->inbuf_wt, aml_dec->outlen_pcm,bytes_consumed);
 
-        ALOGV("valid bytes %#x outlen_pcm %#x", aml_dec->inbuf_wt, aml_dec->outlen_pcm);
+        if (aml_dec->format == AUDIO_FORMAT_E_AC3 || aml_dec->format == AUDIO_FORMAT_AC3) {
+              /*
+              *in datmos decoder, the max size in one circle determinated by
+              *datmos_ptr->procblocksize = DATMOS_HT_DDP_PROC_BLOCK_SIZE;//0x1800
+              */
+            if (ret != 0 && bytes_consumed == 0) {
+                bytes_consumed = input_threshold > 0x1800? 0x1800:input_threshold;
+            }
+        } else {
+            bytes_consumed = input_threshold;
+        }
+
+
         /*end of the decode*/
         {
             //dump the input data, as the data should convert to LSB
@@ -854,9 +870,9 @@ int datmos_decoder_process_patch(aml_dec_t *aml_dec, unsigned char*in_buffer, in
             }
             //update the inbuf_wt and flush the consumed data in the inbuf
             {
-                if (aml_dec->inbuf_wt - input_threshold > 0) {
-                    memmove(aml_dec->inbuf, aml_dec->inbuf + input_threshold, aml_dec->inbuf_wt - input_threshold);
-                    aml_dec->inbuf_wt -= input_threshold;
+                if (aml_dec->inbuf_wt - bytes_consumed > 0) {
+                    memmove(aml_dec->inbuf, aml_dec->inbuf + bytes_consumed, aml_dec->inbuf_wt - bytes_consumed);
+                    aml_dec->inbuf_wt -= bytes_consumed;
                 }
                 else {
                     memset(aml_dec->inbuf, 0, aml_dec->inbuf_wt);
@@ -877,7 +893,10 @@ int datmos_decoder_process_patch(aml_dec_t *aml_dec, unsigned char*in_buffer, in
             }
         }
 
-        aml_dec->outlen_pcm = pcm_produced_bytes;
+        aml_dec->outlen_pcm += pcm_produced_bytes;
+        if(aml_dec->outlen_pcm > aml_dec->outbuf_max_len) {
+            ALOGF("output too much data\n");
+        }
         datmos_get_output_info(aml_dec, &(aml_dec->dec_info));
         datmos_get_audio_info(aml_dec);
 
@@ -895,7 +914,12 @@ int datmos_decoder_process_patch(aml_dec_t *aml_dec, unsigned char*in_buffer, in
             fclose(fp1);
             // aml_dec->outlen_pcm = 0;
         }
+        if (aml_dec->format == AUDIO_FORMAT_E_AC3 || aml_dec->format == AUDIO_FORMAT_AC3) {
+            if (aml_dec->outlen_pcm >= AC3_FRAMELENGTH * (aml_dec->dec_info.output_bitwidth >>3) * (aml_dec->dec_info.output_ch)) {
+                break;
+            }
 
+        }
 
     }
     else {
@@ -903,7 +927,12 @@ int datmos_decoder_process_patch(aml_dec_t *aml_dec, unsigned char*in_buffer, in
          *do nothing, just store the data to aml_dec->inbuf
          *clear the output pcm length as zero.
          */
-        aml_dec->outlen_pcm = 0;
+        //aml_dec->outlen_pcm = 0;
+        break;
+    }
+    }
+    if (aml_dec->outlen_pcm !=0 ) {
+        //ALOGE("decoded data=0x%x wt=0x%x\n", aml_dec->outlen_pcm,aml_dec->inbuf_wt);
     }
     ALOGV("<<ret %d OUT>>", ret);
     return 0;
