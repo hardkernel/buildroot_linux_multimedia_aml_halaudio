@@ -30,7 +30,7 @@
 #endif
 
 #include "standard_alsa_manager.h"
-
+#include "aml_audio_log.h"
 
 static struct aml_output_function aml_output_function = {
     .output_open = NULL,
@@ -165,6 +165,16 @@ int aml_output_write_pcm(struct audio_stream_out *stream, const void *buffer, in
         return -1;
     }
 
+    if (aml_log_get_dumpfile_enable("dump_output")) {
+        FILE *dump_fp = NULL;
+        dump_fp = fopen("/tmp/output.pcm", "a+");
+        if (dump_fp != NULL) {
+            fwrite(buffer, 1, bytes, dump_fp);
+            fclose(dump_fp);
+        } else {
+            ALOGW("[Error] Can't write to /tmp/output.pcm");
+        }
+    }
 
     output_handle = (struct aml_output_handle *)aml_stream->output_handle[PCM_OUTPUT_DEVICE];
 

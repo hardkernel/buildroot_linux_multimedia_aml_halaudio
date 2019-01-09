@@ -24,6 +24,7 @@ void aml_log_init();
 void aml_log_exit();
 void aml_log_dumpinfo_install(char * name, dump_info_func_t dump_func, void * private);
 void aml_log_dumpinfo_remove(char * name);
+int aml_log_get_dumpfile_enable(char * name);
 
 
 #endif

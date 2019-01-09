@@ -7176,9 +7176,15 @@ void *audio_patch_input_threadloop(void *data)
             }
 
 
+            if (aml_log_get_dumpfile_enable("dump_input")) {
+                //dump the input data
+                FILE *fp1=fopen("/tmp/input.data","a+");
+                if (fp1) {
+                    fwrite((char *)patch->in_buf, 1, bytes_avail ,fp1);
+                    fclose(fp1);
+                }
+            }
 
-
-            //DoDumpData(patch->in_buf, bytes_avail, CC_DUMP_SRC_TYPE_INPUT);
             do {
                 if (get_buffer_write_space(ringbuffer) >= bytes_avail) {
                     retry = 0;
