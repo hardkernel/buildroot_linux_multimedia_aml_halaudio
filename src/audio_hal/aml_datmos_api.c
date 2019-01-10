@@ -160,8 +160,22 @@ int datmos_set_parameters(struct audio_hw_device *dev, struct str_parms *parms)
         /*datmos parameter*/
         if (adev->datmos_enable) {
             add_datmos_option(opts, "-drc", adev->datmos_param.drc_config);
-            if ((drc_mode == DRC_ON) || (drc_mode == DRC_AUTO))
+            /*
+             *If Loudness management is disabled,
+             *then DRC and postprocessing must also be disabled.
+             */
+            if ((drc_mode == DRC_ON) || (drc_mode == DRC_AUTO)) {
                 delete_datmos_option(opts, "-post");
+                delete_datmos_option(opts, "-nolm");
+            }
+            else if (adev->datmos_param.post) {
+                delete_datmos_option(opts, "-nolm");
+                add_datmos_option(opts, "-post", "");
+            }
+            else if (adev->datmos_param.nolm) {
+                delete_datmos_option(opts, "-post");
+                add_datmos_option(opts, "-nolm", "");
+            }
         }
         return 0;
     }
@@ -381,6 +395,7 @@ int datmos_set_parameters(struct audio_hw_device *dev, struct str_parms *parms)
     }
 
     /*static param*/
+#if 0
     ret = str_parms_get_int(parms, "dec_joc", &val);
     if (ret >= 0) {
         adev->datmos_param.dec_joc = val;
@@ -394,6 +409,7 @@ int datmos_set_parameters(struct audio_hw_device *dev, struct str_parms *parms)
         }
         return 0;
     }
+#endif
 
     /*static param*/
     ret = str_parms_get_str(parms, "verbose", value, sizeof(value));
