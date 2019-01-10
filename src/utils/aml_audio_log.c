@@ -50,6 +50,7 @@ typedef struct aml_audio_log {
     int notify_fd;
     int watch_desc;
     struct listnode dumpinfo_list;
+    struct listnode dumpfile_list;
 } aml_audio_log_t;
 
 
@@ -61,16 +62,22 @@ typedef struct aml_log_dump_info {
 
 } aml_log_dump_info_t;
 
-
+typedef struct aml_log_dump_file {
+    struct listnode listnode;
+    char name[32];
+    int  dump_enable;
+} aml_log_dump_file_t;
 
 static void parse_debug_level(char * data);
 static void parse_debug_info(char * data);
+static void parse_debug_dump_file(char * data);
 
 
 
 static debug_item_t debugitems[] = {
     {AML_AUDIO_DEBUG_LEVEL, parse_debug_level},
     {AML_AUDIO_DUMP_INFO, parse_debug_info},
+    {AML_AUDIO_DUMP_FILE, parse_debug_dump_file},
 };
 
 static aml_audio_log_t * aml_log_handle = NULL;
@@ -94,7 +101,6 @@ static void parse_debug_level(char * data)
             }
         }
     }
-
     return;
 }
 
@@ -124,6 +130,74 @@ static void parse_debug_info(char * data)
     return;
 }
 
+static void parse_debug_dump_file(char * data)
+{
+    struct listnode *node = NULL;
+    aml_log_dump_file_t *dump_file;
+    char *end;
+    char *token = NULL;
+    char *enable = NULL;
+    int bfound = 0;
+    token = strtok(data, "=");
+    if (token != NULL) {
+        token = strtok(NULL, "=");
+        if (token != NULL) {
+            enable = strtok(NULL, "=");
+
+            list_for_each(node, &aml_log_handle->dumpfile_list) {
+                dump_file = node_to_item(node, aml_log_dump_file_t, listnode);
+                if (!strncmp(dump_file->name, token, strlen(token))) {
+                    if (enable) {
+                        dump_file->dump_enable = atoi(enable);
+                    }
+                    bfound = 1;
+                    break;
+                }
+
+            }
+        }
+    }
+    /*remove all the dump file setting*/
+    if (!strncmp("disable_all", token, strlen("disable_all"))) {
+        list_for_each(node, &aml_log_handle->dumpfile_list) {
+            dump_file = node_to_item(node, aml_log_dump_file_t, listnode);
+            printf("disable dump setting =%s\n", dump_file->name);
+            list_remove(&dump_file->listnode);
+            free(dump_file);
+            node = &aml_log_handle->dumpfile_list;
+        }
+        return;
+    }
+
+    /*show all the dump file setting*/
+    if (!strncmp("show_all", token, strlen("show_all"))) {
+        list_for_each(node, &aml_log_handle->dumpfile_list) {
+            dump_file = node_to_item(node, aml_log_dump_file_t, listnode);
+            printf("dump setting =%s enable=%d\n", dump_file->name,dump_file->dump_enable);
+        }
+        return;
+    }
+
+
+
+    if (bfound == 0) {
+        dump_file = calloc(1,sizeof(aml_log_dump_file_t));
+        if (token != NULL) {
+            strncpy(dump_file->name, token, strlen(token));
+            if (enable) {
+                dump_file->dump_enable = atoi(enable);
+            }
+
+        }
+        list_add_head(&aml_log_handle->dumpfile_list, &dump_file->listnode);
+    }
+    if (dump_file) {
+        printf("dump file name=%s enable=%d\n", dump_file->name, dump_file->dump_enable);
+    }
+
+    return;
+}
+
 
 void parse_debug()
 {
@@ -135,6 +209,7 @@ void parse_debug()
     if (file_fd == NULL) {
         return;
     }
+    memset(buffer, 0, BUF_LEN);
     len = fread(buffer, 1, 128, file_fd);
     if (len <= 0) {
         fclose(file_fd);
@@ -196,6 +271,7 @@ void aml_log_init(void)
         return;
     }
     list_init(&aml_log_handle->dumpinfo_list);
+    list_init(&aml_log_handle->dumpfile_list);
 
     aml_log_handle->bExit = 0;
     aml_log_handle->notify_fd = inotify_init();
@@ -209,6 +285,7 @@ void aml_log_exit(void)
 {
     struct listnode *node = NULL;
     aml_log_dump_info_t *dump_info;
+    aml_log_dump_file_t *dump_file;
 
     aml_log_handle->bExit = 1;
     inotify_rm_watch(aml_log_handle->notify_fd, aml_log_handle->watch_desc);
@@ -224,6 +301,15 @@ void aml_log_exit(void)
         free(dump_info);
         node = &aml_log_handle->dumpinfo_list;
     }
+
+    list_for_each(node, &aml_log_handle->dumpfile_list) {
+        dump_file = node_to_item(node, aml_log_dump_file_t, listnode);
+        printf("remove dump item =%s\n", dump_file->name);
+        list_remove(&dump_file->listnode);
+        free(dump_file);
+        node = &aml_log_handle->dumpfile_list;
+    }
+
 
 
     free(aml_log_handle);
@@ -273,9 +359,22 @@ void aml_log_dumpinfo_remove(char * name)
             free(dump_info);
             break;
         }
-
     }
     return;
 }
 
+int aml_log_get_dumpfile_enable(char * name)
+{
+    struct listnode *node = NULL;
+    aml_log_dump_file_t *dump_file;
+
+    list_for_each(node, &aml_log_handle->dumpfile_list) {
+        dump_file = node_to_item(node, aml_log_dump_file_t, listnode);
+        if (!strncmp(dump_file->name, name, strlen(name))) {
+            return dump_file->dump_enable;
+        }
+    }
+
+    return 0;
+}
 

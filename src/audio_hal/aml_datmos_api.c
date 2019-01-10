@@ -29,6 +29,7 @@
 #include "audio_hw.h"
 #include "aml_datmos_config.h"
 #include "audio_core.h"
+#include "aml_audio_log.h"
 
 /*marco define*/
 #define VAL_LEN 256
@@ -906,14 +907,6 @@ int datmos_decoder_process_patch(aml_dec_t *aml_dec, unsigned char*in_buffer, in
         if (aml_dec->dec_info.output_bitwidth == SAMPLE_24BITS)
             aml_dec->dec_info.output_bitwidth = SAMPLE_32BITS;
 
-
-        //dump the output pcm data
-        if (dump_output) {
-            FILE *fp1=fopen(DATMOS_PCM_OUT_FILE,"a+");
-            fwrite((char *)aml_dec->outbuf, 1, aml_dec->outlen_pcm ,fp1);
-            fclose(fp1);
-            // aml_dec->outlen_pcm = 0;
-        }
         if (aml_dec->format == AUDIO_FORMAT_E_AC3 || aml_dec->format == AUDIO_FORMAT_AC3) {
             if (aml_dec->outlen_pcm >= AC3_FRAMELENGTH * (aml_dec->dec_info.output_bitwidth >>3) * (aml_dec->dec_info.output_ch)) {
                 break;
@@ -932,8 +925,14 @@ int datmos_decoder_process_patch(aml_dec_t *aml_dec, unsigned char*in_buffer, in
     }
     }
     if (aml_dec->outlen_pcm !=0 ) {
-        //ALOGE("decoded data=0x%x wt=0x%x\n", aml_dec->outlen_pcm,aml_dec->inbuf_wt);
+        if (aml_log_get_dumpfile_enable("dump_decoder")) {
+            //dump the decoded pcm data
+            FILE *fp1=fopen(DATMOS_PCM_OUT_FILE,"a+");
+            fwrite((char *)aml_dec->outbuf, 1, aml_dec->outlen_pcm ,fp1);
+            fclose(fp1);
+        }
     }
+
     ALOGV("<<ret %d OUT>>", ret);
     return 0;
 EXIT:
