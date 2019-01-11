@@ -3913,7 +3913,7 @@ static int adev_open_output_stream(struct audio_hw_device *dev,
     //if (out->is_tv_platform)
     {
         // hank hard code
-#ifdef USE_AUDIOSERVICE
+#ifdef USE_AUDIOSERVICE_S400
         /*the trunk alsa dts only support to 6 ch,
         we will change such define later*/
         out->config.channels = 4;

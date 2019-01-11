@@ -251,6 +251,7 @@ static void init_ch_presents(char * speaker_config)
     if (token == NULL) {
         for (i = 0; i < item; i++) {
             ch_presents[i].present = 1;
+            ch_presents[i].order   = i;
         }
     }
     while (token != NULL) {

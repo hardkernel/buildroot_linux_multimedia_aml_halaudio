@@ -17,7 +17,7 @@ export ENABLE_PULSEAUDIO = yes
 endif
 
 ifeq ($(BR2_PACKAGE_AUDIOSERVICE_S400),y)
-export ENABLE_AUDIOSERVICE = yes
+export ENABLE_AUDIOSERVICE_S400 = yes
 endif
 
 ifeq ($(BR2_PACKAGE_ALSA_PLUGINS),y)
