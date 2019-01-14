@@ -6106,7 +6106,7 @@ static void config_output(struct audio_stream_out *stream)
 #endif
     /*get sink format*/
     get_sink_format(stream);
-    ALOGE("%s() adev->dolby_lib_type = %d",  __func__, adev->dolby_lib_type);
+    //ALOGE("%s() adev->dolby_lib_type = %d",  __func__, adev->dolby_lib_type);
 
     if (aml_out->status == STREAM_HW_WRITING) {
         aml_output_close(stream);
@@ -6405,8 +6405,8 @@ ssize_t mixer_main_buffer_write(struct audio_stream_out *stream, const void *buf
 
             if (cur_aformat == AUDIO_FORMAT_INVALID) {
                 // the input data is invalid, mute it
-                aml_out->hal_format = AUDIO_FORMAT_PCM_16_BIT;
-                aml_out->hal_internal_format = AUDIO_FORMAT_PCM_16_BIT;
+                aml_out->hal_format = AUDIO_FORMAT_INVALID;
+                aml_out->hal_internal_format = AUDIO_FORMAT_INVALID;
                 memset((void *)buffer, 0, bytes);
                 //return 0;
             }
@@ -6447,6 +6447,10 @@ ssize_t mixer_main_buffer_write(struct audio_stream_out *stream, const void *buf
     }
 
     aml_out->input_bytes_size += write_bytes;
+
+    if (aml_out->hal_format == AUDIO_FORMAT_INVALID) {
+        return bytes;
+    }
 
     /*
      *when disable_pcm_mixing is true, the 7.1ch DD+ could not be process with Dolby MS12
@@ -7134,8 +7138,9 @@ void *audio_patch_input_threadloop(void *data)
 
         clock_gettime(CLOCK_MONOTONIC, &after_read);
         us = calc_time_interval_us(&before_read, &after_read);
-        //ALOGD("function gap =%d \n", us);
-
+        if(us > 20*1000) {
+            ALOGE("read data function gap =%d \n", us);
+        }
 
         // ALOGV("++%s in read over read_bytes = %d, in_read returns = %d \n",
         // __FUNCTION__, read_bytes * period_mul, bytes_avail);

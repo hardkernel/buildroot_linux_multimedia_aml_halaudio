@@ -148,6 +148,9 @@ int audio_type_parse(void *buffer, size_t bytes, int *package_size, audio_channe
     uint32_t pd = 0;
 
     pos_sync_word = seek_61937_sync_word((char*)temp_buffer, bytes);
+    /*due to this dtc cd detection is not strong enough, it will detect
+     some normal pcm as dts cd, which cause audio break*/
+#if 0
     pos_dtscd_sync_word = seek_dts_cd_sync_word((char*)temp_buffer, bytes);
 
     DoDumpData(temp_buffer, bytes, CC_DUMP_SRC_TYPE_INPUT_PARSE);
@@ -158,6 +161,7 @@ int audio_type_parse(void *buffer, size_t bytes, int *package_size, audio_channe
         ALOGV("%s() %d data format: %d *package_size %d\n", __FUNCTION__, __LINE__, AudioType, *package_size);
         return AudioType;
     }
+#endif
     if (pos_sync_word >= 0) {
         tmp_pc = (uint32_t*)(temp_buffer + pos_sync_word + 4);
         pc = *tmp_pc;
