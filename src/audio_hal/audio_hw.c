@@ -4828,6 +4828,14 @@ static int adev_set_parameters(struct audio_hw_device *dev, const char *kvpairs)
         goto exit;
     }
 
+    ret = str_parms_get_int(parms, "capture_audiotype", &val);
+    if (ret >= 0) {
+        adev->capture_audiotype = val;
+        ALOGI("capture_audiotype set to %d\n", adev->capture_audiotype);
+        goto exit;
+    }
+
+
 
     ret = aml_volctl_setparameters((struct audio_hw_device *)adev, parms);
     if (ret >= 0) {
@@ -7428,7 +7436,9 @@ void dump_patch_info(void * private)
 
     read_size = get_buffer_read_space(ringbuffer);
     write_size = get_buffer_write_space(ringbuffer);
-
+    if (patch->input_src == AUDIO_DEVICE_IN_HDMI) {
+        ALOGA("HDMI input ch=%d samplerate=%d audio_type=%d\n",aml_dev->capture_ch,aml_dev->capture_samplerate, aml_dev->capture_audiotype);
+    }
     ALOGA("Patch   Info: ring buffer size=0x%x avail=0x%x empty=0x%x Period in=%d %d stable=%d\n", ringbuffer->size, read_size, write_size, patch->in_period_mul, patch->out_period_mul, patch->hdmi_stable);
     ALOGA("Input   Info: src=0x%x  rate (in=%d out=%d) ch=%d \n", patch->input_src, patch->original_rate, patch->sample_rate , patch->ch);
     ALOGA("Decoder Info: fomrat=0x%x \n", patch->aformat);
@@ -7451,6 +7461,7 @@ static int create_patch(struct audio_hw_device *dev,
     int ret = 0;
     int ring_buffer_len = 0;
     int iec_check_size = 0;
+    int audio_type_preset = -1;
 
     ALOGI("++%s", __func__);
     patch = calloc(1, sizeof(*patch));
@@ -7510,10 +7521,13 @@ static int create_patch(struct audio_hw_device *dev,
         //TODO add sample rate and channel information
         //ret = creat_pthread_for_audio_type_parse(&patch->audio_parse_threadID, &patch->audio_parse_para, 48000, 2);
         iec_check_size = IEC61937_CHECK_SIZE;
-        if (input == AUDIO_DEVICE_IN_HDMI && aml_dev->capture_ch == 8) {
-            iec_check_size = iec_check_size * 2;
+        if (input == AUDIO_DEVICE_IN_HDMI) {
+            if (aml_dev->capture_ch == 8) {
+                iec_check_size = iec_check_size * 2;
+            }
+            audio_type_preset = aml_dev->capture_audiotype;
         }
-        creat_audio_type_parse(&patch->audio_parse_para, iec_check_size);
+        creat_audio_type_parse(&patch->audio_parse_para, iec_check_size, audio_type_preset);
         if (ret !=  0) {
             ALOGE("%s,create format parse thread fail!\n", __FUNCTION__);
             goto err_parse_thread;
@@ -8868,6 +8882,7 @@ static int adev_open(const hw_module_t* module, const char* name,
     adev->is_dolby_atmos = false;
     adev->audio_sample_rate = 0;
     adev->decode_format = AUDIO_FORMAT_INVALID;
+    adev->capture_audiotype = -1;
     return 0;
 
 err_spk_tuning_buf:

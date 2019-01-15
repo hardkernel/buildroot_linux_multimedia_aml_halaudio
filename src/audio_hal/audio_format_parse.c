@@ -554,7 +554,7 @@ enum parser_state {
     IEC61937_SYNCED,
 };
 
-int creat_audio_type_parse(void **status, int iec_check_size)
+int creat_audio_type_parse(void **status, int iec_check_size, int type_preset)
 {
     audio_type_parse_t *audio_type_status = NULL;
     int ret;
@@ -581,6 +581,7 @@ int creat_audio_type_parse(void **status, int iec_check_size)
     audio_type_status->audio_type = MUTE;
     audio_type_status->cur_audio_type = MUTE;
     audio_type_status->iec_check_size = iec_check_size;
+    audio_type_status->type_preset = type_preset;
     /*malloc max audio type size, save last 3 byte*/
     audio_type_status->parse_buffer = (char*) malloc(sizeof(char) * (period_size));
     if (NULL == audio_type_status->parse_buffer) {
@@ -711,6 +712,15 @@ void feeddata_audio_type_parse(void **status, char * input, int size)
     }
     default:
         return;
+    }
+
+    /*if we know it is bitstream, but we detect it as pcm,
+      mute these data*/
+    if (audio_type_status->type_preset == 1 && audio_type_status->audio_type == LPCM) {
+        ALOGV("input is bitstream, but wrong detect type to pcm\n");
+        memset(input, 0, size);
+        audio_type_status->parsed_size = 0;
+        audio_type_status->audio_type = MUTE;
     }
 
 #if 0

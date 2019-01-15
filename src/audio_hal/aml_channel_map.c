@@ -250,8 +250,11 @@ static void init_ch_presents(char * speaker_config)
     /*if there is no config, set all the presents on*/
     if (token == NULL) {
         for (i = 0; i < item; i++) {
-            ch_presents[i].present = 1;
-            ch_presents[i].order   = i;
+            /*set default 2ch*/
+            if (i < 2) {
+                ch_presents[i].present = 1;
+                ch_presents[i].order   = i;
+            }
         }
     }
     while (token != NULL) {
@@ -465,6 +468,10 @@ int aml_channelmap_process(aml_channel_map_t * handle, aml_data_format_t *src, v
             dst_order = channel_order->ch_map_items[i].dst_order;
             src_order = channel_order->ch_map_items[i].src_order;
             sacling   = channel_order->ch_map_items[i].scale;
+            if (src_order >= src_channel || dst_order >= dst_channel) {
+                ALOGE("wrong mapping[%d %d]->[%d %d]\n",src_order,src_channel,dst_order,dst_channel);
+                continue;
+            }
             for (j = 0; j < nframes; j ++) {
                 dst_data[j * dst_channel + dst_order] += src_data[j * src_channel + src_order] * sacling;
 
@@ -482,6 +489,10 @@ int aml_channelmap_process(aml_channel_map_t * handle, aml_data_format_t *src, v
             dst_order = channel_order->ch_map_items[i].dst_order;
             src_order = channel_order->ch_map_items[i].src_order;
             sacling   = channel_order->ch_map_items[i].scale;
+            if (src_order >= src_channel || dst_order >= dst_channel) {
+                ALOGE("wrong mapping[%d %d]->[%d %d]\n",src_order,src_channel,dst_order,dst_channel);
+                continue;
+            }
             for (j = 0; j < nframes; j ++) {
                 dst_data[j * dst_channel + dst_order] += src_data[j * src_channel + src_order] * sacling;
 

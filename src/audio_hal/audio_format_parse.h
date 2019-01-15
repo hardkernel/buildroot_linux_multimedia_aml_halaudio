@@ -74,6 +74,7 @@ typedef struct audio_type_parse {
     int state;
     int parsed_size;
     int iec_check_size;
+    int type_preset; /*-1, NoneAudio, 0: PCM, 1: bitstream*/
 } audio_type_parse_t;
 
 int creat_pthread_for_audio_type_parse(
@@ -120,10 +121,19 @@ int audio_parse_get_audio_type_direct(audio_type_parse_t *status);
  *          0/1/2/3~: current audio type defined by enum audio_type
  */
 int audio_type_parse(void *buffer, size_t bytes, int *package_size, audio_channel_mask_t *cur_ch_mask, int *raw_size, int *offset);
+/*
+ *@brief create audio parse handle for none-thread case
+ * input params:
+ *          void **status: store the handle
+            int iec_check_size : how many size to check to detect the pcm case
+            int type_preset: if we know its type,-1, NoneAudio, 0: PCM, 1: bitstream
+ *
+ * return value:
+ *          0 : success
+ *          -1: failed
+ */
 
-
-int creat_audio_type_parse(void **status, int iec_check_size);
-
+int creat_audio_type_parse(void **status, int iec_check_size, int type_preset);
 
 void release_audio_type_parse(void **status);
 

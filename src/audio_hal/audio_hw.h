@@ -354,8 +354,10 @@ struct aml_audio_device {
     int audio_type;
     int audio_latency;  // currently work on pulse audio
     int capture_device;
+    /*below item is used for HDMI input setting*/
     int capture_ch;
     int capture_samplerate;
+    int capture_audiotype;  /*-1, NoneAudio, 0: PCM, 1: bitstream */
 
 
 #ifdef DATMOS
