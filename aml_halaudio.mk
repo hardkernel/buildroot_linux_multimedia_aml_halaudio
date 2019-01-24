@@ -44,6 +44,12 @@ define AML_HALAUDIO_INSTALL_TARGET_CMDS
         $(MAKE) -C $(@D) install
 endef
 
+define AML_HALAUDIO_INSTALL_INIT_SYSV
+	mkdir -p $(TARGET_DIR)/etc/halaudio
+	$(INSTALL) -D -m 644 $(AML_HALAUDIO_SITE)/../config/*.json \
+		$(TARGET_DIR)/etc/halaudio/
+endef
+
 define AML_HALAUDIO_UNINSTALL_TARGET_CMDS
         $(MAKE) -C $(@D) uninstall
 endef

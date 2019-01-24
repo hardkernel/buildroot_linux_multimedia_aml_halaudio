@@ -21,6 +21,19 @@
 #include "aml_channel_map.h"
 #include "log.h"
 #include "aml_audio_log.h"
+#include "aml_config_parser.h"
+
+
+#define MAX_CHANNELS "MAX_CHANNELS"
+#define CHANNEL_MAP "CH_MAP"
+#define ORDER_TYPE  "order_type"
+#define SRC_CHS     "src_ch"
+#define MAPPING     "mapping"
+#define SRC_ORDER   "src_order"
+#define DST_ORDER   "dst_order"
+#define SCALE       "scale"
+
+
 
 struct ch_present {
     char ch_name[16];
@@ -157,6 +170,10 @@ static struct channel_order dolby_4ch = {
 };
 
 #define CH_ORDER_NUM    10
+static int output_max_ch = 8;
+static int channel_map_array_size = 0;
+static struct channel_order * ch_map_array = NULL;
+
 static struct channel_order ch_orders[CH_ORDER_NUM] = {
 };
 
@@ -217,15 +234,22 @@ static channel_order_t * get_channel_map(int ch, channel_order_type_t order_type
 {
     int i = 0;
 
+    if (ch_map_array) {
+        for (i = 0; i < channel_map_array_size ; i++) {
+            if (ch_map_array[i].ch == ch && ch_map_array[i].order_type == order_type) {
+                return &ch_map_array[i];
+            }
+        }
+    }
+#if 0
     for (i = 0; i < CH_ORDER_NUM ; i++) {
         if (ch_orders[i].ch == ch && ch_orders[i].order_type == order_type) {
             return &ch_orders[i];
         }
     }
+#endif
     return NULL;
 }
-
-
 
 static void init_ch_presents(char * speaker_config)
 {
@@ -288,6 +312,66 @@ static inline int get_speaker_ch_cnt(void)
     return ch_cnt;
 }
 
+static channel_order_t * parse_channel_map(cJSON *ch_map_config)
+{
+    int i = 0;
+    int item_cnt = 0;
+    channel_order_t * channel_orders = NULL;
+    cJSON * ch_map = NULL;
+    cJSON *temp = NULL;
+    cJSON *mapping = NULL;
+    item_cnt = cJSON_GetArraySize(ch_map_config);
+    if (item_cnt == 0) {
+        return NULL;
+    }
+    channel_orders = (channel_order_t *)calloc(1, item_cnt * sizeof(channel_order_t));
+    for (i = 0; i < item_cnt; i++) {
+        int mapping_item = 0;
+        int j = 0;
+        channel_map_item_t * map_item = NULL;
+        ch_map = cJSON_GetArrayItem(ch_map_config, i);
+        temp = cJSON_GetObjectItem(ch_map, ORDER_TYPE);
+        if (temp) {
+            channel_orders[i].order_type = temp->valueint;
+        }
+
+        temp = cJSON_GetObjectItem(ch_map, SRC_CHS);
+        if (temp) {
+            channel_orders[i].ch = temp->valueint;
+        }
+        mapping = cJSON_GetObjectItem(ch_map, MAPPING);
+        mapping_item = cJSON_GetArraySize(mapping);
+        if (mapping_item == 0) {
+            continue;
+        }
+        map_item = calloc(1 , mapping_item * sizeof(channel_map_item_t));
+        channel_orders[i].chmap_item_cnt = mapping_item;
+        channel_orders[i].ch_map_items   = map_item;
+        //printf("order=%d ch=%d map_item=%d\n", channel_orders[i].order_type, channel_orders[i].ch, channel_orders[i].chmap_item_cnt);
+        for (j = 0; j < mapping_item; j++) {
+            ch_map = cJSON_GetArrayItem(mapping, j);
+            temp = cJSON_GetObjectItem(ch_map, SRC_ORDER);
+            if (temp) {
+                map_item[j].src_order = temp->valueint;
+            }
+
+            temp = cJSON_GetObjectItem(ch_map, DST_ORDER);
+            if (temp) {
+                map_item[j].dst_order = temp->valueint;
+            }
+
+            temp = cJSON_GetObjectItem(ch_map, SCALE);
+            if (temp) {
+                map_item[j].scale = (float)temp->valuedouble;
+            }
+            //printf("map (%d)->%d scale=%f\n", map_item[j].src_order, map_item[j].dst_order, map_item[j].scale);
+
+        }
+    }
+    return channel_orders;
+}
+
+
 int aml_channelinfo_init(channel_info_t * channel_info)
 {
     int i = 0, j = 0;
@@ -331,9 +415,43 @@ void aml_channelmap_dumpinfo(void * private)
     return;
 }
 
+void aml_channelmap_parser_init(void * json_config) {
+    cJSON *temp = NULL;
+    int map_item_cnt = 0;
+    if (json_config) {
+        //printf_cJSON("json_config", json_config);
+
+        temp = cJSON_GetObjectItem((cJSON *)json_config, MAX_CHANNELS);
+        printf_cJSON("max channel", temp);
+        if (temp) {
+            output_max_ch = temp->valueint;
+        }
+
+        temp = cJSON_GetObjectItem((cJSON *)json_config, CHANNEL_MAP);
+        if (temp) {
+            channel_map_array_size = cJSON_GetArraySize(temp);
+            ch_map_array = parse_channel_map(temp);
+        }
+
+    }
+
+}
+void aml_channelmap_parser_deinit( ) {
+    int i = 0;
+    if (ch_map_array) {
+        for (i = 0; i < channel_map_array_size; i++) {
+            if (ch_map_array[i].ch_map_items != NULL) {
+                free(ch_map_array[i].ch_map_items);
+                ch_map_array[i].ch_map_items = NULL;
+            }
+        }
+        free(ch_map_array);
+        ch_map_array = NULL;
+    }
+}
 
 
-int aml_channelmap_init(aml_channel_map_t ** handle, int ch, char * speaker_config)
+int aml_channelmap_init(aml_channel_map_t ** handle, char * speaker_config)
 {
     int ret = -1;
     int i = 0;
@@ -341,6 +459,7 @@ int aml_channelmap_init(aml_channel_map_t ** handle, int ch, char * speaker_conf
     void *tmp_map_buffer;
     aml_channel_map_t * channel_map = NULL;
     aml_data_format_t * format = NULL;
+    int max_ch = output_max_ch;
 
     ALOGD("MAP INIT\n");
 
@@ -363,7 +482,7 @@ int aml_channelmap_init(aml_channel_map_t ** handle, int ch, char * speaker_conf
 
     format = &channel_map->format;
 
-    format->ch = ch;
+    format->ch = max_ch;
 
     /*get the speaker config */
     init_ch_presents(speaker_config);
@@ -428,7 +547,16 @@ int aml_channelmap_process(aml_channel_map_t * handle, aml_data_format_t *src, v
     dst->sr       = src->sr;
     dst->ch_order_type = src->ch_order_type;
 
-    need_bytes = nframes * (dst->bitwidth >> 3) * dst->ch;
+    channel_order = get_channel_map(src->ch, src->ch_order_type);
+    handle->map_info = (void*)channel_order;
+
+    if (channel_order == NULL) {
+        /*we don't find the channel map info, just copy the data*/
+        need_bytes = nframes * (src->bitwidth >> 3) * src->ch;
+
+    } else {
+        need_bytes = nframes * (dst->bitwidth >> 3) * dst->ch;
+    }
 
     if (handle->map_buffer_size < need_bytes) {
         ALOGI("realloc map_buffer_size  from %zu to %zu\n", handle->map_buffer_size, need_bytes);
@@ -444,67 +572,64 @@ int aml_channelmap_process(aml_channel_map_t * handle, aml_data_format_t *src, v
     memset(handle->map_buffer, 0, need_bytes);
     handle->out_buffer_size = need_bytes;
 
+    if (channel_order) {
+        ch_map_cnt = channel_order->chmap_item_cnt;
+        //ALOGD("channel map cnt=%d src ch=%d type=%d\n",ch_map_cnt,src->ch, src->ch_order_type);
+        for (i = 0; i < ch_map_cnt; i++) {
+            switch (src->bitwidth) {
+            case SAMPLE_8BITS:
+                // not support
+                break;
+            case SAMPLE_16BITS: {
+                short * src_data = (short *)in_data;
+                short * dst_data = (short *)handle->map_buffer;
+                int src_channel  = src->ch;
+                int dst_channel  = dst->ch;
+                dst_order = channel_order->ch_map_items[i].dst_order;
+                src_order = channel_order->ch_map_items[i].src_order;
+                sacling   = channel_order->ch_map_items[i].scale;
+                if (src_order >= src_channel || dst_order >= dst_channel) {
+                    ALOGE("wrong mapping[%d %d]->[%d %d]\n",src_order,src_channel,dst_order,dst_channel);
+                    continue;
+                }
+                for (j = 0; j < nframes; j ++) {
+                    dst_data[j * dst_channel + dst_order] += src_data[j * src_channel + src_order] * sacling;
 
-    channel_order = get_channel_map(src->ch, src->ch_order_type);
-    if (channel_order == NULL) {
-        ALOGE("There is no Mapping for ch=%d type=%d\n", src->ch, src->ch_order_type);
-        return 0;
-    }
-
-    handle->map_info = (void*)channel_order;
-
-    ch_map_cnt = channel_order->chmap_item_cnt;
-    //ALOGD("channel map cnt=%d src ch=%d type=%d\n",ch_map_cnt,src->ch, src->ch_order_type);
-    for (i = 0; i < ch_map_cnt; i++) {
-        switch (src->bitwidth) {
-        case SAMPLE_8BITS:
-            // not support
-            break;
-        case SAMPLE_16BITS: {
-            short * src_data = (short *)in_data;
-            short * dst_data = (short *)handle->map_buffer;
-            int src_channel  = src->ch;
-            int dst_channel  = dst->ch;
-            dst_order = channel_order->ch_map_items[i].dst_order;
-            src_order = channel_order->ch_map_items[i].src_order;
-            sacling   = channel_order->ch_map_items[i].scale;
-            if (src_order >= src_channel || dst_order >= dst_channel) {
-                ALOGE("wrong mapping[%d %d]->[%d %d]\n",src_order,src_channel,dst_order,dst_channel);
-                continue;
+                }
             }
-            for (j = 0; j < nframes; j ++) {
-                dst_data[j * dst_channel + dst_order] += src_data[j * src_channel + src_order] * sacling;
+            break;
+            case SAMPLE_24BITS:
+                // not suppport
+                break;
+            case SAMPLE_32BITS: {
+                int * src_data = (int *)in_data;
+                int * dst_data = (int *)handle->map_buffer;
+                int src_channel  = src->ch;
+                int dst_channel  = dst->ch;
+                dst_order = channel_order->ch_map_items[i].dst_order;
+                src_order = channel_order->ch_map_items[i].src_order;
+                sacling   = channel_order->ch_map_items[i].scale;
+                if (src_order >= src_channel || dst_order >= dst_channel) {
+                    ALOGE("wrong mapping[%d %d]->[%d %d]\n",src_order,src_channel,dst_order,dst_channel);
+                    continue;
+                }
+                for (j = 0; j < nframes; j ++) {
+                    dst_data[j * dst_channel + dst_order] += src_data[j * src_channel + src_order] * sacling;
 
+                }
+            }
+            break;
+            default:
+                break;
             }
         }
-        break;
-        case SAMPLE_24BITS:
-            // not suppport
-            break;
-        case SAMPLE_32BITS: {
-            int * src_data = (int *)in_data;
-            int * dst_data = (int *)handle->map_buffer;
-            int src_channel  = src->ch;
-            int dst_channel  = dst->ch;
-            dst_order = channel_order->ch_map_items[i].dst_order;
-            src_order = channel_order->ch_map_items[i].src_order;
-            sacling   = channel_order->ch_map_items[i].scale;
-            if (src_order >= src_channel || dst_order >= dst_channel) {
-                ALOGE("wrong mapping[%d %d]->[%d %d]\n",src_order,src_channel,dst_order,dst_channel);
-                continue;
-            }
-            for (j = 0; j < nframes; j ++) {
-                dst_data[j * dst_channel + dst_order] += src_data[j * src_channel + src_order] * sacling;
-
-            }
-        }
-        break;
-        default:
-            break;
-        }
+    }else {
+        memcpy(handle->map_buffer, in_data, need_bytes);
+        handle->out_buffer_size = need_bytes;
+        dst->ch = src->ch;
     }
 
     memcpy(&src->channel_info, &dst->channel_info, sizeof(channel_info_t));
-    //ALOGE("exit\n");
+
     return 0 ;
 }

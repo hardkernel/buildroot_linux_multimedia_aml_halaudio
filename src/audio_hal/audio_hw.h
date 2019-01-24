@@ -383,7 +383,7 @@ struct aml_audio_device {
 
     volume_info_t volume_info;
     void * level_handle;
-
+    void * aml_audio_config; /*cjson handle*/
 };
 
 struct aml_stream_out {

@@ -67,23 +67,12 @@ static const struct pcm_config pcm_config_in = {
 #define SPEAKER_OUT   "Speaker_Out"
 #define SPDIF_OUT     "Spdif_out"
 
-// currently we don't know where to save it ,we keep it here
-#ifdef USE_AUDIOSERVICE_S400
-static unsigned char * alsa_config = "{ \"Card\" : 0,\"SPDIF_IN\" : 4, \"LINE_IN\"  : 2,\"Speaker_Out\" : 2, \"Spdif_out\"   : 4 }";
-#elif defined(USE_AUDIOSERVICE_S400_SBR)
-static unsigned char * alsa_config = "{ \"Card\" : 0,\"HDMI_IN\" : 1, \"SPDIF_IN\" : 4, \"LINE_IN\"  : 1,\"Speaker_Out\" : 2, \"Spdif_out\"   : 4 }";
-#else
-static unsigned char * alsa_config = "{ \"Card\" : 0,\"HDMI_IN\" : 1, \"SPDIF_IN\" : 4, \"LINE_IN\"  : 0,\"Speaker_Out\" : 2, \"Spdif_out\"   : 4 }";
-#endif
-
 typedef struct alsa_pair {
     unsigned char * name;
     audio_devices_t device;
     int alsa_card;
     int alsa_device;
 } alsa_pair_t;
-
-static cJSON *alsa_root;
 
 static alsa_pair_t alsapairs[] = {
     {
@@ -118,58 +107,16 @@ static alsa_pair_t alsapairs[] = {
     }
 };
 
-void printf_alsa_cJSON(const char *json_name, cJSON *pcj)
-{
-    char *temp;
-    temp = cJSON_Print(pcj);
-    ALOGD("%s %s\n", json_name, temp);
-    free(temp);
-}
-
-cJSON *ALSA_CreateJsonRoot(const char *filename)
-{
-    FILE *fp;
-    int len, ret;
-    char *input = NULL;
-    cJSON *temp;
-    if (NULL == filename) {
-        return NULL;
-    }
-    fp = fopen(filename, "r+");
-    if (fp == NULL) {
-        ALOGD("cannot open the default json file %s\n", filename);
-        return NULL;
-    }
-    fseek(fp, 0, SEEK_END);
-    len = (int)ftell(fp);
-    ALOGD(" length = %d\n", len);
-
-    fseek(fp, 0, SEEK_SET);
-
-    input = (char *)malloc(len + 10);
-    if (input == NULL) {
-        ALOGD("Cannot malloc the address size = %d\n", len);
-        fclose(fp);
-        return NULL;
-    }
-    ret = fread(input, 1, len, fp);
-    // allocate the
-    temp = cJSON_Parse(input);
-
-    fclose(fp);
-    free(input);
-
-    return temp;
-}
-
-void aml_alsa_init()
+void aml_alsa_init(cJSON * config)
 {
     cJSON *temp;
     alsa_pair_t * alsa_item;
     int i = 0;
-    //alsa_root = ALSA_CreateJsonRoot(JASON_FILE);
-    alsa_root = cJSON_Parse(alsa_config);
-    printf_alsa_cJSON("ALSA Configuration", alsa_root);
+    cJSON *alsa_root;
+    if (config == NULL) {
+        return;
+    }
+    alsa_root = cJSON_GetObjectItem(config, "ALSA_Config");
 
     temp = cJSON_GetObjectItem(alsa_root, "Card");
 
@@ -190,7 +137,6 @@ void aml_alsa_init()
         ALOGD("Device name=%s card=%d device=%d\n", alsapairs[i].name, alsapairs[i].alsa_card, alsapairs[i].alsa_device);
 
     }
-    cJSON_Delete(alsa_root);
     return;
 }
 

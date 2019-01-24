@@ -18,6 +18,7 @@
 #define _ALSA_MANAGER_H_
 
 #include "audio_hw.h"
+#include <cjson/cJSON.h>
 
 
 /**
@@ -43,7 +44,8 @@ void aml_alsa_input_close(void *handle);
 
 size_t aml_alsa_input_read(void *handle, void *buffer, size_t bytes);
 
-void aml_alsa_init();
+void aml_alsa_init(cJSON * config);
+
 
 
 

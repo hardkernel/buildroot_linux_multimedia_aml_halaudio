@@ -81,6 +81,7 @@
 #include "aml_bm_api.h"
 #include "aml_audio_volume.h"
 #include "aml_audio_level.h"
+#include "aml_config_parser.h"
 
 // for invoke bluetooth rc hal
 //#include "audio_hal_thunks.h"
@@ -3941,7 +3942,7 @@ static int adev_open_output_stream(struct audio_hw_device *dev,
             goto err_open;
         }
 
-        ret = aml_channelmap_init(&out->channel_map, out->config.channels, ladev->datmos_param.speaker_config);
+        ret = aml_channelmap_init(&out->channel_map, ladev->datmos_param.speaker_config);
         if (ret < 0) {
             ALOGE("aml_channelmap_init faild\n");
             goto err_open;
@@ -8396,6 +8397,7 @@ static int adev_close(hw_device_t *device)
     eq_drc_release(&adev->eq_data);
     close_mixer_handle();
     aml_audiolevel_close(&adev->hw_device);
+    aml_channelmap_parser_deinit();
     free(device);
     aml_log_exit();
     return 0;
@@ -8694,10 +8696,18 @@ static int adev_open(const hw_module_t* module, const char* name,
     int ret, i;
     char buf[PROPERTY_VALUE_MAX];
     int disable_continuous = 1;
+    cJSON *config_root = NULL;
     if (strcmp(name, AUDIO_HARDWARE_INTERFACE) != 0) {
         ret = -EINVAL;
         goto err;
     }
+
+    config_root = aml_config_parser();
+    if (config_root == NULL) {
+        printf("Config file parsing error\n");
+        return -EINVAL;
+    }
+
 
     adev = calloc(1, sizeof(struct aml_audio_device));
     if (!adev) {
@@ -8706,6 +8716,7 @@ static int adev_open(const hw_module_t* module, const char* name,
     }
 
     aml_log_init();
+    adev->aml_audio_config = (void*)config_root;
 
     adev->hw_device.common.tag = HARDWARE_DEVICE_TAG;
     adev->hw_device.common.version = AUDIO_DEVICE_API_VERSION_3_0;
@@ -8863,9 +8874,10 @@ static int adev_open(const hw_module_t* module, const char* name,
 #endif
 
     /* init the input/output function */
+    aml_channelmap_parser_init(config_root);
     aml_output_init();
     aml_input_init();
-    aml_alsa_init();
+    aml_alsa_init(config_root);
     aml_volctl_init(&adev->hw_device);
     aml_audiolevel_init(&adev->hw_device);
 

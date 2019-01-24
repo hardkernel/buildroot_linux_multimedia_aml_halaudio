@@ -35,9 +35,13 @@ typedef struct aml_channel_mapping {
   For example, 3.1--> L R C LFE will map to 8ch--> L R C LFE 0 0 0 0
   4.0--> L R LS RS will map to 8ch--> L R 0 0 LS RS 0 0
 */
-int aml_channelmap_init(aml_channel_map_t ** handle, int ch, char * speaker_config);
+int aml_channelmap_init(aml_channel_map_t ** handle, char * speaker_config);
 int aml_channelmap_close(aml_channel_map_t * handle);
 int aml_channelmap_process(aml_channel_map_t * handle, aml_data_format_t *src, void * in_data, size_t nframes);
+
+void aml_channelmap_parser_init(void * json_config);
+void aml_channelmap_parser_deinit( );
+
 
 #endif
 

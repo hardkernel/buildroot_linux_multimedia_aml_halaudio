@@ -33,7 +33,8 @@ CC_OBJS=audio_hw.o \
 	aml_bm_api.o \
 	aml_audio_level.o \
 	aml_audio_ease.o \
-	standard_alsa_manager.o
+	standard_alsa_manager.o \
+	aml_config_parser.o
 
 
 
