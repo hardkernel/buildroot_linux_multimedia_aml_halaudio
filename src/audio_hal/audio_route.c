@@ -958,7 +958,9 @@ err_mixer_open:
     ar = NULL;
 err_calloc:
     return NULL;
-#endif	
+#else
+    return NULL;
+#endif
 }
 
 void audio_route_free(struct audio_route *ar)

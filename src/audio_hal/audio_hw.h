@@ -20,6 +20,15 @@
 #include "resampler.h"
 #include "audio_core.h"
 #include <list.h>
+
+/* kill and replace kernel-specific types */
+#ifndef __user
+#define __user
+#endif
+#ifndef __force
+#define __force
+#endif
+
 #include <sound/asound.h>
 #include <tinyalsa/asoundlib.h>
 

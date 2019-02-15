@@ -44,7 +44,6 @@
 #endif
 
 #include "audio_hal.h"
-#include <sound/asound.h>
 #include <tinyalsa/asoundlib.h>
 #include "audio_route.h"
 #include <aml_data_utils.h>

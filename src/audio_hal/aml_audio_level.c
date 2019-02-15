@@ -149,7 +149,7 @@ int aml_audiolevel_reset(struct audio_hw_device *dev)
 
     }
 
-
+    return 0;
 }
 
 

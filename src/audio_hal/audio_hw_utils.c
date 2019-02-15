@@ -39,7 +39,6 @@
 #include "hardware.h"
 #include "audio_core.h"
 #include "audio_hal.h"
-#include <sound/asound.h>
 #include <tinyalsa/asoundlib.h>
 
 #include "audio_hw_utils.h"

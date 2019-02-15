@@ -19,7 +19,6 @@
 
 #include "log.h"
 #include <linux/ioctl.h>
-#include <sound/asound.h>
 #include <tinyalsa/asoundlib.h>
 #include <aml_android_utils.h>
 

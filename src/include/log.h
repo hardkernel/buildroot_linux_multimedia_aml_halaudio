@@ -2,6 +2,16 @@
 #define LOG_H
 #ifdef ANDROID
 #include <cutils/log.h>
+#define LEVEL_VERBOSE   0
+#define LEVEL_INFO      1
+#define LEVEL_DEBUG     2
+#define LEVEL_WARN      3
+#define LEVEL_ERROR     4
+#define LEVEL_FATAL     5
+#define LEVEL_MAX       0xF
+
+#define ALOGF(...) printf(__VA_ARGS__)
+#define ALOGA(...) printf(__VA_ARGS__)
 #endif
 
 #ifndef ANDROID

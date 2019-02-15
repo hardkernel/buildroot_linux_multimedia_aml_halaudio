@@ -29,7 +29,6 @@
 #include <sys/stat.h>
 #include <sys/prctl.h>
 #include <sys/time.h>
-#include <sound/asound.h>
 #include "log.h"
 #include <tinyalsa/asoundlib.h>
 

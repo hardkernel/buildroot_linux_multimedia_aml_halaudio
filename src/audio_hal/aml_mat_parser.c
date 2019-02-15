@@ -56,7 +56,7 @@ static int parser_mat_sync_chunk(const void *audio_buffer, size_t audio_bytes)
     char *sync_chunk = (char *)audio_buffer;
 
     if (!audio_buffer || (audio_bytes == 0)) {
-        LOG(LEVEL_INFO, "audio_buffer %p audio_bytes %#x\n", audio_buffer, audio_bytes);
+        ALOGV("audio_buffer %p audio_bytes %#x\n", audio_buffer, audio_bytes);
         return -1;
     }
     else {
@@ -92,7 +92,7 @@ static int find_mat_stream_profile_in_metadata_payload_chunk(const void *audio_b
     //         , metadata_payload_chunk[5], metadata_payload_chunk[6], metadata_payload_chunk[7]);
 
     if (!audio_buffer || (audio_bytes < 8)) {
-        LOG(LEVEL_INFO, "audio_buffer %p audio_bytes %#x\n", audio_buffer, audio_bytes);
+        ALOGV("audio_buffer %p audio_bytes %#x\n", audio_buffer, audio_bytes);
         return -1;
     }
     else {

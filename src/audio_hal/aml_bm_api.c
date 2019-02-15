@@ -13,7 +13,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 #define LOG_TAG "aml_bm_api"
 #include <string.h>
 
@@ -21,7 +20,7 @@
 #include "aml_audio_stream.h"
 #include "aml_bm_api.h"
 #include "lib_bassmanagement.h"
-
+#ifndef ANDROID
 int aml_bm_init(struct aml_audio_device *adev, int val)
 {
     int bm_init_param = 0;
@@ -92,5 +91,25 @@ int aml_bm_process(struct audio_stream_out *stream
 
     return ret;
 }
+#else
+int aml_bm_init(struct aml_audio_device *adev, int val)
+{   
+    
+    if (!adev) {
+        ALOGE("adev %p", adev);
+        return 1;
+    }
+    
+    adev->bm_enable = 0;
 
+    return 0;
+}
+int aml_bm_process(struct audio_stream_out *stream
+                    , const void *buffer
+                    , size_t bytes
+                    , aml_data_format_t *data_format)
+{
+    return 0;
+}
 
+#endif
