@@ -315,6 +315,11 @@ int enable_HW_resample(int sr, int enable)
     return 0;
 }
 
+int set_audio_inskew(int value)
+{
+    return aml_mixer_ctrl_set_int(AML_MIXER_ID_AUDIO_INSKEW, value);
+}
+
 
 int get_input_streaminfo(struct audio_stream_in *stream, aml_data_format_t *data_format)
 {

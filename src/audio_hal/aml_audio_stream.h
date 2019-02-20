@@ -465,6 +465,8 @@ int enable_HW_resample(int sr, int enable);
 int set_spdifin_pao(int enable);
 int get_hdmiin_samplerate(void);
 int get_spdifin_samplerate(void);
+int set_audio_inskew(int value);
+
 /*
  *@brief clean the tmp_buffer_8ch&audioeffect_tmp_buffer and release audio stream
  */

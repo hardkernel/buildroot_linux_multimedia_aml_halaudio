@@ -70,8 +70,9 @@ static struct aml_mixer_list gAmlMixerList[] = {
     {AML_MIXER_ID_EQ_MASTER_VOLUME,     "EQ master volume"},
     /* for enable PAO on SPDIFIN*/
     {AML_MIXER_ID_SPDIFIN_PAO,          "SPDIFIN PAO"},
-    {AML_MIXER_ID_SPDIFIN_SAMPLE_RATE, "SPDIFIN Sample Rate"},
-    {AML_MIXER_ID_HW_RESAMPLE_MODULE,  "Hardware resample module"}
+    {AML_MIXER_ID_SPDIFIN_SAMPLE_RATE,  "SPDIFIN Sample Rate"},
+    {AML_MIXER_ID_HW_RESAMPLE_MODULE,   "Hardware resample module"},
+    {AML_MIXER_ID_AUDIO_INSKEW,         "audio inskew set"}
 };
 
 static struct aml_mixer_ctrl gCtlI2sMute[] = {

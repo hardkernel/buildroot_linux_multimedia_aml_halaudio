@@ -386,6 +386,19 @@ int aml_alsa_input_open(void **handle, aml_stream_config_t * stream_config, aml_
         return -1;
     }
 
+    /*skew setting for input*/
+    if (device_config->device & AUDIO_DEVICE_IN_HDMI) {
+        int value = 0;
+        int inskew = 2;
+        value = device << 16 | inskew;
+        set_audio_inskew(value);
+    } else if (device_config->device & AUDIO_DEVICE_IN_LINE) {
+        int value = 0;
+        int inskew = 3;
+        value = device<< 16 | inskew;
+        set_audio_inskew(value);
+    }
+
 
     config->start_threshold = config->period_size * config->period_count;
     config->avail_min = 0;
