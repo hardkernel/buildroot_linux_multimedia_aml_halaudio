@@ -466,6 +466,7 @@ int set_spdifin_pao(int enable);
 int get_hdmiin_samplerate(void);
 int get_spdifin_samplerate(void);
 int set_audio_inskew(int value);
+int set_tdmout_c_binv(int binv);
 
 /*
  *@brief clean the tmp_buffer_8ch&audioeffect_tmp_buffer and release audio stream

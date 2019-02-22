@@ -72,7 +72,8 @@ static struct aml_mixer_list gAmlMixerList[] = {
     {AML_MIXER_ID_SPDIFIN_PAO,          "SPDIFIN PAO"},
     {AML_MIXER_ID_SPDIFIN_SAMPLE_RATE,  "SPDIFIN Sample Rate"},
     {AML_MIXER_ID_HW_RESAMPLE_MODULE,   "Hardware resample module"},
-    {AML_MIXER_ID_AUDIO_INSKEW,         "audio inskew set"}
+    {AML_MIXER_ID_AUDIO_INSKEW,         "audio inskew set"},
+    {AML_MIXER_ID_TDMOUT_C_BINV,        "tdmout_c binv set"}
 };
 
 static struct aml_mixer_ctrl gCtlI2sMute[] = {

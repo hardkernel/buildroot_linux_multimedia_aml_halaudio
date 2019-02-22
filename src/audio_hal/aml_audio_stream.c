@@ -320,6 +320,11 @@ int set_audio_inskew(int value)
     return aml_mixer_ctrl_set_int(AML_MIXER_ID_AUDIO_INSKEW, value);
 }
 
+int set_tdmout_c_binv(int binv)
+{
+    return aml_mixer_ctrl_set_int(AML_MIXER_ID_TDMOUT_C_BINV, binv ? 1 : 0);
+}
+
 
 int get_input_streaminfo(struct audio_stream_in *stream, aml_data_format_t *data_format)
 {

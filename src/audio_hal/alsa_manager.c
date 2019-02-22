@@ -70,6 +70,8 @@ static const struct pcm_config pcm_config_in = {
 // currently we don't know where to save it ,we keep it here
 #ifdef USE_AUDIOSERVICE_S400
 static unsigned char * alsa_config = "{ \"Card\" : 0,\"SPDIF_IN\" : 4, \"LINE_IN\"  : 2,\"Speaker_Out\" : 2, \"Spdif_out\"   : 4 }";
+#elif defined(USE_AUDIOSERVICE_S400_SBR)
+static unsigned char * alsa_config = "{ \"Card\" : 0,\"HDMI_IN\" : 1, \"SPDIF_IN\" : 4, \"LINE_IN\"  : 1,\"Speaker_Out\" : 2, \"Spdif_out\"   : 4 }";
 #else
 static unsigned char * alsa_config = "{ \"Card\" : 0,\"HDMI_IN\" : 1, \"SPDIF_IN\" : 4, \"LINE_IN\"  : 0,\"Speaker_Out\" : 2, \"Spdif_out\"   : 4 }";
 #endif
@@ -385,7 +387,7 @@ int aml_alsa_input_open(void **handle, aml_stream_config_t * stream_config, aml_
         ALOGE("Wrong device ID\n");
         return -1;
     }
-
+#ifdef USE_AUDIOSERVICE_S400_SBR
     /*skew setting for input*/
     if (device_config->device & AUDIO_DEVICE_IN_HDMI) {
         int value = 0;
@@ -398,7 +400,7 @@ int aml_alsa_input_open(void **handle, aml_stream_config_t * stream_config, aml_
         value = device<< 16 | inskew;
         set_audio_inskew(value);
     }
-
+#endif
 
     config->start_threshold = config->period_size * config->period_count;
     config->avail_min = 0;

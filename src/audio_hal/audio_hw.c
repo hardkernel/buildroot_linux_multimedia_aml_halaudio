@@ -8873,6 +8873,9 @@ static int adev_open(const hw_module_t* module, const char* name,
     adev->hw_device.install_callback_audio_patch = install_callback_audio_patch;
     adev->hw_device.remove_callback_audio_patch  = remove_callback_audio_patch;
 
+#ifdef USE_AUDIOSERVICE_S400_SBR
+    set_tdmout_c_binv(0);
+#endif
 
     ALOGI("%s() adev->dolby_lib_type = %d", __FUNCTION__, adev->dolby_lib_type);
     adev->patch_src = SRC_INVAL;
