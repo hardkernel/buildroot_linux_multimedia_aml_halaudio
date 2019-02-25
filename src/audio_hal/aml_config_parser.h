@@ -17,5 +17,5 @@
 #include <cjson/cJSON.h>
 
 cJSON *aml_config_parser( void) ;
-void printf_cJSON(const char *json_name, cJSON *pcj);
+void aml_printf_cJSON(const char *json_name, cJSON *pcj);
 

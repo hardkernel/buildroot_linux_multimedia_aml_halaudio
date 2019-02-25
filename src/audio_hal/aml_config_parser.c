@@ -24,7 +24,7 @@
 
 #define AML_CONFIG_FILE_PATH "/etc/aml_audio_config.json"
 
-void printf_cJSON(const char *json_name, cJSON *pcj)
+void aml_printf_cJSON(const char *json_name, cJSON *pcj)
 {
     char *temp;
     temp = cJSON_Print(pcj);

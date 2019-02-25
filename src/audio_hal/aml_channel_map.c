@@ -422,7 +422,7 @@ void aml_channelmap_parser_init(void * json_config) {
         //printf_cJSON("json_config", json_config);
 
         temp = cJSON_GetObjectItem((cJSON *)json_config, MAX_CHANNELS);
-        printf_cJSON("max channel", temp);
+        aml_printf_cJSON("max channel", temp);
         if (temp) {
             output_max_ch = temp->valueint;
         }
