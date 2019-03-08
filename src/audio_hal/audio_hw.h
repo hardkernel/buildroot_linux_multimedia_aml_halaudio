@@ -376,13 +376,20 @@ struct aml_audio_device {
     int is_dolby_atmos;
     int audio_sample_rate;//audio source samplerate
     audio_format_t decode_format;
+    int bm_init;
     int lowerpass_corner;//lowerpass corner for bass management
     bool bm_enable;
     unsigned int dec_params_update_mask;
 #endif
 
     volume_info_t volume_info;
+    ch_coef_info_t ch_coef_info; // used for BM process
+
     void * level_handle;
+    /*delay parameter*/
+    int delay_max;   // the max audio delay time ms
+    int delay_time;  // audio delay time ms
+    void * delay_handle;
     void * aml_audio_config; /*cjson handle*/
 };
 
@@ -468,7 +475,6 @@ struct aml_stream_out {
     aml_dec_t *aml_dec;                        /*store the decoder handle*/
     aml_sample_conv_t * sample_convert;        /*store the sample convert handle*/
     aml_channel_map_t * channel_map;           /*store the channel map handle*/
-    aml_audio_ease_t  * audio_ease;            /*audio ease handle*/
 };
 
 typedef ssize_t (*write_func)(struct audio_stream_out *stream, const void *buffer, size_t bytes);

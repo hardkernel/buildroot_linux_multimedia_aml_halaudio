@@ -533,7 +533,7 @@ audio_format_t audio_parse_get_audio_type(audio_type_parse_t *status)
         return AUDIO_FORMAT_INVALID;
     }
     if (status->audio_type == PAUSE || status->audio_type == MUTE) {
-        return AUDIO_FORMAT_INVALID;
+        //return AUDIO_FORMAT_INVALID;
     }
     return andio_type_convert_to_android_audio_format_t(status->audio_type);
 }
@@ -619,9 +619,20 @@ void feeddata_audio_type_parse(void **status, char * input, int size)
     int type = 0;
     int raw_size = 0;
     int offset = 0;
-
+    int i = 0;
+    int no_zero = 0;
     if (audio_type_status == NULL) {
         ALOGD("parse is not existed\n");
+        return;
+    }
+
+    for (i = 0; i < size; i++) {
+        if (input[i] != 0 ) {
+            no_zero++;
+        }
+    }
+    if ((no_zero == 0) && (audio_type_status->audio_type == MUTE) && (audio_type_status->parsed_size == 0)) {
+        ALOGV("Detect data is all zero keep the original detecting");
         return;
     }
 
@@ -691,7 +702,7 @@ void feeddata_audio_type_parse(void **status, char * input, int size)
         if (type == LPCM) {
             audio_type_status->parsed_size += size;
             // from raw to pcm, we check more data
-            if (audio_type_status->parsed_size > audio_type_status->package_size * 4) {
+            if (audio_type_status->parsed_size > audio_type_status->package_size * 2) {
                 // no found new IEC header, back to unsync state
                 audio_type_status->state = IEC61937_UNSYNC;
                 audio_type_status->audio_type = MUTE;

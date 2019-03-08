@@ -153,9 +153,18 @@ typedef enum input_device {
 
 typedef enum info_type {
     PCMOUTPUT_CONFIG_INFO,   // refer to aml_stream_config
-
+    OUTPUT_INFO_STATUS,      // running or xrun etc..
 } info_type_t;
 
+typedef enum output_state {
+    OUTPUT_IDLE,
+    OUTPUT_OPENED,
+    OUTPUT_STARTED,
+    OUTPUT_RUNNING,
+    OUTPUT_PAUSED,
+    OUTPUT_STOPED,
+    OUTPUT_CLOSED,
+} output_state_t;
 
 typedef struct aml_stream_config {
     unsigned int channels;
@@ -181,6 +190,7 @@ typedef struct aml_device_config {
 
 typedef union output_info {
     aml_stream_config_t config_info;
+    output_state_t      output_state;
 
 } output_info_t;
 #define AML_MAX_CHANNELS 16
@@ -207,6 +217,12 @@ typedef enum channel_order_type {
     CHANNEL_ORDER_HDMIPCM,
 }channel_order_type_t;
 
+struct ch_name_pair {
+    char name[16];
+    channel_id_t ch_id;
+};
+
+
 typedef struct channel_item {
     channel_id_t ch_id;  // left, right ***
     int present;    /* whether the channel is present*/
@@ -227,6 +243,16 @@ typedef struct volume_info {
     float master_vol;
     ch_volume_t volume_item[AML_MAX_CHANNELS];
 } volume_info_t;
+
+typedef struct ch_coef {
+    channel_id_t ch_id;
+    float        coef;
+} ch_coef_t;
+
+typedef struct coef_info {
+    ch_coef_t coef_item[AML_MAX_CHANNELS];
+} ch_coef_info_t;
+
 
 enum sample_bitwidth {
     SAMPLE_8BITS =  8,
@@ -478,6 +504,8 @@ bool is_av_in_stable_hw(struct audio_stream_in *stream);
 int get_input_streaminfo(struct audio_stream_in *stream, aml_data_format_t *data_format);
 
 int get_stream_parameters(struct audio_hw_device *dev, const char *keys, char *temp_buf, size_t temp_buf_size);
+int spdifhw_audio_format_detection();
 
+int get_hdmiin_i2sclk(void);
 
 #endif /* _AML_AUDIO_STREAM_H_ */

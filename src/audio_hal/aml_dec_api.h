@@ -74,6 +74,13 @@ typedef struct aml_dec {
     int is_dolby_atmos;
     int init_argc;
     char **init_argv;
+
+    float min_time;
+    float max_time;
+    float average_time;
+    int   frame_total_ms;
+    int   dec_total_ms;
+    int   frame_cnt;
 } aml_dec_t;
 
 typedef struct aml_dcv_config {

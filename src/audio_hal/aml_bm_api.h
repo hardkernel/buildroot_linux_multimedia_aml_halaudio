@@ -62,4 +62,5 @@ int aml_bm_process(struct audio_stream_out *stream
                     , size_t bytes
                     , aml_data_format_t *data_format);
 
+int aml_bm_setparameters(struct audio_hw_device *dev, struct str_parms *parms);
 #endif//end of _AML_BM_API_H_

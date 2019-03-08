@@ -22,11 +22,6 @@
 #include "log.h"
 #include "aml_audio_log.h"
 
-struct ch_name_pair {
-    char name[16];
-    channel_id_t ch_id;
-};
-
 #define MASTER_VOLUME_NAME "master_vol"
 
 static struct ch_name_pair ch_vol_pair[ ] = {

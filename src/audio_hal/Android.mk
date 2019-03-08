@@ -37,6 +37,7 @@
 	aml_audio_ease.c \
 	standard_alsa_manager.c \
 	aml_config_parser.c \
+	aml_audio_delay.c \
 	audio_eq_drc_compensation.cpp \
 	audio_eq_drc_parser.cpp \
 	aml_datmos_config.cpp

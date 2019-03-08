@@ -62,7 +62,7 @@ int spdif_source(audio_hw_device_t *dev)
         printf("create audio patch failed =%d\n", rc);
         return -1;
     }
-    /* Android HDMI case, it sets the source gain, so we follow it*/
+    /* Android spdif case, it sets the source gain, so we follow it*/
     sources.gain.values[0] = 100;
     sources.config_mask = AUDIO_PORT_CONFIG_GAIN;
     dev->set_audio_port_config(dev, &sources);
@@ -79,7 +79,7 @@ int spdif_source(audio_hw_device_t *dev)
     while (cnt <= 20) {
         sleep(1);
         cnt++;
-        printf("test HDMI running =%d\n", cnt);
+        printf("test spdif running =%d\n", cnt);
         //sources.gain.values[0] = 20 - cnt;
         //sources.config_mask = AUDIO_PORT_CONFIG_GAIN;
         //dev->set_audio_port_config(dev,&sources);
@@ -131,7 +131,7 @@ int linein_source(audio_hw_device_t *dev)
         printf("create audio patch failed =%d\n", rc);
         return -1;
     }
-    /* Android HDMI case, it sets the source gain, so we follow it*/
+    /* Android line case, it sets the source gain, so we follow it*/
     sources.gain.values[0] = 100;
     sources.config_mask = AUDIO_PORT_CONFIG_GAIN;
     dev->set_audio_port_config(dev, &sources);
@@ -277,7 +277,7 @@ int main(int argc, char *argv[])
     if (argc != 2 && argc != 3) {
         printf("cmd should be: \n");
         printf("************************\n");
-        printf("test spdinfin \n");
+        printf("test spdifin \n");
         printf("test linein \n");
         printf("test mediain ac3 or dts\n");
         printf("************************\n");

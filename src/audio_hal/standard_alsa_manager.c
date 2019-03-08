@@ -155,11 +155,18 @@ static int set_alsa_params(alsa_param_t *alsa_params)
         ALOGD("Unable to set stop threshold \n");
         return err;
     }
-    ALOGD("buffer size=%d\n", bufsize);
 
-    err = snd_pcm_sw_params_set_silence_size(alsa_params->handle, swparams, bufsize);
+    ALOGD("buffer size=%d\n", bufsize);
+    snd_pcm_sw_params_set_silence_threshold(alsa_params->handle, swparams, 128);
+
     if (err < 0) {
-        ALOGD("Unable to set silence size \n");
+        ALOGE("Unable to set silence size \n");
+        return err;
+    }
+
+    err = snd_pcm_sw_params_set_silence_size(alsa_params->handle, swparams, 128);
+    if (err < 0) {
+        ALOGE("Unable to set silence size \n");
         return err;
     }
 #endif
@@ -245,12 +252,16 @@ void standard_alsa_output_close(void *handle)
 {
     int ret = -1;
     alsa_param_t *alsa_param = (alsa_param_t *)handle;
+    snd_pcm_sframes_t delay = 0;
 
     if (handle == NULL) {
         return;
     }
 
-    snd_pcm_drop(alsa_param->handle);
+    snd_pcm_delay(alsa_param->handle, &delay);
+    ALOGE("close alsa delay=%d\n", delay);
+    snd_pcm_drain(alsa_param->handle);
+    //snd_pcm_drop(alsa_param->handle);
     ret = snd_pcm_close(alsa_param->handle);
     if (ret < 0) {
         ALOGE("[%s::%d]--[audio close error: %s]\n", __FUNCTION__, __LINE__, snd_strerror(ret));
@@ -338,6 +349,70 @@ size_t standard_alsa_output_write(void *handle, const void *buffer, size_t bytes
 
     return ret;
 }
+static output_state_t output_state_convert(snd_pcm_state_t alsa_state)
+{
+    output_state_t state = OUTPUT_IDLE;
+    switch (alsa_state) {
+    case SND_PCM_STATE_OPEN: {
+        state = OUTPUT_IDLE;
+        break;
+    }
+    case SND_PCM_STATE_SETUP: {
+        state = OUTPUT_OPENED;
+        break;
+    }
+    case SND_PCM_STATE_PREPARED: {
+        state = OUTPUT_STARTED;
+        break;
+    }
+    case SND_PCM_STATE_RUNNING: {
+        state = OUTPUT_RUNNING;
+        break;
+    }
+    case SND_PCM_STATE_PAUSED: {
+        state = OUTPUT_PAUSED;
+        break;
+    }
+    case SND_PCM_STATE_XRUN:
+    case SND_PCM_STATE_DRAINING: {
+        state = OUTPUT_STOPED;
+        break;
+    }
+    case SND_PCM_STATE_SUSPENDED:
+    case SND_PCM_STATE_DISCONNECTED: {
+        state = OUTPUT_CLOSED;
+        break;
+    }
+    default:
+        state = OUTPUT_IDLE;
+    }
+    return state;
+}
+int standard_alsa_output_getinfo(void *handle, info_type_t type, output_info_t * info)
+{
+    int ret = -1;
+    alsa_param_t *alsa_param = (alsa_param_t *)handle;
+    snd_pcm_sframes_t delay = 0;
 
+    if (handle == NULL) {
+        return -1;
+    }
+    switch (type) {
+    case OUTPUT_INFO_STATUS: {
+        output_state_t state;
+        snd_pcm_status_t *status;
+        snd_pcm_status_alloca(&status);
+        if ((ret = snd_pcm_status(alsa_param->handle, status)) < 0) {
+            return -1;
+        }
+        state = output_state_convert(snd_pcm_status_get_state(status));
+        info->output_state = state;
+        return 0;
+    }
+    default:
+        return -1;
+    }
+    return -1;
+}
 
 

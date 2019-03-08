@@ -334,7 +334,7 @@ int get_input_streaminfo(struct audio_stream_in *stream, aml_data_format_t *data
     int original_samplerate = 0;
     int output_rate = 0;
 
-    if (stream == NULL || data_format == NULL) {
+    if (stream == NULL || data_format == NULL || patch == NULL) {
         return -1;
     }
 
@@ -360,6 +360,7 @@ int get_input_streaminfo(struct audio_stream_in *stream, aml_data_format_t *data
     } else if (in->device & AUDIO_DEVICE_IN_LINE) {
         data_format->ch = 2;
         data_format->sr = 48000;
+        patch->original_rate = 48000;
 
     } else {
         data_format->ch = 2;
@@ -397,5 +398,34 @@ int get_stream_parameters(struct audio_hw_device *dev, const char *keys, char *t
     return 1;
 }
 
+int get_hdmiin_i2sclk(void)
+{
+    return aml_mixer_ctrl_get_int(AML_MIXER_ID_HDMI_IN_I2SCLK);
+}
+
+int spdifhw_audio_format_detection()
+{
+    int type = 0;
+    type = aml_mixer_ctrl_get_int(AML_MIXER_ID_SPDIFIN_AUDIO_TYPE);
+
+    switch (type) {
+    case AC3:
+        return AUDIO_FORMAT_AC3;
+    case EAC3:
+        return AUDIO_FORMAT_E_AC3;
+    case DTS:
+    case DTSCD:
+        return AUDIO_FORMAT_DTS;
+    case DTSHD:
+        return AUDIO_FORMAT_DTS_HD;
+    case TRUEHD:
+        return AUDIO_FORMAT_DOLBY_TRUEHD;
+    case LPCM:
+        return AUDIO_FORMAT_PCM_16_BIT;
+    default:
+        return AUDIO_FORMAT_INVALID;
+    }
+    return AUDIO_FORMAT_INVALID;
+}
 
 

@@ -14,25 +14,17 @@
  * limitations under the License.
  */
 
-#ifndef _STANDART_ALSA_MANAGER_H_
-#define _STANDART_ALSA_MANAGER_H_
+
+#ifndef AML_AUDIO_DELAY_H
+#define AML_AUDIO_DELAY_H
 
 #include "aml_audio_stream.h"
+#include "audio_hw.h"
+
+int aml_audiodelay_init(struct audio_hw_device *dev);
+int aml_audiodelay_close(struct audio_hw_device *dev);
+int aml_audiodelay_process(struct audio_hw_device *dev, void * in_data, size_t size, aml_data_format_t *format);
 
 
-
-
-int standard_alsa_output_open(void **handle, aml_stream_config_t * stream_config, aml_device_config_t *device_config);
-
-void standard_alsa_output_close(void *handle);
-
-size_t standard_alsa_output_write(void *handle, const void *buffer, size_t bytes);
-
-int standard_alsa_output_getinfo(void *handle, info_type_t type, output_info_t * info);
-
-
-
-
-
-#endif // _ALSA_MANAGER_H_
+#endif
 

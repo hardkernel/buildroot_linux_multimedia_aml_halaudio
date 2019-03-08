@@ -70,8 +70,8 @@ static  channel_map_item_t hdmi_pcm8ch_map[] = {
 };
 
 static  channel_map_item_t hdmi_pcm8ch_map_4ch[] = {
-    {0, 0 , 1.0},
-    {1, 1 , 1.0},
+    {0, 0 , 0.5},
+    {1, 1 , 0.5},
     {2, 3 , 1.0},
     {3, 2 , 1.0},
     {4, 0 , 0.25},
@@ -80,11 +80,24 @@ static  channel_map_item_t hdmi_pcm8ch_map_4ch[] = {
     {7, 1 , 0.25},
 };
 
+static  channel_map_item_t hdmi_pcm8ch_map_2ch[] = {
+    {0, 0 , 0.25},
+    {1, 1 , 0.25},
+    {2, 3 , 0},
+    {3, 0 , 0.25},
+    {3, 1 , 0.25},
+    {4, 0 , 0.25},
+    {5, 1 , 0.25},
+    {6, 0 , 0.25},
+    {7, 1 , 0.25},
+};
+
+
 static  channel_map_item_t hdmi_pcm2ch_map_8ch[] = {
     {0, 0 , 1.0},
     {1, 1 , 1.0},
-    {0, 3 , 0.5},
-    {1, 3 , 0.5},
+    {0, 3 , 0},
+    {1, 3 , 0},
     {0, 2 , 0.5},
     {1, 2 , 0.5},
     {0, 4 , 1.0},
@@ -96,9 +109,18 @@ static  channel_map_item_t hdmi_pcm2ch_map_8ch[] = {
 static  channel_map_item_t hdmi_pcm2ch_map_4ch[] = {
     {0, 0 , 1.0},
     {1, 1 , 1.0},
-    {0, 2 , 1.0},
-    {1, 3 , 1.0},
+    {0, 2 , 0.5},
+    {1, 2 , 0.5},
+    {1, 3 , 0},
 };
+
+
+static  channel_map_item_t hdmi_pcm2ch_map_2ch[] = {
+    {0, 0 , 1.0},
+    {1, 1 , 1.0},
+};
+
+
 
 static  channel_map_item_t hdmi_dolby2ch_map[] = {
     {0, 0 , 1.0},
@@ -206,13 +228,21 @@ static void set_channel_map_default(int ch)
         ch_orders[1] = hdmi_pcm2ch;
 
 
-    } else {
+    } else if (ch > 2){
         hdmi_pcm8ch.chmap_item_cnt = sizeof(hdmi_pcm8ch_map_4ch) / sizeof(channel_map_item_t);
         hdmi_pcm8ch.ch_map_items = &hdmi_pcm8ch_map_4ch[0];
         ch_orders[0] = hdmi_pcm8ch;
 
         hdmi_pcm2ch.chmap_item_cnt = sizeof(hdmi_pcm2ch_map_4ch) / sizeof(channel_map_item_t);
         hdmi_pcm2ch.ch_map_items = &hdmi_pcm2ch_map_4ch[0];
+        ch_orders[1] = hdmi_pcm2ch;
+    } else {
+        hdmi_pcm8ch.chmap_item_cnt = sizeof(hdmi_pcm8ch_map_2ch) / sizeof(channel_map_item_t);
+        hdmi_pcm8ch.ch_map_items = &hdmi_pcm8ch_map_2ch[0];
+        ch_orders[0] = hdmi_pcm8ch;
+
+        hdmi_pcm2ch.chmap_item_cnt = sizeof(hdmi_pcm2ch_map_2ch) / sizeof(channel_map_item_t);
+        hdmi_pcm2ch.ch_map_items = &hdmi_pcm2ch_map_2ch[0];
         ch_orders[1] = hdmi_pcm2ch;
     }
 

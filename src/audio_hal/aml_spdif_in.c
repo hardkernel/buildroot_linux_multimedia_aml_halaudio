@@ -100,7 +100,7 @@ int get_spdifin_samplerate(void)
 
     index = aml_mixer_ctrl_get_int(AML_MIXER_ID_SPDIFIN_SAMPLE_RATE);
     if (index <= 0 || index > 7) {
-        return 48000;
+        return 0;
     }
 
     return atoi(spdifin_sample_rate_text[index]);
@@ -149,13 +149,13 @@ int aml_spdifin_getinfo(aml_spdif_in_t *aml_spdifin, int * original_rate, int * 
     }
 
     bspdif_resampled = get_spdifin_resample_enabled();
-
+#if 0
     if (bspdif_resampled == 1) {
         *output_rate = 48000;
         *original_rate = get_spdifin_samplerate();
         return 0;
     }
-
+#endif
     switch (aml_spdifin->status) {
     case SPDIFIN_UNSTABLE:
         clock_gettime(CLOCK_MONOTONIC, &now);
@@ -163,7 +163,11 @@ int aml_spdifin_getinfo(aml_spdif_in_t *aml_spdifin, int * original_rate, int * 
         aml_spdifin->samplerate = get_spdifin_samplerate();
         *original_rate = aml_spdifin->samplerate;
         *output_rate = 0;
-        aml_spdifin->status = SPDIFIN_UNSTABLE_TO_STABLE;
+        if (aml_spdifin->samplerate == 0) {
+            aml_spdifin->status = SPDIFIN_UNSTABLE;
+        } else {
+            aml_spdifin->status = SPDIFIN_UNSTABLE_TO_STABLE;
+        }
         break;
     case SPDIFIN_UNSTABLE_TO_STABLE:
         clock_gettime(CLOCK_MONOTONIC, &now);
@@ -237,6 +241,14 @@ int aml_spdifin_getinfo(aml_spdif_in_t *aml_spdifin, int * original_rate, int * 
         *output_rate = 0;
         break;
     }
+
+    if (aml_spdifin->status == SPDIFIN_STABLE ||
+        aml_spdifin->status == SPDIFIN_STABLE_TO_UNSTABLE) {
+        if (bspdif_resampled == 1) {
+            *output_rate = 48000;
+        }
+    }
+
 
     return 0;
 }

@@ -105,6 +105,14 @@ int aml_decoder_init(aml_dec_t **ppaml_dec, audio_format_t format, aml_dec_confi
         aml_dec_handel->last_consumed_bytes = 0;
         aml_dec_handel->is_truehd_within_mat = 0;
         aml_dec_handel->is_dolby_atmos = 0;
+
+        aml_dec_handel->min_time = 10.0;
+        aml_dec_handel->max_time = 0.0;
+        aml_dec_handel->average_time = 0.0;
+        aml_dec_handel->frame_total_ms = 0;
+        aml_dec_handel->dec_total_ms = 0;
+        aml_dec_handel->frame_cnt = 0;
+
     }
     aml_dec_handel->format = format;
 
