@@ -18,6 +18,14 @@
 			]
 		},
 		{
+			"order_type": 1,
+			"src_ch": 2,
+			"mapping": [
+				{"src_order": 0, "dst_order": 0, "scale": 1.0},
+				{"src_order": 1, "dst_order": 1, "scale": 1.0}
+			]
+		},
+		{
 			"order_type": 2,
 			"src_ch": 2,
 			"mapping": [

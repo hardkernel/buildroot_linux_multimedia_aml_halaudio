@@ -28,6 +28,7 @@ LOCAL_SRC_FILES  +=               \
 	threads.c                     \
 	strlcpy.c                     \
 	aml_audio_log.c               \
+	amconfigutils.c               \
 	ini/ini.cpp         \
 	ini/IniParser.cpp           \
 	spdifenc_wrap.cpp     \

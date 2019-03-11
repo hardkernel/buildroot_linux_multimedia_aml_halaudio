@@ -1,6 +1,6 @@
 #ifndef LOG_H
 #define LOG_H
-#ifdef ANDROID
+#if 0//def ANDROID
 #include <cutils/log.h>
 #define LEVEL_VERBOSE   0
 #define LEVEL_INFO      1
@@ -14,7 +14,7 @@
 #define ALOGA(...) printf(__VA_ARGS__)
 #endif
 
-#ifndef ANDROID
+#if  1//ndef ANDROID
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -25,7 +25,7 @@
 extern int aml_audio_debug_level;
 
 
-inline const char *get_cur_time_str()
+static inline const char *get_cur_time_str()
 {
     static char timestring[128] = {0};
 

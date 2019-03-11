@@ -236,6 +236,12 @@ int aml_bm_init(struct aml_audio_device *adev, int val)
 
     return 0;
 }
+
+int aml_bm_setparameters(struct audio_hw_device *dev, struct str_parms *parms) {
+    return 0;
+}
+
+
 int aml_bm_process(struct audio_stream_out *stream
                     , const void *buffer
                     , size_t bytes

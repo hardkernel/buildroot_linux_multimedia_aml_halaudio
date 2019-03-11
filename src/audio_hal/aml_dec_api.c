@@ -38,13 +38,11 @@
 #include "aml_dcv_dec_api.h"
 #include "aml_datmos_api.h"
 #include "aml_mat_parser.h"
+#include "dolby_lib_api.h"
 
 
-#if 0
-static int gdolby_strategy = AML_DOLBY_DECODER;
-#else
-static int gdolby_strategy = AML_DOLBY_ATMOS;
-#endif
+static int gdolby_strategy = 0;
+
 
 
 static aml_dec_func_t * get_decoder_function(audio_format_t format, int dolby_strategy)
@@ -52,10 +50,12 @@ static aml_dec_func_t * get_decoder_function(audio_format_t format, int dolby_st
     switch (format) {
     case AUDIO_FORMAT_AC3:
     case AUDIO_FORMAT_E_AC3: {
-        if (dolby_strategy == AML_DOLBY_DECODER) {
+        if (dolby_strategy == eDolbyDcvLib) {
             return &aml_dcv_func;
-        } else if (dolby_strategy == AML_DOLBY_ATMOS) {
+        } else if (dolby_strategy == eDolbyAtmosLib) {
             return &aml_datmos_func;
+        } else {
+            return NULL;
         }
     }
     case AUDIO_FORMAT_DOLBY_TRUEHD:
@@ -76,13 +76,14 @@ int aml_decoder_init(aml_dec_t **ppaml_dec, audio_format_t format, aml_dec_confi
 {
     int ret = -1;
     aml_dec_func_t *dec_fun = NULL;
+    gdolby_strategy = detect_dolby_lib_type();
     dec_fun = get_decoder_function(format, gdolby_strategy);
     aml_dec_t *aml_dec_handel = NULL;
     if (dec_fun == NULL) {
         return -1;
     }
 
-    ALOGD("dec_fun->f_init=%p\n", dec_fun->f_init);
+    ALOGD("dec_fun->f_init=%p dolby lib=%d\n", dec_fun->f_init,gdolby_strategy);
     if (dec_fun->f_init) {
         ret = dec_fun->f_init(ppaml_dec, format, dec_config);
         if (ret < 0) {
@@ -188,6 +189,19 @@ int aml_decoder_process(aml_dec_t *aml_dec, unsigned char*buffer, int bytes, int
     if (dec_fun == NULL) {
         return -1;
     }
+
+    if (gdolby_strategy == eDolbyDcvLib) {
+        if (dec_fun->f_process) {
+            ret = dec_fun->f_process(aml_dec, buffer, bytes);
+        } else {
+            return -1;
+        }
+        *used_bytes = bytes;
+        return ret;
+
+
+    }
+
 
     if (aml_dec->is_iec61937 == 0) {
         if (dec_fun->f_process) {

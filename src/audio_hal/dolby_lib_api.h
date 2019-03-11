@@ -23,6 +23,7 @@ typedef enum eDolbyLibType {
     eDolbyNull  = 0,
     eDolbyDcvLib  = 1,
     eDolbyMS12Lib = 2,
+    eDolbyAtmosLib = 3,
 } eDolbyLibType_t;
 
 

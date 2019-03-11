@@ -62,10 +62,6 @@ int spdif_source(audio_hw_device_t *dev)
         printf("create audio patch failed =%d\n", rc);
         return -1;
     }
-    /* Android spdif case, it sets the source gain, so we follow it*/
-    sources.gain.values[0] = 100;
-    sources.config_mask = AUDIO_PORT_CONFIG_GAIN;
-    dev->set_audio_port_config(dev, &sources);
 
 
     audio_callback_info_t  callback_info;
@@ -80,9 +76,6 @@ int spdif_source(audio_hw_device_t *dev)
         sleep(1);
         cnt++;
         printf("test spdif running =%d\n", cnt);
-        //sources.gain.values[0] = 20 - cnt;
-        //sources.config_mask = AUDIO_PORT_CONFIG_GAIN;
-        //dev->set_audio_port_config(dev,&sources);
     }
     dev->remove_callback_audio_patch(dev, halPatch, &callback_info);
 
@@ -131,10 +124,6 @@ int linein_source(audio_hw_device_t *dev)
         printf("create audio patch failed =%d\n", rc);
         return -1;
     }
-    /* Android line case, it sets the source gain, so we follow it*/
-    sources.gain.values[0] = 100;
-    sources.config_mask = AUDIO_PORT_CONFIG_GAIN;
-    dev->set_audio_port_config(dev, &sources);
 
     while (cnt <= 20) {
         sleep(1);
@@ -217,14 +206,6 @@ int media_source(audio_hw_device_t *dev, audio_format_t  format)
         printf("create audio patch failed =%d\n", rc);
         return -1;
     }
-
-    sources.gain.values[0] = 100;
-    sources.config_mask = AUDIO_PORT_CONFIG_GAIN;
-    dev->set_audio_port_config(dev, &sources);
-
-    sinks.gain.values[0] = 100;
-    sinks.config_mask = AUDIO_PORT_CONFIG_GAIN;
-    dev->set_audio_port_config(dev, &sinks);
 
 
     fp_input = fopen(file_name, "r+");

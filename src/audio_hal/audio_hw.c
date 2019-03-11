@@ -6504,7 +6504,7 @@ ssize_t mixer_main_buffer_write(struct audio_stream_out *stream, const void *buf
 #endif
 
                 ret = aml_decoder_process(aml_dec, (unsigned char *)buffer, bytes, &used_size);
-
+                //ALOGD("pcm len=%d ch=%d rate=%d\n",aml_dec->outlen_pcm, aml_dec->dec_info.output_ch,aml_dec->dec_info.output_sr);
                 if (aml_dec->outlen_pcm > 0) {
                     aml_dec->frame_cnt++;
                 }
@@ -6540,7 +6540,7 @@ ssize_t mixer_main_buffer_write(struct audio_stream_out *stream, const void *buf
                 adev->audio_sample_rate = aml_dec->dec_info.stream_sr;
 
                 /*decoder return error, reinit here*/
-                if ((ret < 0) && IS_DATMOS_DECODER_SUPPORT(aml_out->hal_internal_format)) {
+                if ((adev->dolby_lib_type == eDolbyAtmosLib) && (ret < 0) && IS_DATMOS_DECODER_SUPPORT(aml_out->hal_internal_format)) {
                     aml_decoder_release(aml_dec);
                     aml_dec_config_t dec_config;
                     if (IS_DATMOS_DECODER_SUPPORT(aml_out->hal_internal_format)) {

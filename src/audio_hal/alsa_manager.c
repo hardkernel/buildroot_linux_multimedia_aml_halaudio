@@ -27,6 +27,7 @@
 #include "alsa_manager.h"
 #include "audio_hw_utils.h"
 #include "alsa_device_parser.h"
+#include "aml_audio_stream.h"
 
 
 #include <cjson/cJSON.h>
@@ -353,6 +354,7 @@ int aml_alsa_input_open(void **handle, aml_stream_config_t * stream_config, aml_
 
     ALOGD("In device=%d alsa device=%d\n", device_config->device, device);
     ALOGD("%s period size=%d\n", __func__, config->period_size);
+    //pcm = pcm_open(card, device, PCM_IN | PCM_NONEBLOCK, config);
     pcm = pcm_open(card, device, PCM_IN, config);
     if (!pcm || !pcm_is_ready(pcm)) {
         ALOGE("%s, pcm %p open [ready %d] failed \n", __func__, pcm, pcm_is_ready(pcm));
@@ -403,7 +405,7 @@ void aml_alsa_input_close(void *handle)
 
     ALOGI("-%s()\n\n", __func__);
 }
-
+#if 1
 size_t aml_alsa_input_read(void *handle, void *buffer, size_t bytes)
 {
     int ret = -1;
@@ -426,4 +428,36 @@ size_t aml_alsa_input_read(void *handle, void *buffer, size_t bytes)
 
     return ret;
 }
+#else
+size_t aml_alsa_input_read(void *handle, void *buffer, size_t bytes)
+{
+    struct pcm_config *config = NULL;
+    alsa_handle_t * alsa_handle = NULL;
+    struct pcm *pcm_handle = NULL;
+
+    alsa_handle = (alsa_handle_t *)handle;
+    char  *read_buf = (char *)buffer;
+    int ret = 0;
+    size_t  read_bytes = 0;
+    config = &alsa_handle->config;
+    pcm_handle = alsa_handle->pcm;
+    size_t frame_size = config->channels * pcm_format_to_bits(config->format) / 8;
+    while (read_bytes < bytes) {
+        ret = pcm_read(pcm_handle, (unsigned char *)buffer + read_bytes, bytes - read_bytes);
+        //ALOGI("pcm read=%d need =%d\n", ret , bytes - read_bytes);
+        if (ret >= 0) {
+            read_bytes += ret*frame_size;
+        } else {
+            if (ret != -EAGAIN) {
+                ALOGI("ret != -EAGAIN");
+                return ret;
+            } else {
+                 ALOGI("ret == -EAGAIN");
+                 usleep(5*1000);
+            }
+        }
+    }
+    return bytes;
+}
+#endif
 

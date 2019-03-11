@@ -48,7 +48,7 @@ void aml_output_init(void)
 
     ALOGD("Init the output module\n");
 #ifndef USE_PULSE_AUDIO
-#ifdef USE_ALSA_PLUGINS
+#if 1//def USE_ALSA_PLUGINS
     aml_output_function.output_open  = standard_alsa_output_open;
     aml_output_function.output_close = standard_alsa_output_close;
     aml_output_function.output_write = standard_alsa_output_write;

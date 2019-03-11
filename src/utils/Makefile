@@ -19,7 +19,8 @@ CC_OBJS=aml_buffer_provider.o \
 	hashmap.o                     \
 	threads.o                     \
 	strlcpy.o                     \
-	aml_audio_log.o
+	aml_audio_log.o		      \
+	amconfigutils.o
 	
 
 
