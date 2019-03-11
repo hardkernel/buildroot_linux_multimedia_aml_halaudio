@@ -62,9 +62,12 @@ static const struct pcm_config pcm_config_in = {
 };
 
 /* these name should be same in jason*/
+#define ALSA_CONFIG   "ALSA_Config"
+#define ALSA_CARD     "Card"
 #define HDMI_IN       "HDMI_IN"
 #define SPDIF_IN      "SPDIF_IN"
 #define LINE_IN       "LINE_IN"
+#define BLUETOOTH_IN  "BT_IN"
 #define SPEAKER_OUT   "Speaker_Out"
 #define SPDIF_OUT     "Spdif_out"
 
@@ -95,6 +98,12 @@ static alsa_pair_t alsapairs[] = {
         .alsa_device = 0,
     },
     {
+        .name = BLUETOOTH_IN,
+        .device = AUDIO_DEVICE_IN_BLUETOOTH_A2DP,
+        .alsa_card = 0,
+        .alsa_device = 0,
+    },
+    {
         .name = SPEAKER_OUT,
         .device = AUDIO_DEVICE_OUT_SPEAKER,
         .alsa_card = 0,
@@ -117,9 +126,9 @@ void aml_alsa_init(cJSON * config)
     if (config == NULL) {
         return;
     }
-    alsa_root = cJSON_GetObjectItem(config, "ALSA_Config");
+    alsa_root = cJSON_GetObjectItem(config, ALSA_CONFIG);
 
-    temp = cJSON_GetObjectItem(alsa_root, "Card");
+    temp = cJSON_GetObjectItem(alsa_root, ALSA_CARD);
 
     ALOGD("ALSA Card=%d\n", temp->valueint);
 

@@ -5,6 +5,7 @@
 		"HDMI_IN" : 1,
 		"SPDIF_IN" : 4,
 		"LINE_IN"  : 1,
+		"BT_IN"    : 0,
 		"Speaker_Out" : 2,
 		"Spdif_out"   : 4
 	},

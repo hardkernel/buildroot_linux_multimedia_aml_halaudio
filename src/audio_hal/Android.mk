@@ -54,13 +54,26 @@
         liblog  libtinyalsa \
 		libamaudioutils libcjson libasound
 
-    LOCAL_MODULE_TAGS := optional
+LOCAL_REQUIRED_MODULES += aml_audio_config.json
+LOCAL_MODULE_TAGS := optional
 
-    LOCAL_CFLAGS += -DDATMOS -DMAX_OUTPUT_CH=8 -DBYTES_PER_SAMPLE=4 -Wall
+LOCAL_CFLAGS += -DDATMOS -DMAX_OUTPUT_CH=8 \
+		-DBYTES_PER_SAMPLE=4 -DUSE_ALSA_PLUGINS \
+		-Wall
 
-    LOCAL_EXPORT_C_INCLUDE_DIRS := $(LOCAL_PATH)/../include
+ifeq ($(TARGET_DEVICE),$(filter $(TARGET_DEVICE), s400_sbr))
+       LOCAL_CFLAGS += -DUSE_AUDIOSERVICE_S400_SBR
+endif
 
-    include $(BUILD_SHARED_LIBRARY)
+LOCAL_EXPORT_C_INCLUDE_DIRS := $(LOCAL_PATH)/../include
+
+include $(BUILD_SHARED_LIBRARY)
 
 
+# Install script and config files
+include $(CLEAR_VARS)
+LOCAL_MODULE := aml_audio_config.json
+LOCAL_MODULE_CLASS := ETC
+LOCAL_SRC_FILES := ../../config/8ch_aml_audio_config.json
+include $(BUILD_PREBUILT)
 
