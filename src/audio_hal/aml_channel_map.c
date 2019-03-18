@@ -32,11 +32,13 @@
 #define SRC_ORDER   "src_order"
 #define DST_ORDER   "dst_order"
 #define SCALE       "scale"
+#define SPEAKER_SETTING "Speaker_Setting"
+
 
 
 
 struct ch_present {
-    char ch_name[16];
+    char ch_name[64];
     channel_id_t ch_id;
     int  present;
     int  order;
@@ -201,18 +203,26 @@ static struct channel_order ch_orders[CH_ORDER_NUM] = {
 
 /*the string is same with Dolby*/
 static struct ch_present ch_presents[] = {
-    {"lr",  CHANNEL_LEFT_FRONT, 0},
-    {"lr",  CHANNEL_RIGHT_FRONT, 0},
-    {"c",   CHANNEL_CENTER, 0},
-    {"lfe", CHANNEL_LFE, 0},
-    {"lrs", CHANNEL_LEFT_SURROUND, 0},
-    {"lrs", CHANNEL_RIGHT_SURROUND, 0},
-    {"lrtf", CHANNEL_LEFT_TOP_FRONT, 0},
-    {"lrtf", CHANNEL_RIGHT_TOP_FRONT, 0},
-    {"lrtm", CHANNEL_LEFT_TOP_MIDDLE, 0},
-    {"lrtm", CHANNEL_RIGHT_TOP_MIDDLE, 0},
-    {"lre",  CHANNEL_LEFT_DOLBY_ENABLE, 0},
-    {"lre",  CHANNEL_RIGHT_DOLBY_ENABLE, 0},
+    {"Left",  CHANNEL_LEFT_FRONT, 0},
+    {"Right",  CHANNEL_RIGHT_FRONT, 0},
+    {"Center",   CHANNEL_CENTER, 0},
+    {"LFE", CHANNEL_LFE, 0},
+    {"Left Surround", CHANNEL_LEFT_SURROUND, 0},
+    {"Right Surround", CHANNEL_RIGHT_SURROUND, 0},
+    {"Left Rear Surround", CHANNEL_LEFT_REAR_SURROUND, 0},
+    {"Right Rear Surround", CHANNEL_RIGHT_REAR_SURROUND, 0},
+    {"Left Top Front", CHANNEL_LEFT_TOP_FRONT, 0},
+    {"Right Top Front", CHANNEL_RIGHT_TOP_FRONT, 0},
+    {"Left Top Middle", CHANNEL_LEFT_TOP_MIDDLE, 0},
+    {"Right Top Middle", CHANNEL_RIGHT_TOP_MIDDLE, 0},
+    {"Left Top Rear", CHANNEL_LEFT_TOP_REAR, 0},
+    {"Right Top Rear", CHANNEL_RIGHT_TOP_REAR, 0},
+    {"Left Dolby Atmos",  CHANNEL_LEFT_DOLBY_ENABLE, 0},
+    {"Right Dolby Atmos",  CHANNEL_RIGHT_DOLBY_ENABLE, 0},
+    {"Left Surround Dolby Atmos",  CHANNEL_LEFT_SUR_DOLBY_ENABLE, 0},
+    {"Right Surround Dolby Atmos",  CHANNEL_RIGHT_SUR_DOLBY_ENABLE, 0},
+    {"Left Rear Surround Dolby Atmos",  CHANNEL_LEFT_REAR_SUR_DOLBY_ENABLE, 0},
+    {"Right Rear Surround Dolby Atmos",  CHANNEL_RIGHT_SUR_DOLBY_ENABLE, 0},
 };
 
 static void set_channel_map_default(int ch)
@@ -342,6 +352,37 @@ static inline int get_speaker_ch_cnt(void)
     return ch_cnt;
 }
 
+
+static void init_speaker_setting (cJSON *speaker_setting) {
+    int i = 0;
+    cJSON *temp;
+    int item;
+
+    item = sizeof(ch_presents) / sizeof(struct ch_present);
+
+    for (i = 0; i < item; i++) {
+        ch_presents[i].present = 0;
+        ch_presents[i].order   = -1;
+    }
+
+    for (i = 0 ; i < item; i++) {
+        temp = cJSON_GetObjectItem(speaker_setting, ch_presents[i].ch_name);
+        if (temp == NULL) {
+            ALOGD("%s is NULL\n", ch_presents[i].ch_name);
+            continue;
+        }
+
+        ch_presents[i].order = temp->valueint;
+        if (ch_presents[i].order != -1) {
+            ch_presents[i].present = 1;
+        } else {
+            ch_presents[i].present = 0;
+        }
+        ALOGD(" channel presents=%s id=%d order=%d\n", ch_presents[i].ch_name, ch_presents[i].ch_id, ch_presents[i].order);
+
+    }
+}
+
 static channel_order_t * parse_channel_map(cJSON *ch_map_config)
 {
     int i = 0;
@@ -457,6 +498,12 @@ void aml_channelmap_parser_init(void * json_config) {
             output_max_ch = temp->valueint;
         }
 
+        temp = cJSON_GetObjectItem((cJSON *)json_config, SPEAKER_SETTING);
+        if (temp) {
+            init_speaker_setting(temp);
+        }
+
+
         temp = cJSON_GetObjectItem((cJSON *)json_config, CHANNEL_MAP);
         if (temp) {
             channel_map_array_size = cJSON_GetArraySize(temp);
@@ -515,7 +562,7 @@ int aml_channelmap_init(aml_channel_map_t ** handle, char * speaker_config)
     format->ch = max_ch;
 
     /*get the speaker config */
-    init_ch_presents(speaker_config);
+    //init_ch_presents(speaker_config);
 
     /*this speaker ch is different with the input ch*/
     set_channel_map_default(get_speaker_ch_cnt());

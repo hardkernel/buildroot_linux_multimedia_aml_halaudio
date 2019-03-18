@@ -9,6 +9,28 @@
 		"Speaker_Out" : 2,
 		"Spdif_out"   : 4
 	},
+	"Speaker_Setting": {
+		"Left": 0, 
+		"Right": 1,
+		"Center": 5,
+		"LFE":    4,
+		"Left Surround": 2,
+		"Right Surround": 3,
+		"Left Rear Surround": -1,
+		"Right Rear Surround": -1,
+		"Left Top Front": 6,
+		"Right Top Front": 7,
+		"Left Top Middle": -1,
+		"Right Top Middle": -1,
+		"Left Top Rear": -1,
+		"Right Top Rear": -1,
+		"Left Dolby Atmos": -1,
+		"Right Dolby Atmos": -1,
+		"Left Surround Dolby Atmos": -1,
+		"Right Surround Dolby Atmos": -1,
+		"Left Rear Surround Dolby Atmos": -1,
+		"Right Rear Surround Dolby Atmos": -1	
+	},		
 	"CH_MAP": [
 		{
 			"order_type": 0,

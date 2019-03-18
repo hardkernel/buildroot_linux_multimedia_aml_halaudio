@@ -9,6 +9,10 @@
 		"Speaker_Out" : 2,
 		"Spdif_out"   : 4
 	},
+	"Speaker_Setting": {
+		"Left": 0, 
+		"Right": 1
+	},	
 	"CH_MAP": [	
 		{
 			"order_type": 0,

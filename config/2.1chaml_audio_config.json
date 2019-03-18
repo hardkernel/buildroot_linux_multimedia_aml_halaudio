@@ -9,6 +9,16 @@
 		"Speaker_Out" : 2,
 		"Spdif_out"   : 4
 	},
+	"Speaker_Setting": {
+		"Left": 0, 
+		"Right": 1,
+		"Center": -1,
+		"LFE":    4,
+		"Left Surround": -1,
+		"Right Surround": -1,
+		"Left Top Front": -1,
+		"Right Top Front": -1
+	},
 	"CH_MAP": [	
 		{
 			"order_type": 0,
