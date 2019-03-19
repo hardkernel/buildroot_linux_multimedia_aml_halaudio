@@ -587,6 +587,55 @@ int pcm_read(struct pcm *pcm, void *data, unsigned int count)
     }
 }
 
+int pcm_read_noblock(struct pcm *pcm, void *data, unsigned int count)
+{
+    struct snd_xferi x;
+
+    if (!(pcm->flags & PCM_IN))
+        return -EINVAL;
+
+    x.buf = data;
+    x.frames = count / (pcm->config.channels *
+                        pcm_format_to_bits(pcm->config.format) / 8);
+
+    for (;;) {
+        if (!pcm->running) {
+            if (pcm_start(pcm) < 0) {
+                // fprintf(stderr, "start error");
+                return -errno;
+            }
+        }
+        if (ioctl(pcm->fd, SNDRV_PCM_IOCTL_READI_FRAMES, &x)) {
+            if(!(pcm->flags & PCM_NONEBLOCK)) {
+                pcm->prepared = 0;
+                pcm->running = 0;
+            }
+            if (errno == EPIPE) {
+                    /* we failed to make our window -- try to restart */
+                pcm->prepared = 0;
+                pcm->running = 0;
+                pcm->underruns++;
+                continue;
+            }
+            if (errno == EAGAIN && (pcm->flags & PCM_NONEBLOCK)) {
+                return -EAGAIN;
+            }
+            if(!(pcm->flags & PCM_NONEBLOCK))  {
+                return oops(pcm, errno, "cannot read stream data");
+            }
+        }
+
+        if (!(pcm->flags & PCM_NONEBLOCK)) {
+            return 0;
+        }
+
+        return x.result;
+
+    }
+}
+
+
+
 static struct pcm bad_pcm = {
     .fd = -1,
 };
@@ -897,11 +946,12 @@ struct pcm *pcm_open(unsigned int card, unsigned int device,
         oops(pcm, errno, "cannot open device '%s'", fn);
         return pcm;
     }
-
-    if (fcntl(pcm->fd, F_SETFL, fcntl(pcm->fd, F_GETFL) &
-              ~O_NONBLOCK) < 0) {
-        oops(pcm, errno, "failed to reset blocking mode '%s'", fn);
-        goto fail_close;
+    if (!(flags&PCM_NONEBLOCK)) {
+        if (fcntl(pcm->fd, F_SETFL, fcntl(pcm->fd, F_GETFL) &
+                  ~O_NONBLOCK) < 0) {
+            oops(pcm, errno, "failed to reset blocking mode '%s'", fn);
+            goto fail_close;
+        }
     }
 
     if (ioctl(pcm->fd, SNDRV_PCM_IOCTL_INFO, &info)) {

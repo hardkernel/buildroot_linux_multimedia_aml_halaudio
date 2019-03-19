@@ -32,6 +32,8 @@
 
 #include <cjson/cJSON.h>
 
+// 0 means non block, 1 means block
+#define ALSA_BLOCK_MODE  (0)
 
 static int alsa_card = 0;
 
@@ -40,6 +42,7 @@ typedef struct alsa_handle {
     alsa_device_t alsa_device;
     struct pcm_config config;
     struct pcm *pcm;
+    int    block_mode;
 
 } alsa_handle_t;
 
@@ -363,8 +366,14 @@ int aml_alsa_input_open(void **handle, aml_stream_config_t * stream_config, aml_
 
     ALOGD("In device=%d alsa device=%d\n", device_config->device, device);
     ALOGD("%s period size=%d\n", __func__, config->period_size);
-    //pcm = pcm_open(card, device, PCM_IN | PCM_NONEBLOCK, config);
-    pcm = pcm_open(card, device, PCM_IN, config);
+
+    if (ALSA_BLOCK_MODE == 0) {
+        pcm = pcm_open(card, device, PCM_IN | PCM_NONEBLOCK, config);
+        alsa_handle->block_mode = 0;
+    } else {
+        pcm = pcm_open(card, device, PCM_IN, config);
+        alsa_handle->block_mode = 1;
+    }
     if (!pcm || !pcm_is_ready(pcm)) {
         ALOGE("%s, pcm %p open [ready %d] failed \n", __func__, pcm, pcm_is_ready(pcm));
         goto exit;
@@ -414,12 +423,18 @@ void aml_alsa_input_close(void *handle)
 
     ALOGI("-%s()\n\n", __func__);
 }
-#if 1
 size_t aml_alsa_input_read(void *handle, void *buffer, size_t bytes)
 {
     int ret = -1;
     alsa_handle_t * alsa_handle = NULL;
-    struct pcm *pcm = NULL;
+    struct pcm_config *config = NULL;
+    size_t  read_bytes = 0;
+    size_t frame_size = 0;
+    char  *read_buf = NULL;
+    struct timespec before;
+    struct timespec now;
+    int64_t interval_us;
+
 
     alsa_handle = (alsa_handle_t *)handle;
 
@@ -433,40 +448,38 @@ size_t aml_alsa_input_read(void *handle, void *buffer, size_t bytes)
         return -1;
     }
     //ALOGD("alsa read =%d\n",bytes);
-    ret = pcm_read(alsa_handle->pcm, buffer, bytes);
+    if (alsa_handle->block_mode == 1) {
+        ret = pcm_read(alsa_handle->pcm, buffer, bytes);
+    } else {
+        read_buf = (char *)buffer;
+        config = &alsa_handle->config;
+        frame_size = config->channels * pcm_format_to_bits(config->format) / 8;
+
+        clock_gettime(CLOCK_MONOTONIC, &before);
+        while (read_bytes < bytes) {
+            ret = pcm_read_noblock(alsa_handle->pcm, (unsigned char *)buffer + read_bytes, bytes - read_bytes);
+            //ALOGI("pcm read=%d need =%d\n", ret , bytes - read_bytes);
+            if (ret >= 0) {
+                read_bytes += ret*frame_size;
+            } else {
+                if (ret != -EAGAIN) {
+                    ALOGI("ret != -EAGAIN");
+                    return ret;
+                } else {
+                     usleep(5*1000);
+                }
+            }
+            clock_gettime(CLOCK_MONOTONIC, &now);
+            interval_us = (now.tv_sec * 1000000LL + now.tv_nsec / 1000LL) - (before.tv_sec * 1000000LL + before.tv_nsec / 1000LL);
+
+            if (interval_us > 1 * 1000 * 1000) {
+                ALOGI("tried 1s but still failed, we return\n");
+                return -1;
+            }
+        }
+        ret = read_bytes;
+    }
 
     return ret;
 }
-#else
-size_t aml_alsa_input_read(void *handle, void *buffer, size_t bytes)
-{
-    struct pcm_config *config = NULL;
-    alsa_handle_t * alsa_handle = NULL;
-    struct pcm *pcm_handle = NULL;
-
-    alsa_handle = (alsa_handle_t *)handle;
-    char  *read_buf = (char *)buffer;
-    int ret = 0;
-    size_t  read_bytes = 0;
-    config = &alsa_handle->config;
-    pcm_handle = alsa_handle->pcm;
-    size_t frame_size = config->channels * pcm_format_to_bits(config->format) / 8;
-    while (read_bytes < bytes) {
-        ret = pcm_read(pcm_handle, (unsigned char *)buffer + read_bytes, bytes - read_bytes);
-        //ALOGI("pcm read=%d need =%d\n", ret , bytes - read_bytes);
-        if (ret >= 0) {
-            read_bytes += ret*frame_size;
-        } else {
-            if (ret != -EAGAIN) {
-                ALOGI("ret != -EAGAIN");
-                return ret;
-            } else {
-                 ALOGI("ret == -EAGAIN");
-                 usleep(5*1000);
-            }
-        }
-    }
-    return bytes;
-}
-#endif
 

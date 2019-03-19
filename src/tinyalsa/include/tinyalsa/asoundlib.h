@@ -56,6 +56,7 @@ struct pcm;
                                    * restart the stream.
                                    */
 #define PCM_MONOTONIC  0x00000008 /* see pcm_get_htimestamp */
+#define PCM_NONEBLOCK  0x00000010
 
 /* PCM runtime states */
 #define	PCM_STATE_OPEN		0
@@ -232,6 +233,7 @@ unsigned int pcm_get_subdevice(struct pcm *pcm);
  */
 int pcm_write(struct pcm *pcm, const void *data, unsigned int count);
 int pcm_read(struct pcm *pcm, void *data, unsigned int count);
+int pcm_read_noblock(struct pcm *pcm, void *data, unsigned int count);
 
 /*
  * mmap() support.
