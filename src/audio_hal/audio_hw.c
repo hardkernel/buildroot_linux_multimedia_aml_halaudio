@@ -8073,6 +8073,7 @@ static int adev_create_audio_patch(struct audio_hw_device *dev,
             inport = INPORT_HDMIIN;
             aml_dev->patch_src = SRC_HDMIIN;
             break;
+        case AUDIO_DEVICE_IN_BLUETOOTH_A2DP:
         case AUDIO_DEVICE_IN_LINE:
             input_src = LINEIN;
             inport = INPORT_LINEIN;
@@ -8171,6 +8172,7 @@ static int adev_create_audio_patch(struct audio_hw_device *dev,
             inport = INPORT_HDMIIN;
             aml_dev->patch_src = SRC_HDMIIN;
             break;
+        case AUDIO_DEVICE_IN_BLUETOOTH_A2DP:
         case AUDIO_DEVICE_IN_LINE:
             input_src = LINEIN;
             inport = INPORT_LINEIN;
@@ -8584,6 +8586,7 @@ static int adev_set_audio_port_config(struct audio_hw_device *dev, const struct 
             case AUDIO_DEVICE_IN_HDMI:
                 inport = INPORT_HDMIIN;
                 break;
+            case AUDIO_DEVICE_IN_BLUETOOTH_A2DP:
             case AUDIO_DEVICE_IN_LINE:
                 inport = INPORT_LINEIN;
                 break;
