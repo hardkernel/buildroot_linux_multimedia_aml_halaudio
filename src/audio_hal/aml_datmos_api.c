@@ -461,8 +461,12 @@ int get_datmos_func(struct aml_datmos_param *datmos_handle)
     if (!datmos_handle->fd) {
         datmos_handle->fd = dlopen("/tmp/ds/0xc7_0xfba4_0x5e.so", RTLD_LAZY);
         if (datmos_handle->fd == NULL) {
-            ALOGI("error dlopen %s", dlerror());
-            return 1;
+            ALOGI("error dlopen on default place, try system lib place");
+            datmos_handle->fd = dlopen("0xc7_0xfba4_0x5e.so", RTLD_LAZY);
+            if (datmos_handle->fd == NULL) {
+                ALOGI("error dlopen %s", dlerror());
+                return 1;
+            }
         }
 
         datmos_handle->get_audio_info = (int (*)(void *, int *, int *, int *))dlsym(datmos_handle->fd, "get_audio_info");
