@@ -19,7 +19,7 @@
 #include <string.h>
 #include <assert.h>
 
-#include <utils/Log.h>
+#include <utils/log.h>
 #include <audio_utils/spdif/FrameScanner.h>
 
 namespace android {
