@@ -21,7 +21,7 @@
 #include "standard_alsa_manager.h"
 #include "log.h"
 
-#define PCM_DEVICE_DEFAULT      "default"
+#define PCM_DEVICE_DEFAULT      "halaudio"
 #define PCM_DEVICE_2CH         "2ch_48K"//"2to8"
 #define PCM_DEVICE_8CH_48K     "8ch_48K"//"8to8"
 #define PCM_DEVICE_8CH_44K     "8ch_44K"//"8to8"
