@@ -7149,12 +7149,14 @@ void *audio_patch_input_threadloop(void *data)
             patch->chanmask    = AUDIO_CHANNEL_IN_STEREO;
             patch->ch          = 2;
             aml_in->config.channels = 2;
+            aml_in->config.rate     = 48000;
 
         } else {
             patch->sample_rate = data_format.sr;
             patch->chanmask    = audio_channel_out_mask_from_count(data_format.ch);
             patch->ch = data_format.ch;
             aml_in->config.channels = data_format.ch;
+            aml_in->config.rate     = data_format.sr;
         }
 
         if (patch->ch == 8) {
