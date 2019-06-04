@@ -6264,9 +6264,9 @@ static void config_output(struct audio_stream_out *stream)
                 ((aml_datmos_config_t *)&dec_config)->reserved = &adev->datmos_param;
             }
             status = aml_decoder_init(&aml_out->aml_dec, aml_out->hal_internal_format, (aml_dec_config_t *)&dec_config);
-            adev->decode_format = aml_out->hal_internal_format;
             if (status < 0) {
                 adev->audio_sample_rate = 0;
+                adev->audio_channels    = 0;
                 ALOGE("Init decoder failed\n");
                 aml_out->aml_dec = NULL;
                 return;
@@ -6292,7 +6292,7 @@ static void config_output(struct audio_stream_out *stream)
                 }
             }
             aml_decoder_release(aml_dec);
-            adev->decode_format = AUDIO_FORMAT_PCM_16_BIT;
+            adev->decode_format = AUDIO_FORMAT_INVALID;
             adev->is_truehd_within_mat = false;
             adev->is_dolby_atmos = false;
             adev->audio_sample_rate = 0;
@@ -6383,7 +6383,12 @@ ssize_t mixer_main_buffer_write(struct audio_stream_out *stream, const void *buf
             //ALOGI("cur_aformat=%d\n",cur_aformat);
             if (cur_aformat != patch->aformat) {
                 ALOGE("HDMI/SPDIF input format changed from %#x to %#x\n", patch->aformat, cur_aformat);
-                trigger_audio_callback(patch->callback_handle, AML_AUDIO_CALLBACK_FORMATCHANGED, (audio_callback_data_t *)&cur_aformat);
+                /*if it is invalid type, we trigger it here */
+                if (cur_aformat == AUDIO_FORMAT_INVALID) {
+                    ALOGE("trigger audio format changed callback =%#x\n",cur_aformat);
+                    trigger_audio_callback(patch->callback_handle, AML_AUDIO_CALLBACK_FORMATCHANGED, (audio_callback_data_t *)&cur_aformat);
+                    adev->decode_format = AUDIO_FORMAT_INVALID;
+                }
                 patch->aformat = cur_aformat;
                 //FIXME: if patch audio format change, the hal_format need to redefine.
                 //then the out_get_format() can get it.
@@ -6531,13 +6536,25 @@ ssize_t mixer_main_buffer_write(struct audio_stream_out *stream, const void *buf
 
                 /*update information*/
                 adev->is_truehd_within_mat = aml_dec->is_truehd_within_mat;
-                if (adev->is_dolby_atmos != aml_dec->is_dolby_atmos) {
+                adev->audio_sample_rate = aml_dec->dec_info.stream_sr;
+                adev->audio_channels    = aml_dec->dec_info.output_ch;
+                adev->decode_format     = aml_dec->format;
+
+                /*if it first frame, trigger callback to get some info*/
+                if (aml_dec->frame_cnt == 1) {
                     if (patch) {
+                        ALOGD("trigger audio format changed callback = %#x ch=%d\n",aml_dec->format,adev->audio_channels);
                         trigger_audio_callback(patch->callback_handle, AML_AUDIO_CALLBACK_FORMATCHANGED, (audio_callback_data_t *)&aml_dec->format);
+                    }
+                } else {
+                    if (adev->is_dolby_atmos != aml_dec->is_dolby_atmos) {
+                        if (patch) {
+                            trigger_audio_callback(patch->callback_handle, AML_AUDIO_CALLBACK_FORMATCHANGED, (audio_callback_data_t *)&aml_dec->format);
+                        }
                     }
                 }
                 adev->is_dolby_atmos = aml_dec->is_dolby_atmos;
-                adev->audio_sample_rate = aml_dec->dec_info.stream_sr;
+
 
                 /*decoder return error, reinit here*/
                 if ((adev->dolby_lib_type == eDolbyAtmosLib) && (ret < 0) && IS_DATMOS_DECODER_SUPPORT(aml_out->hal_internal_format)) {
@@ -6607,6 +6624,7 @@ ssize_t mixer_main_buffer_write(struct audio_stream_out *stream, const void *buf
         /** PCM input case*/
 
         if (adev->audio_patch) {
+            audio_format_t ori_format = adev->decode_format;
             if (patch->input_src == AUDIO_DEVICE_IN_HDMI) {
                 /* we need some input info*/
                 data_format.sr = patch->sample_rate;
@@ -6614,16 +6632,23 @@ ssize_t mixer_main_buffer_write(struct audio_stream_out *stream, const void *buf
                 //ALOGD("patch->sample_rate=%d\n",patch->sample_rate);
                 adev->decode_format = output_format;
                 adev->audio_sample_rate = patch->sample_rate;
+                adev->audio_channels    = patch->ch;
 
             } else if (patch->input_src == AUDIO_DEVICE_IN_SPDIF) {
                 data_format.sr = patch->sample_rate;
                 data_format.ch = patch->ch;
                 adev->decode_format = output_format;
-                adev->audio_sample_rate = patch->original_rate;;
+                adev->audio_sample_rate = patch->original_rate;
+                adev->audio_channels    = patch->ch;
 
             } else {
                 adev->decode_format = output_format;
                 adev->audio_sample_rate = 48000;
+                adev->audio_channels    = 2;
+            }
+            if (ori_format != adev->decode_format) {
+                ALOGD("trigger audio format changed callback = %#x\n" , adev->decode_format);
+                trigger_audio_callback(patch->callback_handle, AML_AUDIO_CALLBACK_FORMATCHANGED, (audio_callback_data_t *)&adev->decode_format);
             }
         }
         data_format.ch_order_type = CHANNEL_ORDER_HDMIPCM;
@@ -8971,6 +8996,7 @@ static int adev_open(const hw_module_t* module, const char* name,
     adev->is_truehd_within_mat = false;
     adev->is_dolby_atmos = false;
     adev->audio_sample_rate = 0;
+    adev->audio_channels    = 0;
     adev->decode_format = AUDIO_FORMAT_INVALID;
     adev->capture_audiotype = -1;
     adev->delay_time    = 0;

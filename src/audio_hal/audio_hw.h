@@ -375,6 +375,7 @@ struct aml_audio_device {
     int is_truehd_within_mat;
     int is_dolby_atmos;
     int audio_sample_rate;//audio source samplerate
+    int audio_channels;
     audio_format_t decode_format;
     int bm_init;
     int lowerpass_corner;//lowerpass corner for bass management
