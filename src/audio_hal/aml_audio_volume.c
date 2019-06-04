@@ -24,6 +24,9 @@
 
 #define MASTER_VOLUME_NAME "master_vol"
 
+#define   Clip(acc,min,max) ((acc) > max ? max : ((acc) < min ? min : (acc)))
+
+
 static struct ch_name_pair ch_vol_pair[ ] = {
     {"lf_ch_vol",  CHANNEL_LEFT_FRONT},
     {"rf_ch_vol",  CHANNEL_RIGHT_FRONT},
@@ -60,9 +63,6 @@ static struct ch_name_pair ch_on_pair[ ] = {
 static void set_channel_vol(volume_info_t *volume_info, channel_id_t ch, float volume)
 {
     int i = 0;
-    if (volume > 1.0) {
-        volume = 1.0;
-    }
 
     if (volume < 0.0) {
         volume = 0.0;
@@ -162,9 +162,6 @@ int aml_volctl_setparameters(struct audio_hw_device *dev, struct str_parms *parm
 
     ret = str_parms_get_float(parms, MASTER_VOLUME_NAME, &volume);
     if (ret >= 0) {
-        if (volume > 1.0) {
-            volume = 1.0;
-        }
 
         if (volume < 0.0) {
             volume = 0.0;
@@ -231,7 +228,7 @@ int aml_volctl_process(struct audio_hw_device *dev, void * in_data, size_t size,
         break;
     case SAMPLE_16BITS: {
         short * data = (short*) in_data;
-
+        int temp = 0;
         for (i = 0 ; i < ch; i++) {
             ch_volume = volume_find_chinfo(volume_info, format->channel_info.channel_items[i].ch_id);
             if (ch_volume != NULL) {
@@ -239,7 +236,8 @@ int aml_volctl_process(struct audio_hw_device *dev, void * in_data, size_t size,
                     if (ch_volume->bOn == 0) {
                         data[j * ch + i] = 0;
                     } else {
-                        data[j * ch + i] = data[j * ch + i] * ch_volume->volume * volume_info->master_vol;
+                        temp = (int)data[j * ch + i] * ch_volume->volume * volume_info->master_vol;
+                        data[j * ch + i] = Clip(temp, -(1<<15), (1<<15)-1);
                     }
                 }
             }
@@ -251,6 +249,7 @@ int aml_volctl_process(struct audio_hw_device *dev, void * in_data, size_t size,
         break;
     case SAMPLE_32BITS: {
         int * data = (int*) in_data;
+        long long temp = 0;
 
         for (i = 0 ; i < ch; i++) {
             ch_volume = volume_find_chinfo(volume_info, format->channel_info.channel_items[i].ch_id);
@@ -261,7 +260,8 @@ int aml_volctl_process(struct audio_hw_device *dev, void * in_data, size_t size,
                     if (ch_volume->bOn == 0) {
                         data[j * ch + i] = 0;
                     } else {
-                        data[j * ch + i] = data[j * ch + i] * ch_volume->volume * volume_info->master_vol;
+                        temp = (long long)data[j * ch + i] * ch_volume->volume * volume_info->master_vol;
+                        data[j * ch + i] = Clip(temp, -(1ll<<31), (1ll<<31)-1);
                     }
                 }
             }
