@@ -394,6 +394,9 @@ int get_stream_parameters(struct audio_hw_device *dev, const char *keys, char *t
     } else if (strstr(keys, "audio_samplerate")) {
         snprintf(temp_buf, temp_buf_size, "audio_samplerate=%d", adev->audio_sample_rate);
         return 0;
+    } else if (strstr(keys, "audio_chs")) {
+        snprintf(temp_buf, temp_buf_size, "audio_chs=%d", adev->audio_channels);
+        return 0;
     }
     return 1;
 }
