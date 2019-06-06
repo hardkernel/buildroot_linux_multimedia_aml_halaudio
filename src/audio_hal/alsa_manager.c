@@ -331,6 +331,16 @@ int aml_alsa_input_open(void **handle, aml_stream_config_t * stream_config, aml_
         goto exit;
     }
 
+    /*according to the sample rate to change period size, then
+      we can keep the period size to the same time*/
+    if (stream_config->rate >= 176400) {
+        config->period_size *= 4;
+    } else if (stream_config->rate >= 88200) {
+        config->period_size *= 2;
+    }
+
+    ALOGD("rate=%d channel=%d", stream_config->rate, stream_config->channels);
+
     if (stream_config->format == AUDIO_FORMAT_PCM_16_BIT) {
         config->format = PCM_FORMAT_S16_LE;
     } else if (stream_config->format == AUDIO_FORMAT_PCM_32_BIT) {
