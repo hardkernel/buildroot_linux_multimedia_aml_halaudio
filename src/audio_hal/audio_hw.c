@@ -6541,19 +6541,21 @@ ssize_t mixer_main_buffer_write(struct audio_stream_out *stream, const void *buf
                 adev->decode_format     = aml_dec->format;
 
                 /*if it first frame, trigger callback to get some info*/
-                if (aml_dec->frame_cnt == 1) {
-                    if (patch) {
-                        ALOGD("trigger audio format changed callback = %#x ch=%d\n",aml_dec->format,adev->audio_channels);
-                        trigger_audio_callback(patch->callback_handle, AML_AUDIO_CALLBACK_FORMATCHANGED, (audio_callback_data_t *)&aml_dec->format);
-                    }
-                } else {
-                    if (adev->is_dolby_atmos != aml_dec->is_dolby_atmos) {
+                if (aml_dec->outlen_pcm > 0) {
+                    if (aml_dec->frame_cnt == 1) {
                         if (patch) {
+                            ALOGD("trigger audio format changed callback = %#x ch=%d\n",aml_dec->format,adev->audio_channels);
                             trigger_audio_callback(patch->callback_handle, AML_AUDIO_CALLBACK_FORMATCHANGED, (audio_callback_data_t *)&aml_dec->format);
                         }
+                    } else {
+                        if (adev->is_dolby_atmos != aml_dec->is_dolby_atmos) {
+                            if (patch) {
+                                trigger_audio_callback(patch->callback_handle, AML_AUDIO_CALLBACK_FORMATCHANGED, (audio_callback_data_t *)&aml_dec->format);
+                            }
+                        }
                     }
+                    adev->is_dolby_atmos = aml_dec->is_dolby_atmos;
                 }
-                adev->is_dolby_atmos = aml_dec->is_dolby_atmos;
 
 
                 /*decoder return error, reinit here*/
