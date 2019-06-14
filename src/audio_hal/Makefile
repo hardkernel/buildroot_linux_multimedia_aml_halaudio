@@ -35,7 +35,8 @@ CC_OBJS=audio_hw.o \
 	aml_audio_ease.o \
 	aml_audio_delay.o \
 	standard_alsa_manager.o \
-	aml_config_parser.o
+	aml_config_parser.o \
+	audio_trace.o 
 
 
 

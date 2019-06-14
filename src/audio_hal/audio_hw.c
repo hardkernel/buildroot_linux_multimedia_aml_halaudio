@@ -38,6 +38,7 @@
 #include <linux/ioctl.h>
 #include "hardware.h"
 #include "audio_core.h"
+#include "audio_trace.h"
 
 #if ANDROID_PLATFORM_SDK_VERSION >= 25 //8.0
 #include <system/audio-base.h>
@@ -6614,6 +6615,11 @@ ssize_t mixer_main_buffer_write(struct audio_stream_out *stream, const void *buf
                 data_format.ch_order_type = CHANNEL_ORDER_HDMIPCM;
             }
 
+            if (patch->output_thread_exit) {
+                ALOGD("output thread has been exit return");
+                return 0;
+            }
+
             if (audio_hal_data_processing(stream, tmp_buffer, aml_dec->outlen_pcm, &output_buffer, &output_buffer_bytes, &data_format) == 0) {
                 hw_write(stream, output_buffer, output_buffer_bytes, &data_format);
                 aml_out->frame_write_sum = aml_out->input_bytes_size  / audio_stream_out_frame_size(stream) ;
@@ -7081,11 +7087,13 @@ void adev_close_output_stream_new(struct audio_hw_device *dev,
     /* call legacy close to reuse codes */
     ALOGI("%s(), active_outputs[%d] %p", __func__, aml_out->usecase, adev->active_outputs[aml_out->usecase]);
 
+    adev_close_output_stream(dev, stream);
+
     if (aml_dec) {
         aml_decoder_release(aml_dec);
     }
     aml_out->aml_dec = NULL;
-    adev_close_output_stream(dev, stream);
+
     adev->dual_decoder_support = false;
     return;
 }
@@ -7179,6 +7187,9 @@ void *audio_patch_input_threadloop(void *data)
             aml_in->config.rate     = 48000;
 
         } else {
+            if (data_format.sr == 0) {
+                data_format.sr = 48000;
+            }
             patch->sample_rate = data_format.sr;
             patch->chanmask    = audio_channel_out_mask_from_count(data_format.ch);
             patch->ch = data_format.ch;
@@ -7454,6 +7465,10 @@ void *audio_patch_output_threadloop(void *data)
             //pthread_cond_wait(&patch->cond, &patch->mutex);
         }
         pthread_mutex_unlock(&patch->mutex);
+        if (patch->output_thread_exit) {
+            ALOGD("exit output thread");
+            break;
+        }
 
         // ALOGV("%s(), ringbuffer level read after wait-- %d\n",
         //__func__, get_buffer_read_space(ringbuffer));
@@ -7686,6 +7701,7 @@ static int release_patch(struct aml_audio_device *aml_dev)
 
     ALOGI("++%s\n", __FUNCTION__);
     patch->output_thread_exit = 1;
+    pthread_cond_signal(&patch->cond);
     patch->input_thread_exit = 1;
 
 
@@ -8503,6 +8519,7 @@ static int adev_close(hw_device_t *device)
     aml_channelmap_parser_deinit();
     free(device);
     aml_log_exit();
+    audio_trace_deinit();
     return 0;
 
 }
@@ -8820,6 +8837,7 @@ static int adev_open(const hw_module_t* module, const char* name,
     }
 
     aml_log_init();
+    audio_trace_init();
     adev->aml_audio_config = (void*)config_root;
 
     adev->hw_device.common.tag = HARDWARE_DEVICE_TAG;

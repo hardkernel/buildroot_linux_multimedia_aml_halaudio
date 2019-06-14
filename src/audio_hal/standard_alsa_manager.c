@@ -260,8 +260,9 @@ void standard_alsa_output_close(void *handle)
 
     snd_pcm_delay(alsa_param->handle, &delay);
     ALOGE("close alsa delay=%d\n", delay);
-    snd_pcm_drain(alsa_param->handle);
+    //snd_pcm_drain(alsa_param->handle);
     //snd_pcm_drop(alsa_param->handle);
+    usleep(100*1000);
     ret = snd_pcm_close(alsa_param->handle);
     if (ret < 0) {
         ALOGE("[%s::%d]--[audio close error: %s]\n", __FUNCTION__, __LINE__, snd_strerror(ret));

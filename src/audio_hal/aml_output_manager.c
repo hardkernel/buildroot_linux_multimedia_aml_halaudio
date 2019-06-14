@@ -185,6 +185,7 @@ int aml_output_close(struct audio_stream_out *stream)
 
 
     for (i = PCM_OUTPUT_DEVICE; i < OUTPUT_DEVICE_CNT; i ++) {
+        output_info_t info = {0};
         output_handle = (struct aml_output_handle *)aml_stream->output_handle[i];
 
         if (output_handle == NULL) {
@@ -255,6 +256,7 @@ int aml_output_close(struct audio_stream_out *stream)
             }
         }
         // add some silence data
+        if (info.output_state == OUTPUT_RUNNING)
         {
             /*we will send about 100ms silence data*/
             int silence_frame = output_handle->stream_config.rate / 10; 
