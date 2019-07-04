@@ -5778,15 +5778,15 @@ ssize_t audio_hal_data_processing(struct audio_stream_out *stream
             }
         }
 
-        ret = aml_volctl_process(&adev->hw_device, *output_buffer, *output_buffer_bytes, data_format);
-        if (ret < 0) {
-            ALOGE("aml_volctl_process failed\n");
-            return ret;
-        }
-
         ret = aml_audiolevel_cal(&adev->hw_device, *output_buffer, *output_buffer_bytes, data_format);
         if (ret < 0) {
             ALOGE("aml_audiolevel_cal failed\n");
+            return ret;
+        }
+
+        ret = aml_volctl_process(&adev->hw_device, *output_buffer, *output_buffer_bytes, data_format);
+        if (ret < 0) {
+            ALOGE("aml_volctl_process failed\n");
             return ret;
         }
 
@@ -7236,6 +7236,7 @@ void *audio_patch_input_threadloop(void *data)
 
         /*if original sample rate or read bytes is zero, audio format is invalid*/
         if ((patch->sample_rate == 0) || (bytes_avail <= 0)) {
+            aml_audiolevel_reset(dev);
             patch->aformat = AUDIO_FORMAT_INVALID;
             if (aml_dev->decode_format != patch->aformat) {
                 trigger_audio_callback(patch->callback_handle, AML_AUDIO_CALLBACK_FORMATCHANGED,
