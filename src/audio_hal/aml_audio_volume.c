@@ -23,6 +23,7 @@
 #include "aml_audio_log.h"
 
 #define MASTER_VOLUME_NAME "master_vol"
+#define SOURCE_PRE_SCALE "pre_scale"
 
 #define   Clip(acc,min,max) ((acc) > max ? max : ((acc) < min ? min : (acc)))
 
@@ -133,6 +134,7 @@ int aml_volctl_init(struct audio_hw_device *dev)
     int i = 0;
 
     volume_info->master_vol = 1.0;
+    volume_info->pre_scale  = 1.0;
 
     for (i = 0; i < AML_MAX_CHANNELS; i++) {
         volume_info->volume_item[i].ch_id = CHANNEL_BASE + i;
@@ -171,6 +173,19 @@ int aml_volctl_setparameters(struct audio_hw_device *dev, struct str_parms *parm
 
         return 0;
     }
+
+    ret = str_parms_get_float(parms, SOURCE_PRE_SCALE, &volume);
+    if (ret >= 0) {
+
+        if (volume < 0.0) {
+            volume = 0.0;
+        }
+
+        volume_info->pre_scale = volume;
+
+        return 0;
+    }
+
 
     for (i = 0; i < item; i++) {
 
@@ -236,7 +251,7 @@ int aml_volctl_process(struct audio_hw_device *dev, void * in_data, size_t size,
                     if (ch_volume->bOn == 0) {
                         data[j * ch + i] = 0;
                     } else {
-                        temp = (int)data[j * ch + i] * ch_volume->volume * volume_info->master_vol;
+                        temp = (int)data[j * ch + i] * ch_volume->volume * volume_info->master_vol * volume_info->pre_scale;
                         data[j * ch + i] = Clip(temp, -(1<<15), (1<<15)-1);
                     }
                 }
@@ -260,7 +275,7 @@ int aml_volctl_process(struct audio_hw_device *dev, void * in_data, size_t size,
                     if (ch_volume->bOn == 0) {
                         data[j * ch + i] = 0;
                     } else {
-                        temp = (long long)data[j * ch + i] * ch_volume->volume * volume_info->master_vol;
+                        temp = (long long)data[j * ch + i] * ch_volume->volume * volume_info->master_vol * volume_info->pre_scale;
                         data[j * ch + i] = Clip(temp, -(1ll<<31), (1ll<<31)-1);
                     }
                 }

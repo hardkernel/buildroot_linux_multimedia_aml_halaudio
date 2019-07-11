@@ -248,6 +248,7 @@ typedef struct ch_volume {
 
 typedef struct volume_info {
     float master_vol;
+    float pre_scale;
     ch_volume_t volume_item[AML_MAX_CHANNELS];
 } volume_info_t;
 
