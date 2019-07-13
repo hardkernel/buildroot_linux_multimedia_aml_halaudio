@@ -50,6 +50,8 @@ struct aml_datmos_param {
     bool verbose;
     bool noupresampler;
     bool dec_joc;
+    char dapcustomize[CONFIG_MAX];
+    bool b_dap_customize;
 };
 
 typedef enum
@@ -65,6 +67,8 @@ typedef enum
     AML_DATMOS_PARAMS_ID_DRC_SCALE_FACOTR,
     AML_DATMOS_PARAMS_ID_VOLUME_MODELER_CALIBRATION,
     AML_DATMOS_PARAMS_ID_VLAMP,
+    AML_DATMOS_HT_PARAMS_ID_DAP_CUSTOMIZE,
+    AML_DATMOS_HT_PARAMS_ID_DAP_CUSTOMIZE_FACTOR,
     AML_DATMOS_PARAMS_ID_LAST
 } aml_datmos_dynamic_params_id;
 
