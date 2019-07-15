@@ -148,7 +148,7 @@ int aml_spdifin_getinfo(aml_spdif_in_t *aml_spdifin, int * original_rate, int * 
         return -1;
     }
 
-    bspdif_resampled = get_spdifin_resample_enabled();
+    //bspdif_resampled = get_spdifin_resample_enabled();
 #if 0
     if (bspdif_resampled == 1) {
         *output_rate = 48000;
