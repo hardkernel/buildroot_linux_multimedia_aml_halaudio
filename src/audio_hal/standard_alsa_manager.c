@@ -410,6 +410,12 @@ int standard_alsa_output_getinfo(void *handle, info_type_t type, output_info_t *
         info->output_state = state;
         return 0;
     }
+    case OUTPUT_INFO_DELAYFRAME: {
+        snd_pcm_sframes_t delay = 0;
+        snd_pcm_delay(alsa_param->handle, &delay);
+        info->delay_frame = delay;
+        return 0;
+    }
     default:
         return -1;
     }

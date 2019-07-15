@@ -482,9 +482,9 @@ size_t aml_alsa_input_read(void *handle, void *buffer, size_t bytes)
             clock_gettime(CLOCK_MONOTONIC, &now);
             interval_us = (now.tv_sec * 1000000LL + now.tv_nsec / 1000LL) - (before.tv_sec * 1000000LL + before.tv_nsec / 1000LL);
 
-            if (interval_us > 1 * 1000 * 1000) {
-                ALOGI("tried 1s but still failed, we return\n");
-                return -1;
+            if (interval_us > 50 * 1000) {
+                ALOGI("tried 50 ms but still failed, we return read_bytes=%d\n",read_bytes);
+                return read_bytes;
             }
         }
         ret = read_bytes;

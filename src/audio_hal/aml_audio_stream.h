@@ -154,6 +154,7 @@ typedef enum input_device {
 typedef enum info_type {
     PCMOUTPUT_CONFIG_INFO,   // refer to aml_stream_config
     OUTPUT_INFO_STATUS,      // running or xrun etc..
+    OUTPUT_INFO_DELAYFRAME,  // the delay frames
 } info_type_t;
 
 typedef enum output_state {
@@ -191,6 +192,7 @@ typedef struct aml_device_config {
 typedef union output_info {
     aml_stream_config_t config_info;
     output_state_t      output_state;
+    int                 delay_frame;
 
 } output_info_t;
 #define AML_MAX_CHANNELS 16
@@ -421,6 +423,7 @@ struct aml_audio_patch {
     unsigned int out_period_mul;
     audio_channel_mask_t chanmask;
     int hdmi_stable;
+    int clk_changed;
     struct timespec mute_start_ts;
 #if 0
     struct ring_buffer

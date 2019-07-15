@@ -533,7 +533,7 @@ audio_format_t audio_parse_get_audio_type(audio_type_parse_t *status)
         return AUDIO_FORMAT_INVALID;
     }
     if (status->audio_type == PAUSE || status->audio_type == MUTE) {
-        //return AUDIO_FORMAT_INVALID;
+        return AUDIO_FORMAT_INVALID;
     }
     return andio_type_convert_to_android_audio_format_t(status->audio_type);
 }
@@ -764,7 +764,7 @@ void feeddata_audio_type_parse(void **status, char * input, int size)
     }
 #endif
     if (audio_type_status->audio_type != audio_type_status->cur_audio_type) {
-        ALOGE("Parsing state=%d cur type=%d parse type=%d\n", audio_type_status->state, audio_type_status->audio_type, type);
+        ALOGE("Parsing state=%d cur type=%d type=%d parse type=%d  preset=%d\n", audio_type_status->state,audio_type_status->cur_audio_type, audio_type_status->audio_type, type,audio_type_status->type_preset);
         audio_type_status->cur_audio_type = audio_type_status->audio_type;
     }
     return;

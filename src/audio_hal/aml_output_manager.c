@@ -186,6 +186,8 @@ int aml_output_close(struct audio_stream_out *stream)
 
     for (i = PCM_OUTPUT_DEVICE; i < OUTPUT_DEVICE_CNT; i ++) {
         output_info_t info = {0};
+        output_state_t  output_state;
+        int delay_frame = 0;
         output_handle = (struct aml_output_handle *)aml_stream->output_handle[i];
 
         if (output_handle == NULL) {
@@ -203,12 +205,15 @@ int aml_output_close(struct audio_stream_out *stream)
 
 
         if (aml_output_function.output_getinfo) {
-            output_info_t info = {0};
             ret = aml_output_function.output_getinfo(output_handle->device_handle, OUTPUT_INFO_STATUS, &info);
-            ALOGE("ret =%d state=%d\n", ret, info.output_state);
+            output_state = info.output_state;
+            ret = aml_output_function.output_getinfo(output_handle->device_handle, OUTPUT_INFO_DELAYFRAME, &info);
+            delay_frame = info.delay_frame;
+
+            ALOGE("ret =%d state=%d delay frame=%d\n", ret, output_state, delay_frame);
 
             /*we only do fade out when it is running*/
-            if (ret == 0 && info.output_state == OUTPUT_RUNNING) {
+            if (ret == 0 && output_state == OUTPUT_RUNNING && delay_frame > 0) {
 
                 /*set ease volume to 1.0*/
                 ease_setting.ease_type = EaseLinear;
@@ -256,7 +261,7 @@ int aml_output_close(struct audio_stream_out *stream)
             }
         }
         // add some silence data
-        if (info.output_state == OUTPUT_RUNNING)
+        if (output_state == OUTPUT_RUNNING && delay_frame > 0)
         {
             /*we will send about 100ms silence data*/
             int silence_frame = output_handle->stream_config.rate / 10; 
