@@ -435,6 +435,36 @@ int datmos_set_parameters(struct audio_hw_device *dev, struct str_parms *parms)
         return 0;
     }
 
+    /*dynamic param*/
+    ret = str_parms_get_str(parms, "dapcustomize", value, sizeof(value));
+    if (ret >= 0) {
+        ALOGI("get value %s\n", value);
+        if (strcmp(adev->datmos_param.dapcustomize, value)) {
+            adev->dec_params_update_mask |=  (1 << AML_DATMOS_HT_PARAMS_ID_DAP_CUSTOMIZE);
+            adev->dec_params_update_mask |=  (1 << AML_DATMOS_HT_PARAMS_ID_DAP_CUSTOMIZE_FACTOR);
+        }
+        memset(adev->datmos_param.dapcustomize, 0, sizeof(adev->datmos_param.dapcustomize));
+        strncpy(adev->datmos_param.dapcustomize, value, strlen(value));
+        ALOGI("dapcustomize set to %s\n", adev->datmos_param.dapcustomize);
+        if (strstr(adev->datmos_param.dapcustomize, "dapcustomize_mode=enable"))
+            adev->datmos_param.b_dap_customize = true;
+        else if (strstr(adev->datmos_param.dapcustomize, "dapcustomize_mode=disable"))
+            adev->datmos_param.b_dap_customize = false;
+
+        if (adev->datmos_enable) {
+            if (adev->datmos_param.b_dap_customize){
+                ALOGI("add_datmos_option -v\n");
+                add_datmos_option(opts, "-dapcustomize", adev->datmos_param.dapcustomize);
+            }
+            else
+                delete_datmos_option(opts, "-dapcustomize");
+        }
+
+
+        return 0;
+    }
+
+
     return -1;
 
 error_exit:
