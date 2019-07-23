@@ -28,6 +28,10 @@ ifeq ($(BR2_PACKAGE_ALSA_PLUGINS),y)
 export ENABLE_ALSA_PLUGINS = yes
 endif
 
+ifeq ($(BR2_aarch64),y)
+export ENABLE_AUDIO_64bit = yes
+endif
+
 export AML_HALAUDIO_STAGING_DIR = $(STAGING_DIR)
 export AML_HALAUDIO_TARGET_DIR = $(TARGET_DIR)
 

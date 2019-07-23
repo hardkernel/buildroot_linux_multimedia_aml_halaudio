@@ -87,7 +87,12 @@ CFLAGS+=-I$(SRC) -I$(SRC)/include -I$(SRC)/../include -I$(SRC)/../utils/ini/incl
 DEFINES = -DDATMOS -DMAX_OUTPUT_CH=8 -DBYTES_PER_SAMPLE=4
 CFLAGS += $(DEFINES)
 
+
+ifeq ($(ENABLE_AUDIO_64bit),yes)
+DEP_PROJ_LINK = $(SRC)/lib_bassmanagement64.a
+else
 DEP_PROJ_LINK = $(SRC)/lib_bassmanagement.a
+endif
 
 EXPORT_API = $(SRC)/../include/audio_base.h \
 	$(SRC)/../include/audio_core.h \
