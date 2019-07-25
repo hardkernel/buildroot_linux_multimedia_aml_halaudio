@@ -77,9 +77,11 @@ int aml_decoder_init(aml_dec_t **ppaml_dec, audio_format_t format, aml_dec_confi
     int ret = -1;
     aml_dec_func_t *dec_fun = NULL;
     gdolby_strategy = detect_dolby_lib_type();
+    ALOGI("gdolby_strategy %d\n",gdolby_strategy);
     dec_fun = get_decoder_function(format, gdolby_strategy);
     aml_dec_t *aml_dec_handel = NULL;
     if (dec_fun == NULL) {
+        ALOGE("%s got dec_fun as NULL!\n", __func__);
         return -1;
     }
 
