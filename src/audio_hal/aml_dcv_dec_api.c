@@ -31,7 +31,7 @@
 #include <sys/time.h>
 #include "log.h"
 #include <tinyalsa/asoundlib.h>
-
+#include "amconfigutils.h"
 #include "aml_dcv_dec_api.h"
 #include "aml_ac3_parser.h"
 
@@ -170,6 +170,7 @@ static audio_decoder_operations_t *adec_ops = NULL;
 static int (*ddp_decoder_init)(audio_decoder_operations_t *);
 static int (*ddp_decoder_cleanup)(audio_decoder_operations_t *);
 static int (*ddp_decoder_process)(audio_decoder_operations_t *, char *outbuf, int *outlen, char *inbuf, int inlen);
+static int (*ddp_decoder_getinfo)(audio_decoder_operations_t *, void *pAudioInfo);
 
 #endif
 
@@ -499,6 +500,14 @@ static int dcv_decoder_init(int digital_raw)
         ALOGV("<%s::%d>--[ddp_decoder_cleanup:]\n", __FUNCTION__, __LINE__);
     }
 
+    ddp_decoder_getinfo =  dlsym(gDDPDecoderLibHandler, "audio_dec_getinfo");
+    if (ddp_decoder_getinfo == NULL) {
+        ALOGE("%s,cant find decoder lib,%s\n", __FUNCTION__, dlerror());
+        goto Error;
+    } else {
+        ALOGV("<%s::%d>--[ddp_decoder_getinfo:]\n", __FUNCTION__, __LINE__);
+    }
+
 
     adec_ops = malloc(sizeof(audio_decoder_operations_t));
     if (adec_ops == NULL) {
@@ -542,6 +551,15 @@ static int dcv_decoder_release()
     adec_ops = NULL;
     return 0;
 }
+
+
+static int dcv_decoder_getinfo(AudioInfo * audio_info)
+{
+
+    (*ddp_decoder_getinfo)(adec_ops, audio_info);
+    return 0;
+}
+
 
 #endif
 
@@ -793,9 +811,18 @@ int dcv_decoder_init_patch(aml_dec_t ** ppddp_dec, audio_format_t format, aml_de
         return -1;
     }
 
+
     aml_dec = &ddp_dec->aml_dec;
 
     aml_dcv_config_t *dcv_config = (aml_dcv_config_t *)dec_config;
+
+    /*config dcv decoder*/
+    if (dcv_config->dcv_output_ch == 6) {
+        property_set("media.multich.support.info","hdmi6");
+    } else if (dcv_config->dcv_output_ch == 8) {
+        property_set("media.multich.support.info","hdmi8");
+    }
+
 
     aml_dec->status = dcv_decoder_init(dcv_config->digital_raw);
     if (aml_dec->status < 0) {
@@ -883,6 +910,7 @@ int dcv_decoder_process_patch(aml_dec_t * aml_dec, unsigned char*buffer, int byt
     int outRAWLen = 0;
     int total_size = 0;
     int read_offset = 0;
+    AudioInfo  audio_info;
     struct dolby_ddp_dec *ddp_inter_dec = (struct dolby_ddp_dec *)aml_dec;
     ddp_inter_dec->nIsEc3 = 0;
 #if 0
@@ -1004,6 +1032,13 @@ int dcv_decoder_process_patch(aml_dec_t * aml_dec, unsigned char*buffer, int byt
     if (used_size > 0) {
         aml_dec->remain_size -= used_size;
         memcpy(aml_dec->inbuf, read_pointer + used_size, aml_dec->remain_size);
+    }
+
+    if (aml_dec->outlen_pcm > 0) {
+        dcv_decoder_getinfo(&audio_info);
+        aml_dec->dec_info.output_sr = audio_info.samplerate;
+        aml_dec->dec_info.output_ch = audio_info.channels;
+        //ALOGI("samplerate=%d ch=%d", audio_info.samplerate, audio_info.channels);
     }
 
 #if 0

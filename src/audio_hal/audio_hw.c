@@ -4860,6 +4860,14 @@ static int adev_set_parameters(struct audio_hw_device *dev, const char *kvpairs)
     }
 #endif
 
+    ret = str_parms_get_int(parms, "dcv_output_ch", &val);
+    if (ret >= 0) {
+        adev->dcv_output_ch = val;
+        ALOGI("dcv_output_ch  set to %d\n", adev->dcv_output_ch);
+        goto exit;
+    }
+
+
 exit:
     str_parms_destroy(parms);
 
@@ -6145,6 +6153,7 @@ static void config_output(struct audio_stream_out *stream)
     /*do some decoder setting*/
 
     dcv_config.digital_raw = adev->digital_raw;
+    dcv_config.dcv_output_ch  = adev->dcv_output_ch;
     if (aml_out->hal_internal_format == AUDIO_FORMAT_E_AC3) {
         dcv_config.nIsEc3 = 1;
         dec_config.dcv_config = dcv_config;
@@ -6167,7 +6176,7 @@ static void config_output(struct audio_stream_out *stream)
     if (adev->bypass_enable != 1) {
         if (aml_dec == NULL) {
             ALOGD("decoder init format=0x%x\n", aml_out->hal_internal_format);
-            if (IS_DATMOS_DECODER_SUPPORT(aml_out->hal_internal_format)) {
+            if (IS_DATMOS_DECODER_SUPPORT(aml_out->hal_internal_format) && (adev->dolby_lib_type == eDolbyAtmosLib)) {
                 ((aml_datmos_config_t *)&dec_config)->reserved = &adev->datmos_param;
             }
             status = aml_decoder_init(&aml_out->aml_dec, aml_out->hal_internal_format, (aml_dec_config_t *)&dec_config);

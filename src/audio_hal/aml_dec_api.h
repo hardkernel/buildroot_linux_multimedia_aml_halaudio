@@ -86,6 +86,7 @@ typedef struct aml_dec {
 typedef struct aml_dcv_config {
     int digital_raw;
     int nIsEc3;
+    int dcv_output_ch;   /*config the output for dcv*/
     void *reserved;//dlopen handle
 } aml_dcv_config_t;
 

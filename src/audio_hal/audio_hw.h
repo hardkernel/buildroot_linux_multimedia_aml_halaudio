@@ -302,6 +302,7 @@ struct aml_audio_device {
 
     /*used for ac3 eac3 decoder*/
     int digital_raw;
+    int dcv_output_ch;
     /**
      * enum eDolbyLibType
      * DolbyDcvLib  = dcv dec lib   , libHwAudio_dcvdec.so
