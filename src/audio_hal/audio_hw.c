@@ -4803,6 +4803,10 @@ static int adev_set_parameters(struct audio_hw_device *dev, const char *kvpairs)
     ret = str_parms_get_int(parms, "capture_ch", &val);
     if (ret >= 0) {
         adev->capture_ch = val;
+        /*we support 1 or 4 I2S*/
+        if (adev->capture_ch > 2) {
+            adev->capture_ch = 8;
+        }
         ALOGI("capture_ch set to %d\n", adev->capture_ch);
         goto exit;
     }
