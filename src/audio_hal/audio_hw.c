@@ -7138,12 +7138,12 @@ void *audio_patch_input_threadloop(void *data)
         //ALOGV("++%s start to in read, periodmul %d, threshold %d \n",
         //__func__, period_mul, read_threshold);
         bytes_avail = in_read(stream_in, patch->in_buf, read_bytes * period_mul);
-
         clock_gettime(CLOCK_MONOTONIC, &after_read);
         us = calc_time_interval_us(&before_read, &after_read);
         if(us > 20*1000) {
             //ALOGE("read data function gap =%d \n", us);
         }
+
         if (patch->input_src == AUDIO_DEVICE_IN_HDMI) {
             i2s_clk = get_hdmiin_i2sclk();
             if (i2s_clk != last_i2s_clk) {
@@ -7170,9 +7170,11 @@ void *audio_patch_input_threadloop(void *data)
             }
         }
 
-
+        /*when arc unplug, but there is still some data which cause noise*/
         if (patch->input_src == AUDIO_DEVICE_IN_SPDIF) {
-            if (patch->sample_rate == 0) {
+            aml_data_format_t spdif_format = { 0 };
+            get_input_streaminfo(stream_in, &spdif_format);
+            if (patch->sample_rate == 0 || spdif_format.sr == 0) {
                 usleep(5000);
                 continue;
             }
