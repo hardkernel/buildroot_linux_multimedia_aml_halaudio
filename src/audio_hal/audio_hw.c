@@ -6569,8 +6569,9 @@ ssize_t mixer_main_buffer_write(struct audio_stream_out *stream, const void *buf
                 adev->audio_channels    = patch->ch;
 
             } else {
+                data_format.sr = patch->sample_rate;
                 adev->decode_format = output_format;
-                adev->audio_sample_rate = 48000;
+                adev->audio_sample_rate = patch->original_rate;//48000;
                 adev->audio_channels    = 2;
             }
             if (ori_format != adev->decode_format) {

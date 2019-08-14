@@ -359,8 +359,8 @@ int get_input_streaminfo(struct audio_stream_in *stream, aml_data_format_t *data
 
     } else if (in->device & AUDIO_DEVICE_IN_LINE) {
         data_format->ch = 2;
-        data_format->sr = 48000;
-        patch->original_rate = 48000;
+        data_format->sr = aml_dev->capture_samplerate;//48000;
+        patch->original_rate = aml_dev->capture_samplerate;//48000;
 
     } else {
         data_format->ch = 2;
