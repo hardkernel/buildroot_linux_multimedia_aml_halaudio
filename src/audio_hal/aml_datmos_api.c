@@ -676,6 +676,11 @@ int datmos_decoder_init_patch(aml_dec_t ** ppdatmos_dec, audio_format_t format, 
     datmos_config->is_eb3_extension = 0;
 
     datmos_handle = (struct aml_datmos_param *)datmos_config->reserved;
+
+    if (datmos_handle->aml_atmos_init == NULL) {
+        goto exit;
+    }
+
     opts = get_datmos_current_options();
 
     switch (datmos_config->audio_type) {
