@@ -40,11 +40,7 @@
 
 //#define DOLBY_DCV_LIB_PATH_A "/vendor/lib/libHwAudio_dcvdec.so"
 #define DOLBY_DCV_LIB_PATH_A "/usr/lib/libdcv.so"
-#ifdef GVA_CASE
-#define DOLBY_ATMOS_LIB_PATH_A "/system/lib/libdolby_atmos.so"
-#else
 #define DOLBY_ATMOS_LIB_PATH_A "/usr/lib/libdolby_atmos.so"
-#endif
 
 
 /*
