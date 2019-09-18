@@ -8,7 +8,7 @@ LOCAL_C_INCLUDES +=             \
     $(LOCAL_PATH)/../tinyalsa/include   \
     $(LOCAL_PATH)/ini/include
 
-	
+
 LOCAL_SRC_FILES  +=               \
     aml_buffer_provider.c         \
 	aml_dump_debug.c              \
@@ -37,13 +37,13 @@ LOCAL_SRC_FILES  +=               \
 	audio_utils/spdif/BitFieldParser.cpp  \
 	audio_utils/spdif/DTSFrameScanner.cpp \
 	audio_utils/spdif/FrameScanner.cpp    \
-	audio_utils/spdif/SPDIFEncoder.cpp 
+	audio_utils/spdif/SPDIFEncoder.cpp
 LOCAL_MODULE := libamaudioutils
 
 LOCAL_SHARED_LIBRARIES += \
-    libtinyalsa           
+    liblog libtinyalsa
 
-LOCAL_EXPORT_C_INCLUDE_DIRS := $(LOCAL_PATH)/include	
+LOCAL_EXPORT_C_INCLUDE_DIRS := $(LOCAL_PATH)/include
 
 LOCAL_MODULE_TAGS := optional
 LOCAL_CFLAGS += -DBUILD_IN_ANDROID
