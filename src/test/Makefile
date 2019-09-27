@@ -11,7 +11,7 @@ TARGET_OBJS=test.o
 INSTALL_FLAGS=-m 755
 
 TARGET=test
-LDFLAGS= -L$(PREFIX)/lib -lpthread -ldl -lasound -lrt -ltinyalsa -lamaudioutils -lhalaudio -lstdc++ -lsupc++
+LDFLAGS= -L$(PREFIX)/lib -lpthread -ldl -lasound -lrt -ltinyalsa -lamaudioutils -lhalaudio -lstdc++ -lsupc++ -lspeex_rate
 
 CFLAGS+=-O2 -fPIC -g
 CFLAGS+=-I${BUILD_DIR}/ -I${BUILD_DIR}/../include  -L${LIB_DIR} 

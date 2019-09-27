@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Amlogic Corporation.
+ * Copyright (C) 2018 Amlogic Corporation.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,23 +14,16 @@
  * limitations under the License.
  */
 
-#ifndef AML_SAMPLE_CONV_H
-#define AML_SAMPLE_CONV_H
+#ifndef AUDIO_SIMPLE_RESAMPLE_H
+#define AUDIO_SIMPLE_RESAMPLE_H
 
-#include "aml_audio_stream.h"
-
-typedef struct aml_sample_conv {
-    void *convert_buffer;
-    size_t convert_size;
-    size_t buf_size;
-} aml_sample_conv_t;
+#include "aml_audio_resample_manager.h"
 
 
-int aml_sampleconv_init(aml_sample_conv_t ** handle);
-int aml_sampleconv_close(aml_sample_conv_t * handle);
-int aml_sampleconv_process(aml_sample_conv_t * handle, aml_data_format_t *src, void * in_data, aml_data_format_t *dst, size_t nsamples);
+int simple_resample_open(void **handle, audio_resample_config_t *resample_config);
+void simple_resample_close(void *handle);
+int simple_resample_process(void *handle, void * in_buffer, size_t bytes, void * out_buffer, size_t * out_size);
 
-
-
+extern audio_resample_func_t audio_simple_resample_func;
 
 #endif

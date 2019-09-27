@@ -66,7 +66,8 @@ int aml_sampleconv_init(aml_sample_conv_t ** handle)
     }
 
     sample_conv->convert_buffer = tmp_convert_buffer;
-    sample_conv->convert_buffer_size = size;
+    sample_conv->convert_size   = size;
+    sample_conv->buf_size       = size;
 
 
     * handle = sample_conv;
@@ -102,17 +103,17 @@ int aml_sampleconv_process(aml_sample_conv_t * handle, aml_data_format_t *src, v
 
     need_bytes = nsamples * (dst->bitwidth >> 3);
 
-    if (handle->convert_buffer_size < need_bytes) {
-        ALOGI("realloc tmp_convert_buffer size from %zu to %zu\n", handle->convert_buffer_size, need_bytes);
+    if (handle->buf_size < need_bytes) {
+        ALOGI("realloc tmp_convert_buffer size from %zu to %zu\n", handle->convert_size, need_bytes);
         handle->convert_buffer = realloc(handle->convert_buffer, need_bytes);
         if (handle->convert_buffer == NULL) {
             ALOGE("realloc convert_buffer buf failed size %zu\n", need_bytes);
             return -1;
         }
-
+         handle->buf_size = need_bytes;
     }
 
-    handle->convert_buffer_size = need_bytes;
+    handle->convert_size = need_bytes;
 
     for (i = 0; i < sizeof(aml_conv_table) / sizeof(aml_conv_handle_t); i ++) {
         conv_item = &aml_conv_table[i];

@@ -40,6 +40,9 @@
 	aml_audio_delay.c \
 	audio_eq_drc_compensation.cpp \
 	audio_eq_drc_parser.cpp \
+	audio_speex_resample_api.c \
+	audio_simple_resample_api.c \
+	aml_audio_resample_manager.c \
 	aml_datmos_config.cpp
 
     LOCAL_C_INCLUDES += \
@@ -49,16 +52,18 @@
         $(LOCAL_PATH)/../utils/ini/include \
 		$(LOCAL_PATH)/../libms12/include \
 		external/alsa-lib/include \
+		$(LOCAL_PATH)/../speex_rate
 
     LOCAL_SHARED_LIBRARIES := \
         liblog  libtinyalsa \
-		libamaudioutils libcjson libasound
+		libamaudioutils libspeex_rate libcjson libasound
 
 LOCAL_REQUIRED_MODULES += aml_audio_config.json
 LOCAL_MODULE_TAGS := optional
 
 LOCAL_CFLAGS += -DDATMOS -DMAX_OUTPUT_CH=8 \
 		-DBYTES_PER_SAMPLE=4 -DUSE_ALSA_PLUGINS \
+		-DOUTSIDE_SPEEX -DRANDOM_PREFIX=AML_AUDIO \
 		-Wall
 
 ifeq ($(TARGET_DEVICE),$(filter $(TARGET_DEVICE), s400_sbr))

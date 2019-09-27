@@ -3953,6 +3953,8 @@ static int adev_open_output_stream(struct audio_hw_device *dev,
             ALOGE("aml_audiodelay_init faild\n");
             goto err_open;
         }
+
+        out->resample_handle = NULL;
     }
     out->hwsync =  calloc(1, sizeof(audio_hwsync_t));
     if (!out->hwsync) {
@@ -4002,6 +4004,8 @@ static void adev_close_output_stream(struct audio_hw_device *dev,
         out->channel_map = NULL;
         aml_audiolevel_reset(&adev->hw_device);
         aml_audiodelay_close(&adev->hw_device);
+        aml_audio_resample_close(out->resample_handle);
+        out->resample_handle = NULL;
 
     }
     int channel_count = popcount(out->hal_channel_mask);
@@ -5488,6 +5492,29 @@ ssize_t aml_audio_spdif_output(struct audio_stream_out *stream,
     return ret;
 }
 
+static int get_resamplerate(int input_rate) {
+    switch (input_rate) {
+        case 8000:
+        case 12000:
+        case 16000:
+        case 24000:
+        case 32000:
+        case 48000:
+        case 96000:
+        case 192000:
+            return 48000;
+        case 11025:
+        case 22050:
+        case 44100:
+        case 88200:
+        case 176400:
+            return 44100;
+        default:
+            return 48000;
+    }
+    return 48000;
+}
+
 ssize_t audio_hal_data_processing(struct audio_stream_out *stream
                                   , const void *buffer
                                   , size_t bytes
@@ -5659,13 +5686,51 @@ ssize_t audio_hal_data_processing(struct audio_stream_out *stream
             return 0;
         }
 #endif
+        /*do resample for 16 bit*/
+        if (data_format->bitwidth == SAMPLE_16BITS && data_format->sr != 48000 && data_format->sr != 44100) {
+            int target_rate = 48000;
+            /*sample rate is chagned, we need to resmaple it*/
+            if (aml_out->resample_handle != NULL) {
+                if (data_format->sr != aml_out->resample_handle->resample_config.input_sr) {
+                    aml_audio_resample_close(aml_out->resample_handle);
+                    aml_out->resample_handle = NULL;
+                }
+            }
+
+            target_rate = get_resamplerate(data_format->sr);
+            if (aml_out->resample_handle == NULL) {
+                audio_resample_config_t resample_config;
+                ALOGI("init resampler from %d to target_rate!\n", data_format->sr, target_rate);
+                resample_config.aformat   = AUDIO_FORMAT_PCM_16_BIT;
+                resample_config.channels  = data_format->ch;
+                resample_config.input_sr  = data_format->sr;
+                resample_config.output_sr = target_rate;
+                ret = aml_audio_resample_init((aml_audio_resample_t **)&aml_out->resample_handle, AML_AUDIO_SPEEX_RESAMPLE, &resample_config);
+                if (ret < 0) {
+                    ALOGE("resample init error\n");
+                    return -1;
+                }
+            }
+
+            ret = aml_audio_resample_process(aml_out->resample_handle, tmp_buffer, bytes);
+            if (ret < 0) {
+                ALOGE("resample process error\n");
+                return -1;
+            }
+
+            tmp_buffer = (int16_t *) aml_out->resample_handle->resample_buffer;
+            bytes      = aml_out->resample_handle->resample_size;
+            data_format->sr = target_rate;
+
+        }
+
 
         /* convert the original sample bit to target sample bit */
         nsamples = bytes / (data_format->bitwidth >> 3);
         if (data_format->bitwidth != dst_format.bitwidth) {
             aml_sampleconv_process(aml_out->sample_convert, data_format, tmp_buffer, &dst_format, nsamples);
             convert_buf = aml_out->sample_convert->convert_buffer;
-            convert_size = aml_out->sample_convert->convert_buffer_size;
+            convert_size = aml_out->sample_convert->convert_size;
             data_format->bitwidth = dst_format.bitwidth;
 
         } else {
@@ -5674,6 +5739,7 @@ ssize_t audio_hal_data_processing(struct audio_stream_out *stream
         }
 
         /* do channel mapping*/
+        out_frames = convert_size / (in_ch * (data_format->bitwidth >> 3));
         aml_channelmap_process(aml_out->channel_map, data_format, convert_buf, out_frames);
         data_format->ch = aml_out->channel_map->format.ch;
 

@@ -36,7 +36,10 @@ CC_OBJS=audio_hw.o \
 	aml_audio_delay.o \
 	standard_alsa_manager.o \
 	aml_config_parser.o \
-	audio_trace.o 
+	audio_trace.o \
+	audio_speex_resample_api.o \
+	audio_simple_resample_api.o \
+	aml_audio_resample_manager.o
 
 
 
@@ -58,7 +61,7 @@ TARGET=libhalaudio.so
 INSTALL_DIR=${LIB_DIR}
 
 LDFLAGS += -shared
-LDLIBS += -ltinyalsa -lamaudioutils -lstdc++ -lsupc++ -lcjson
+LDLIBS += -ltinyalsa -lamaudioutils -lstdc++ -lsupc++ -lcjson -lspeex_rate
 
 ifeq ($(ENABLE_PULSEAUDIO),yes)
 LDLIBS += -lpulse-simple
@@ -81,10 +84,10 @@ TOPDIR=$(shell pwd)
 SRC?=$(TOPDIR)
 
 CFLAGS+=-O2 -fPIC -g
-CFLAGS+=-I$(SRC) -I$(SRC)/include -I$(SRC)/../include -I$(SRC)/../utils/ini/include -I$(SRC)/../utils/include  -I$(SRC)/../tinyalsa/include -I$(SRC)/../libms12/include -L${LIB_DIR} -I$(HEADERS_DIR)
+CFLAGS+=-I$(SRC) -I$(SRC)/include -I$(SRC)/../include -I$(SRC)/../utils/ini/include -I$(SRC)/../utils/include  -I$(SRC)/../tinyalsa/include -I$(SRC)/../libms12/include -I$(SRC)/../speex_rate -L${LIB_DIR} -I$(HEADERS_DIR)
 
 #marco of Dolby Atmos
-DEFINES = -DDATMOS -DMAX_OUTPUT_CH=8 -DBYTES_PER_SAMPLE=4
+DEFINES = -DDATMOS -DMAX_OUTPUT_CH=8 -DBYTES_PER_SAMPLE=4 -DOUTSIDE_SPEEX -DRANDOM_PREFIX=AML_AUDIO
 CFLAGS += $(DEFINES)
 
 

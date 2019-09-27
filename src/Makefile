@@ -4,6 +4,8 @@
 all:
 	-$(MAKE) -C tinyalsa all
 	-$(MAKE) -C tinyalsa install
+	-$(MAKE) -C speex_rate all
+	-$(MAKE) -C speex_rate install
 	-$(MAKE) -C utils all
 	-$(MAKE) -C utils install
 	-$(MAKE) -C audio_hal all
@@ -14,6 +16,7 @@ install:
 	-$(MAKE) -C tinyalsa install	
 clean:
 	-$(MAKE) -C tinyalsa clean
+	-$(MAKE) -C speex_rate clean
 	-$(MAKE) -C utils clean
 	-$(MAKE) -C audio_hal clean
 	-$(MAKE) -C test clean
