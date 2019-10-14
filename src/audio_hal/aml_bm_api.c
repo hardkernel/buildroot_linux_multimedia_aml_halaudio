@@ -211,7 +211,7 @@ int aml_bm_process(struct audio_stream_out *stream
     }
     //ALOGI("coef table=%f %f %f %f lef_index=%d\n",coef_table[0],coef_table[1],coef_table[2],coef_table[3],lef_index);
     /* due to performance issue, we disable 192K&176K BM process */
-    if ((adev->bm_enable) && (data_format->bitwidth == SAMPLE_32BITS) && (data_format->ch == 8) && (lef_index != -1)) {
+    if ((adev->bm_enable) && (data_format->bitwidth == SAMPLE_32BITS) && (lef_index != -1)) {
         ret = aml_bm_lowerpass_process(buffer, bytes, sample_num, data_format->ch, lef_index, coef_table, data_format->bitwidth);
     }
 
