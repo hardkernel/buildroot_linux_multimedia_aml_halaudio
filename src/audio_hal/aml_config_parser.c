@@ -70,12 +70,20 @@ static cJSON *aml_createJsonRoot(const char *filename)
 }
 
 
-cJSON * aml_config_parser( void) {
+cJSON * aml_config_parser(char * config_files)
+{
     cJSON *config_root = NULL;
     cJSON * temp;
     int i = 0;
     int item_cnt = 0;
-    config_root = aml_createJsonRoot(AML_CONFIG_FILE_PATH);
+
+    config_root = aml_createJsonRoot(config_files);
+    if (config_root) {
+        printf("use json file name=%s\n", config_files);
+    } else {
+        config_root = aml_createJsonRoot(AML_CONFIG_FILE_PATH);
+        printf("use default json file=%s\n", AML_CONFIG_FILE_PATH);
+    }
     //printf_cJSON("aml audio config:",config_root);
 
     return config_root;

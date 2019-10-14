@@ -774,6 +774,12 @@ static inline int audio_hw_device_close(struct audio_hw_device* device)
 
 int audio_hw_device_get_module(struct hw_module_t** module);
 
+/** API for set the config file name */
+int audio_hw_device_set_config_file(char * file_name);
+
+/** API for set the config jason */
+int audio_hw_device_set_config_jason(void *config_jason);
+
 
 __END_DECLS
 

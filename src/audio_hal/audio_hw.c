@@ -149,6 +149,12 @@
 
 //property:disable continuous output
 #define DISABLE_CONTINUOUS_OUTPUT "persist.aud.continuous.disable"
+
+#define AUDIO_JASON_FILE_MAXLENGTH (256)
+static char aml_audio_jason_file[AUDIO_JASON_FILE_MAXLENGTH];
+cJSON *audio_config_jason = NULL;
+
+
 const char *str_usecases[STREAM_USECASE_MAX] = {
     "STREAM_PCM_NORMAL",
     "STREAM_PCM_DIRECT",
@@ -8796,8 +8802,13 @@ static int adev_open(const hw_module_t* module, const char* name,
         ret = -EINVAL;
         goto err;
     }
-
-    config_root = aml_config_parser();
+    /*check whether jason config is set*/
+    if (audio_config_jason) {
+        config_root = audio_config_jason;
+    } else {
+        /*check is there any confi file*/
+        config_root = aml_config_parser(aml_audio_jason_file);
+    }
     if (config_root == NULL) {
         printf("Config file parsing error\n");
         return -EINVAL;
@@ -9032,3 +9043,26 @@ int audio_hw_device_get_module(struct hw_module_t** module)
     return 0;
 }
 
+int audio_hw_device_set_config_file(char * file_name) {
+    int name_length = 0;
+    if (file_name == NULL) {
+        return -1;
+    }
+    name_length = strlen(file_name);
+    if (name_length >= AUDIO_JASON_FILE_MAXLENGTH) {
+        return -1;
+    }
+    memcpy(aml_audio_jason_file, file_name, name_length);
+    aml_audio_jason_file[name_length] = '\0';
+
+    return 0;
+}
+
+int audio_hw_device_set_config_jason(void *config_jason) {
+    if (config_jason == NULL) {
+        return -1;
+    }
+    audio_config_jason = (cJSON *)config_jason;
+
+    return 0;
+}
