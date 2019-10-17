@@ -102,11 +102,18 @@ typedef struct aml_datmos_config {
     void *reserved;//dlopen handle
 } aml_datmos_config_t;
 
+typedef struct aml_pcm_config {
+    int pcm_format; // refer to audio_format_t
+    int samplerate;
+    int channel;
+    int bitwidth;
+} aml_pcm_config_t;
 
 typedef union aml_dec_config {
     aml_dcv_config_t dcv_config;
     aml_dca_config_t dca_config;
     aml_datmos_config_t datmos_config;
+    aml_pcm_config_t pcm_config;
 } aml_dec_config_t;
 
 enum {
