@@ -260,6 +260,8 @@ typedef struct ch_coef {
 } ch_coef_t;
 
 typedef struct coef_info {
+    float bgo_coef;
+    float lfe_post_scale;
     ch_coef_t coef_item[AML_MAX_CHANNELS];
 } ch_coef_info_t;
 

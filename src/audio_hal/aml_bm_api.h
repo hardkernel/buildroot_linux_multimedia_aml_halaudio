@@ -36,12 +36,11 @@
  *@brief aml bass management process
  * input params:
  *          struct aml_audio_device *adev : aml_audio_device handle
- *          int val: bass management init param
  * return value:
  *          0, success
             1, occur some error
  */
-int aml_bm_init(struct aml_audio_device *adev, int val);
+int aml_bm_init(struct audio_hw_device *dev);
 
 /*
  *@brief aml bm process
@@ -62,5 +61,10 @@ int aml_bm_process(struct audio_stream_out *stream
                     , size_t bytes
                     , aml_data_format_t *data_format);
 
+int aml_bm_close(struct audio_hw_device *dev);
+
 int aml_bm_setparameters(struct audio_hw_device *dev, struct str_parms *parms);
+
+int aml_bm_set(struct aml_audio_device *adev, int val);
+
 #endif//end of _AML_BM_API_H_

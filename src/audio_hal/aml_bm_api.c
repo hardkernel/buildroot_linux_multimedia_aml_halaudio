@@ -24,6 +24,11 @@
 #ifndef ANDROID
 #include "aml_audio_log.h"
 
+#define BGO_COEF_NAME "bgo_coef"
+#define LFE_POST_SCALE   "lfe_post_scale"
+
+#define   Clip(acc,min,max) ((acc) > max ? max : ((acc) < min ? min : (acc)))
+
 static struct ch_name_pair ch_coef_pair[ ] = {
     {"lf_ch_coef",  CHANNEL_LEFT_FRONT},
     {"rf_ch_coef",  CHANNEL_RIGHT_FRONT},
@@ -86,10 +91,13 @@ static void aml_bm_dumpinfo(void * private)
     int i = 0, j = 0;
     item = sizeof(ch_coef_pair) / sizeof(struct ch_name_pair);
 
+    ALOGA("bgo_coef =%f \n", ch_coef_info->bgo_coef);
+    ALOGA("lfe_post_coef =%f \n", ch_coef_info->lfe_post_scale);
+
     for (i = 0; i < item; i++) {
         for (j = 0; j < AML_MAX_CHANNELS; j++) {
-            if (ch_coef_pair[i].ch_id == ch_coef_info->coef_item[i].ch_id) {
-                ALOGA("ch name=%s bm coef=%f\n", ch_coef_pair[i].name, ch_coef_info->coef_item[i].coef);
+            if (ch_coef_pair[i].ch_id == ch_coef_info->coef_item[j].ch_id) {
+                ALOGA("ch name=%s bm coef=%f\n", ch_coef_pair[i].name, ch_coef_info->coef_item[j].coef);
                 break;
             }
         }
@@ -97,7 +105,7 @@ static void aml_bm_dumpinfo(void * private)
 }
 
 
-int aml_bm_init(struct aml_audio_device *adev, int val)
+int aml_bm_set(struct aml_audio_device *adev, int val)
 {
     int bm_init_param = 0;
     int i = 0;
@@ -121,8 +129,20 @@ int aml_bm_init(struct aml_audio_device *adev, int val)
         }
         adev->bm_enable = !aml_bass_management_init(bm_init_param);
     }
+    ALOGE("lowerpass_corner %d HZ bm_enable %d init params %d\n",
+          adev->lowerpass_corner, adev->bm_enable, bm_init_param);
+    return 0;
+}
+
+
+int aml_bm_init(struct audio_hw_device *dev)
+{
+    int i = 0;
+    struct aml_audio_device *adev = (struct aml_audio_device *)dev;
     if (adev->bm_init == 0) {
-        ch_coef_info_t *ch_coef_info = ch_coef_info = &adev->ch_coef_info;;
+        ch_coef_info_t *ch_coef_info = &adev->ch_coef_info;
+        ch_coef_info->bgo_coef = 0.0;
+        ch_coef_info->lfe_post_scale = 1.0;
         for (i = 0; i < AML_MAX_CHANNELS; i++) {
             ch_coef_info->coef_item[i].ch_id = CHANNEL_BASE + i;
             ch_coef_info->coef_item[i].coef  = 1.0;;
@@ -130,9 +150,12 @@ int aml_bm_init(struct aml_audio_device *adev, int val)
         adev->bm_init = 1;
         aml_log_dumpinfo_install(LOG_TAG, aml_bm_dumpinfo, adev);
     }
-    ALOGE("lowerpass_corner %d HZ bm_enable %d init params %d\n",
-          adev->lowerpass_corner, adev->bm_enable, bm_init_param);
+    return 0;
+}
 
+int aml_bm_close(struct audio_hw_device *dev)
+{
+    aml_log_dumpinfo_remove(LOG_TAG);
     return 0;
 }
 
@@ -155,10 +178,36 @@ int aml_bm_setparameters(struct audio_hw_device *dev, struct str_parms *parms)
 
     ch_coef_info = &adev->ch_coef_info;
 
+
+    ret = str_parms_get_float(parms, BGO_COEF_NAME, &coef);
+    if (ret >= 0) {
+        if (coef > 1.0) {
+            coef = 1.0;
+        }
+        if (coef < 0.0) {
+            coef = 0.0;
+        }
+        ALOGI("set bgo_coef =%f\n",coef);
+        ch_coef_info->bgo_coef= coef;
+        return 0;
+    }
+
+    ret = str_parms_get_float(parms, LFE_POST_SCALE, &coef);
+    if (ret >= 0) {
+        if (coef < 0.0) {
+            coef = 0.0;
+        }
+        ALOGI("set lfe_post_scale =%f\n",coef);
+        ch_coef_info->lfe_post_scale = coef;
+        return 0;
+    }
+
+
+
     for (i = 0; i < item; i++) {
         ret = str_parms_get_float(parms, ch_coef_pair[i].name, &coef);
         if (ret >= 0) {
-            ALOGI("set ch=%s volume=%f\n", ch_coef_pair[i].name, coef);
+            ALOGI("set ch=%s coef=%f\n", ch_coef_pair[i].name, coef);
             set_channel_coef(ch_coef_info, ch_coef_pair[i].ch_id, coef);
             return 0;
         }
@@ -166,6 +215,107 @@ int aml_bm_setparameters(struct audio_hw_device *dev, struct str_parms *parms)
 
     return -1;
 }
+
+
+static int aml_lfe_mixing(void * in_data, size_t size, aml_data_format_t *format, int lfe_index, float bgo_coef)
+{
+
+    int nframes = 0;
+    int ch = 0;
+    int i = 0, j = 0;
+    int bitwidth = SAMPLE_16BITS;
+    bitwidth = format->bitwidth;
+    ch = format->ch;
+    if (ch == 0 || bitwidth == 0) {
+        return -1;
+    }
+    nframes  = size / ((bitwidth >> 3) * ch);
+
+    switch (bitwidth) {
+    case SAMPLE_8BITS:
+        // not support
+        break;
+    case SAMPLE_16BITS: {
+        short * data = (short*) in_data;
+        int temp;
+        for (i = 0 ; i < 2 ; i++) {
+            for (j = 0; j < nframes; j++) {
+                temp = (int)data[j * ch + i] + (int)data[j * ch + lfe_index]*bgo_coef;
+                data[j * ch + i] = Clip(temp, -(1<<15), (1<<15)-1);
+            }
+        }
+    }
+    break;
+    case SAMPLE_24BITS:
+        // not suppport
+        break;
+    case SAMPLE_32BITS: {
+        int * data = (int*) in_data;
+        long long temp = 0;
+        for (i = 0 ; i < 2 ; i++) {
+            for (j = 0; j < nframes; j++) {
+                temp = (long long)data[j * ch + i] + (long long)data[j * ch + lfe_index]*bgo_coef;
+                data[j * ch + i] = Clip(temp, -(1ll<<31), (1ll<<31)-1);
+            }
+        }
+    }
+    break;
+    default:
+        break;
+    }
+
+    return 0;
+
+}
+
+static int aml_lfe_post_scale(void * in_data, size_t size, aml_data_format_t *format, int lfe_index, float lfe_post_scale)
+{
+
+    int nframes = 0;
+    int ch = 0;
+    int j = 0;
+    int bitwidth = SAMPLE_16BITS;
+    bitwidth = format->bitwidth;
+    ch = format->ch;
+    if (ch == 0 || bitwidth == 0) {
+        return -1;
+    }
+    nframes  = size / ((bitwidth >> 3) * ch);
+
+    switch (bitwidth) {
+    case SAMPLE_8BITS:
+        // not support
+        break;
+    case SAMPLE_16BITS: {
+        short * data = (short*) in_data;
+        int temp;
+            for (j = 0; j < nframes; j++) {
+                temp = (int)data[j * ch + lfe_index] * lfe_post_scale;
+                data[j * ch + lfe_index] = Clip(temp, -(1<<15), (1<<15)-1);
+            }
+
+    }
+    break;
+    case SAMPLE_24BITS:
+        // not suppport
+        break;
+    case SAMPLE_32BITS: {
+        int * data = (int*) in_data;
+        long long temp = 0;
+        for (j = 0; j < nframes; j++) {
+            temp = (long long)data[j * ch + lfe_index] * lfe_post_scale;
+            data[j * ch + lfe_index] = Clip(temp, -(1ll<<31), (1ll<<31)-1);
+        }
+    }
+    break;
+    default:
+        break;
+    }
+
+    return 0;
+
+}
+
 
 
 int aml_bm_process(struct audio_stream_out *stream
@@ -183,7 +333,7 @@ int aml_bm_process(struct audio_stream_out *stream
     int sample_num =  0;
     int ret = 0;
     float coef_table[AML_MAX_CHANNELS] = {0.0};
-    int lef_index = -1;
+    int lfe_index = -1;
     ch_coef_info_t *ch_coef_info = NULL;
     if (!stream || !buffer || !data_format || (bytes == 0)) {
         ALOGE("stream %p buffer %p data_format %p bytes %d");
@@ -205,15 +355,23 @@ int aml_bm_process(struct audio_stream_out *stream
     for (i = 0; i < AML_MAX_CHANNELS; i++) {
         if ((data_format->channel_info.channel_items[i].ch_id == CHANNEL_LFE)
             && data_format->channel_info.channel_items[i].present) {
-            lef_index = data_format->channel_info.channel_items[i].order;
+            lfe_index = data_format->channel_info.channel_items[i].order;
         }
 
     }
-    //ALOGI("coef table=%f %f %f %f lef_index=%d\n",coef_table[0],coef_table[1],coef_table[2],coef_table[3],lef_index);
+    //ALOGI("coef table=%f %f %f %f bgo_coef=%f lef_index=%d\n",coef_table[0],coef_table[1],coef_table[2],coef_table[3],ch_coef_info->bgo_coef,lfe_index);
     /* due to performance issue, we disable 192K&176K BM process */
-    if ((adev->bm_enable) && (data_format->bitwidth == SAMPLE_32BITS) && (lef_index != -1)) {
-        ret = aml_bm_lowerpass_process(buffer, bytes, sample_num, data_format->ch, lef_index, coef_table, data_format->bitwidth);
+    if ((adev->bm_enable) && (data_format->bitwidth == SAMPLE_32BITS) && (lfe_index != -1)) {
+        ret = aml_bm_lowerpass_process(buffer, bytes, sample_num, data_format->ch, lfe_index, coef_table, data_format->bitwidth);
     }
+
+    /*mix the lfe to left, right channel*/
+    if (lfe_index <= data_format->ch && ch_coef_info->bgo_coef != 0.0) {
+        //ALOGD("lfe index=%d ch total=%d bgo=%f\n",lfe_index, data_format->ch, ch_coef_info->bgo_coef);
+        aml_lfe_mixing((void*)buffer, bytes, data_format, lfe_index, ch_coef_info->bgo_coef);
+    }
+
+    aml_lfe_post_scale((void*)buffer, bytes, data_format, lfe_index, ch_coef_info->lfe_post_scale);
 
     if (dump_bm && IS_DATMOS_DECODER_SUPPORT(aml_out->hal_internal_format)) {
         FILE *fp_bm=fopen(DATMOS_BASSMANAGEMENT_LFE,"a+");
@@ -224,9 +382,9 @@ int aml_bm_process(struct audio_stream_out *stream
     return ret;
 }
 #else
-int aml_bm_init(struct aml_audio_device *adev, int val)
+int aml_bm_init(struct audio_hw_device *dev)
 {   
-    
+    struct aml_audio_device *adev = (struct aml_audio_device *)dev;
     if (!adev) {
         ALOGE("adev %p", adev);
         return 1;
@@ -236,6 +394,12 @@ int aml_bm_init(struct aml_audio_device *adev, int val)
 
     return 0;
 }
+
+int aml_bm_set(struct aml_audio_device *adev, int val)
+{
+    return 0;
+}
+
 
 int aml_bm_setparameters(struct audio_hw_device *dev, struct str_parms *parms) {
     return 0;
@@ -250,4 +414,8 @@ int aml_bm_process(struct audio_stream_out *stream
     return 0;
 }
 
+int aml_bm_close(struct audio_hw_device *dev)
+{
+    return 0;
+}
 #endif

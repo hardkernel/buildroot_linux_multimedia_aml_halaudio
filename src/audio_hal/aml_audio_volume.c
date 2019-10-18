@@ -103,8 +103,8 @@ void aml_audiovolume_dumpinfo(void * private)
     printf("master volume=%f\n" , volume_info->master_vol);
     for (i = 0; i < item; i++) {
         for (j = 0; j < AML_MAX_CHANNELS; j++) {
-            if (ch_vol_pair[i].ch_id == volume_info->volume_item[i].ch_id) {
-                ALOGA("ch name=%s volume=%f\n", ch_vol_pair[i].name, volume_info->volume_item[i].volume);
+            if (ch_vol_pair[i].ch_id == volume_info->volume_item[j].ch_id) {
+                ALOGA("ch name=%s volume=%f\n", ch_vol_pair[i].name, volume_info->volume_item[j].volume);
                 break;
             }
         }

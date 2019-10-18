@@ -4862,7 +4862,7 @@ static int adev_set_parameters(struct audio_hw_device *dev, const char *kvpairs)
     /*bass management lowerpass corner*/
     ret = str_parms_get_int(parms, "lowerpass_corner", &val);
     if (ret >= 0) {
-        ret = aml_bm_init(adev, val);
+        ret = aml_bm_set(adev, val);
         goto exit;
     }
 
@@ -6646,6 +6646,7 @@ ssize_t mixer_main_buffer_write(struct audio_stream_out *stream, const void *buf
                 adev->audio_sample_rate = patch->original_rate;//48000;
                 adev->audio_channels    = 2;
             }
+            adev->is_dolby_atmos = false;
             if (ori_format != adev->decode_format) {
                 ALOGD("trigger audio format changed callback = %#x\n" , adev->decode_format);
                 trigger_audio_callback(patch->callback_handle, AML_AUDIO_CALLBACK_FORMATCHANGED, (audio_callback_data_t *)&adev->decode_format);
@@ -8496,6 +8497,7 @@ static int adev_close(hw_device_t *device)
     eq_drc_release(&adev->eq_data);
     close_mixer_handle();
     aml_audiolevel_close(&adev->hw_device);
+    aml_bm_close(&adev->hw_device);
     aml_channelmap_parser_deinit();
     free(device);
     aml_log_exit();
@@ -8988,6 +8990,7 @@ static int adev_open(const hw_module_t* module, const char* name,
     aml_alsa_init(config_root);
     aml_volctl_init(&adev->hw_device);
     aml_audiolevel_init(&adev->hw_device);
+    aml_bm_init(&adev->hw_device);
 
     /* init callback function */
     adev->hw_device.install_callback_audio_patch = install_callback_audio_patch;
