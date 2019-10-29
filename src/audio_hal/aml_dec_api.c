@@ -69,7 +69,10 @@ static aml_dec_func_t * get_decoder_function(audio_format_t format, int dolby_st
     case AUDIO_FORMAT_PCM_32_BIT:
     case AUDIO_FORMAT_PCM_8_BIT:
     case AUDIO_FORMAT_PCM_8_24_BIT: {
-        return &aml_pcm_func;
+        if (dolby_strategy == eDolbyAtmosLib)
+            return &aml_datmos_func;
+        else
+            return &aml_pcm_func;
     }
     default:
         return NULL;
@@ -172,6 +175,46 @@ int aml_decoder_config(aml_dec_t *aml_dec, aml_dec_config_t * config)
 
 #define IEC61937_IN_FILE "/tmp/iec61937_in.data"
 #define IEC61937_HEADER_BYTES 8
+
+#define STEREO 2
+static int pcm_16bits_convert_to_32bits
+(   unsigned char* out
+    , int out_max_len
+    , int *produced_bytes
+    , unsigned char *in
+    , int in_len
+    , int channel_num)
+{
+    int i = 0;
+    int c = 0;
+    int16_t *in_buffer = NULL;
+    int32_t *out_buffer = NULL;
+    int frame_num = 0;
+
+
+    if (!in || !out || !produced_bytes || (in_len <= 0)) {
+        ALOGE("%s fatal error about in params\n", __func__);
+        return -1;
+    }
+
+    in_buffer = (int16_t *)in;
+    out_buffer = (int32_t *)out;
+    frame_num = in_len / (sizeof(short) * channel_num);
+
+    if (out_max_len < (frame_num * sizeof(int) *channel_num)) {
+        ALOGE("%s fatal error buffer length is not enough\n", __func__);
+        return -1;
+    }
+
+    for (i = 0; i < frame_num; i++) {
+        for (c = 0; c < channel_num; c++)
+            out_buffer[channel_num*i + c] = ( (int32_t) (in_buffer[channel_num*i + c]) ) << 16;
+    }
+    *produced_bytes = frame_num * sizeof(int) * channel_num;
+
+    return 0;
+}
+
 int aml_decoder_process(aml_dec_t *aml_dec, unsigned char*buffer, int bytes, int * used_bytes)
 {
     int ret = -1;
@@ -186,6 +229,7 @@ int aml_decoder_process(aml_dec_t *aml_dec, unsigned char*buffer, int bytes, int
         ALOGE("%s aml_dec is NULL\n", __func__);
         return -1;
     }
+    aml_dec->outlen_pcm = 0;
 
     if (dump_iec) {
         FILE *fpa = fopen(IEC61937_IN_FILE, "a+");
@@ -215,7 +259,26 @@ int aml_decoder_process(aml_dec_t *aml_dec, unsigned char*buffer, int bytes, int
     if (aml_dec->is_iec61937 == 0) {
         if (dec_fun->f_process) {
             // below code is temparily for Dolby
-            if (aml_dec->inbuf) {
+            if ((gdolby_strategy == eDolbyAtmosLib) && audio_is_linear_pcm(aml_dec->format)) {
+                if (aml_dec->inbuf_wt + bytes > aml_dec->inbuf_max_len) {
+                    ALOGE("%s line %d Fatal error, buffer is overwrite!\n", __func__, __LINE__);
+                    aml_dec->inbuf_wt = 0;
+                }
+                /* here we use the stereo/16bits pcm*/
+                if (aml_dec->inbuf) {
+                    memcpy(aml_dec->inbuf + aml_dec->inbuf_wt, buffer, bytes);
+                    aml_dec->inbuf_wt += bytes;
+                    aml_dec->burst_payload_size += bytes;
+                }
+
+                int bytes_per_frame = aml_dec->dec_info.stream_bitwidth/8;
+                if (aml_dec->inbuf_wt / bytes_per_frame < 1536) {
+                    *used_bytes = bytes;
+                    return 0;
+                }
+
+            }
+            else if (aml_dec->inbuf) {
                 memcpy(aml_dec->inbuf, buffer, bytes);
                 aml_dec->burst_payload_size = bytes;
                 aml_dec->inbuf_wt = bytes;

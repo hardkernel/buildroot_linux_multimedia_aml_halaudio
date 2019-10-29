@@ -23,6 +23,7 @@
 #include <sys/prctl.h>
 #include "properties.h"
 #include <dlfcn.h>
+#include <sys/stat.h>
 
 #include "dolby_lib_api.h"
 
@@ -58,23 +59,45 @@ static int file_accessible(char *path)
 }
 
 
+int get_file_size(char* filename)
+{
+    struct stat statbuf;
+    stat(filename,&statbuf);
+    int size=statbuf.st_size;
+
+    return size;
+}
+
+
+
 /*
  *@brief detect_dolby_lib_type
  */
 enum eDolbyLibType detect_dolby_lib_type(void) {
     enum eDolbyLibType retVal;
+    int ms12_file_size = 0;
+    int ms12_len1 = get_file_size(DOLBY_MS12_LIB_PATH_A);
+    int ms12_len2 = get_file_size(DOLBY_MS12_LIB_PATH_B);
+    int datmos_len  = get_file_size(DOLBY_ATMOS_LIB_PATH_A);
+    int dcv_len = get_file_size(DOLBY_DCV_LIB_PATH_A);
+
+    if (ms12_len1 > 0)
+        ms12_file_size = ms12_len1;
+    else if (ms12_len2 > 0)
+        ms12_file_size = ms12_len2;
 
     // the priority would be "MS12 > Atmos >DCV" lib
-    if (RET_OK == file_accessible(DOLBY_MS12_LIB_PATH_A))
+    ALOGE("file_size ms12 %d datmos %d dcv %d\n", ms12_file_size, datmos_len, dcv_len);
+    if ((RET_OK == file_accessible(DOLBY_MS12_LIB_PATH_A)) && (ms12_file_size > 0))
     {
         retVal = eDolbyMS12Lib;
-    } else if (RET_OK == file_accessible(DOLBY_MS12_LIB_PATH_B))
+    } else if ((RET_OK == file_accessible(DOLBY_MS12_LIB_PATH_B)) && (ms12_file_size > 0))
     {
         retVal = eDolbyMS12Lib;
-    } else if (RET_OK == file_accessible(DOLBY_ATMOS_LIB_PATH_A))
+    } else if ((RET_OK == file_accessible(DOLBY_ATMOS_LIB_PATH_A)) && (datmos_len > 0))
     {
         retVal = eDolbyAtmosLib;
-    } else if (RET_OK == file_accessible(DOLBY_DCV_LIB_PATH_A))
+    } else if ((RET_OK == file_accessible(DOLBY_DCV_LIB_PATH_A)) && (dcv_len > 0))
     {
         retVal = eDolbyDcvLib;
     } else {
