@@ -70,6 +70,12 @@ ifeq ($(TARGET_DEVICE),$(filter $(TARGET_DEVICE), s400_sbr))
        LOCAL_CFLAGS += -DUSE_AUDIOSERVICE_S400_SBR
 endif
 
+ifeq ($(TARGET_DEVICE),$(filter $(TARGET_DEVICE), s410_c4a_sbr))
+$(warning Build ro s410_c4a_sbr playtform)
+       LOCAL_CFLAGS += -DUSE_AUDIOSERVICE_S410_SBR
+endif
+
+
 LOCAL_EXPORT_C_INCLUDE_DIRS := $(LOCAL_PATH)/../include
 
 include $(BUILD_SHARED_LIBRARY)
