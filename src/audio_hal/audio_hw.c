@@ -6247,11 +6247,11 @@ static void config_output(struct audio_stream_out *stream)
         }
         dec_config.dca_config = dca_config;
 
-    } else if (IS_PCM_FORMAT(aml_out->hal_internal_format)) {
-               dec_config.pcm_config.pcm_format = aml_out->hal_internal_format;
-               dec_config.pcm_config.bitwidth   = aml_out->dec_config.pcm_config.bitwidth;
-               dec_config.pcm_config.samplerate = aml_out->dec_config.pcm_config.samplerate;
-               dec_config.pcm_config.channel    = aml_out->dec_config.pcm_config.channel;
+    } else if (IS_PCM_FORMAT(aml_out->hal_internal_format) && (adev->dolby_lib_type != eDolbyAtmosLib)) {
+        dec_config.pcm_config.pcm_format = aml_out->hal_internal_format;
+        dec_config.pcm_config.bitwidth   = aml_out->dec_config.pcm_config.bitwidth;
+        dec_config.pcm_config.samplerate = aml_out->dec_config.pcm_config.samplerate;
+        dec_config.pcm_config.channel    = aml_out->dec_config.pcm_config.channel;
     }
 
     if (adev->bypass_enable != 1) {
@@ -6259,6 +6259,11 @@ static void config_output(struct audio_stream_out *stream)
             ALOGD("decoder init format=0x%x\n", aml_out->hal_internal_format);
             if (IS_DATMOS_DECODER_SUPPORT(aml_out->hal_internal_format) && (adev->dolby_lib_type == eDolbyAtmosLib)) {
                 ((aml_datmos_config_t *)&dec_config)->reserved = &adev->datmos_param;
+                ((aml_datmos_config_t *)&dec_config)->pcm_format = aml_out->hal_internal_format;
+                ((aml_datmos_config_t *)&dec_config)->channel = patch->ch;
+                ((aml_datmos_config_t *)&dec_config)->samplerate = patch->sample_rate;
+                ((aml_datmos_config_t *)&dec_config)->bitwidth = FormatToBit(aml_out->hal_internal_format);
+                ALOGE("pcm_format %#x ch %d sr %d bitwidth %d\n", aml_out->hal_internal_format, patch->ch, patch->sample_rate, FormatToBit(aml_out->hal_internal_format));
             }
             status = aml_decoder_init(&aml_out->aml_dec, aml_out->hal_internal_format, (aml_dec_config_t *)&dec_config);
             if (status < 0) {
@@ -6571,6 +6576,11 @@ ssize_t mixer_main_buffer_write(struct audio_stream_out *stream, const void *buf
                     aml_dec_config_t dec_config;
                     if (IS_DATMOS_DECODER_SUPPORT(aml_out->hal_internal_format)) {
                         ((aml_datmos_config_t *)&dec_config)->reserved = &adev->datmos_param;
+                        ((aml_datmos_config_t *)&dec_config)->pcm_format = aml_out->hal_internal_format;
+                        ((aml_datmos_config_t *)&dec_config)->channel = patch->ch;
+                        ((aml_datmos_config_t *)&dec_config)->samplerate = patch->sample_rate;
+                        ((aml_datmos_config_t *)&dec_config)->bitwidth = FormatToBit(aml_out->hal_internal_format);
+                        ALOGE("pcm_format %#x ch %d sr %d bitwidth %d\n", aml_out->hal_internal_format, patch->ch, patch->sample_rate, FormatToBit(aml_out->hal_internal_format));
                     }
                     int init_status = aml_decoder_init(&aml_out->aml_dec, aml_out->hal_internal_format, (aml_dec_config_t *)&dec_config);
                     if (init_status < 0) {
@@ -6613,7 +6623,7 @@ ssize_t mixer_main_buffer_write(struct audio_stream_out *stream, const void *buf
             }
             data_format.ch     = aml_dec->dec_info.output_ch;
             data_format.bitwidth = aml_dec->dec_info.output_bitwidth;
-            if (IS_DATMOS_DECODER_SUPPORT(aml_out->hal_internal_format)) {
+            if (IS_DATMOS_DECODER_SUPPORT(aml_out->hal_internal_format) && (adev->dolby_lib_type == eDolbyAtmosLib)) {
                 data_format.ch_order_type = CHANNEL_ORDER_DOLBY;
             } else if (aml_out->hal_internal_format == AUDIO_FORMAT_DTS || aml_out->hal_internal_format == AUDIO_FORMAT_DTS_HD) {
                 data_format.ch_order_type = CHANNEL_ORDER_DTS;

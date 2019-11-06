@@ -464,6 +464,18 @@ int datmos_set_parameters(struct audio_hw_device *dev, struct str_parms *parms)
         return 0;
     }
 
+    /*static param*/
+    ret = str_parms_get_int(parms, "inputpcm", &val);
+    if (ret >= 0) {
+        memset(adev->datmos_param.inputpcm_config, 0, sizeof(adev->datmos_param.inputpcm_config));
+        strncpy(adev->datmos_param.inputpcm_config, value, strlen(value));
+        ALOGI("speaker_config set to %s\n", adev->datmos_param.inputpcm_config);
+        /*datmos parameter*/
+        if (adev->datmos_enable)
+            add_datmos_option(opts, "-inputpcm", adev->datmos_param.inputpcm_config);
+        return 0;
+    }
+
 
     return -1;
 
@@ -676,6 +688,12 @@ int datmos_decoder_init_patch(aml_dec_t ** ppdatmos_dec, audio_format_t format, 
     datmos_config->is_eb3_extension = 0;
 
     datmos_handle = (struct aml_datmos_param *)datmos_config->reserved;
+    ALOGD("%s line %d datmos_handle %p\n", __func__, __LINE__, datmos_handle);
+
+    if (!datmos_handle) {
+        ALOGE("datmos_handle is NULL\n");
+        goto exit;
+        }
 
     if (datmos_handle->aml_atmos_init == NULL) {
         goto exit;
@@ -700,11 +718,24 @@ int datmos_decoder_init_patch(aml_dec_t ** ppdatmos_dec, audio_format_t format, 
             add_datmos_option(opts, "-i", "/media/test.ac3");
         }
         break;
+        case LPCM: {
+            add_datmos_option(opts, "-i", "/media/test.wav");
+            char param[256] = {0};
+            snprintf(param, sizeof(param), "inputpcm_mode=enable:samplerate=%d:channels=%d:bitdepth=%d",
+                datmos_config->samplerate,datmos_config->channel,datmos_config->bitwidth);
+            ALOGE("param %s\n", param);
+            aml_dec->dec_info.stream_sr = datmos_config->samplerate;
+            aml_dec->dec_info.stream_ch = datmos_config->channel;
+            aml_dec->dec_info.stream_bitwidth = datmos_config->bitwidth;
+            add_datmos_option(opts, "-inputpcm", param);
+        }
+        break;
         default: {
             ALOGE("unsuitable audio format %d!\n", datmos_config->audio_type);
             return -1;
         }
     }
+    ALOGD("%s line %d\n", __func__, __LINE__);
 
     if (get_datmos_config(opts, aml_dec->init_argv, &aml_dec->init_argc) != 0) {
         ALOGE("get datmos config fail\n");
@@ -739,6 +770,8 @@ int datmos_decoder_init_patch(aml_dec_t ** ppdatmos_dec, audio_format_t format, 
         aml_dec->inbuf_max_len = MAX_DECODER_DDP_FRAME_LENGTH*8;
     else if (datmos_config->audio_type == TRUEHD)
         aml_dec->inbuf_max_len = MAX_DECODER_MAT_FRAME_LENGTH*4;
+    else if (datmos_config->audio_type == LPCM)
+        aml_dec->inbuf_max_len = MAX_DECODER_DDP_FRAME_LENGTH*8;//Be careful about this Length!!!
     ALOGV("aml_dec inbuf_max_len %x\n", aml_dec->inbuf_max_len);
     aml_dec->inbuf = (unsigned char*) malloc(aml_dec->inbuf_max_len);
     /*
@@ -852,6 +885,47 @@ int datmos_decoder_release_patch(aml_dec_t *aml_dec)
     return 1;
 }
 
+static int swap_center_lfe_for_8ch_pcm(unsigned char*in_buffer, int in_bytes, int bytes_per_sample)
+{
+    int nframe = 0;
+    int nch = 0;
+    int i = 0;
+    bool b_aligned = (0 == in_bytes % (8*bytes_per_sample));
+
+    if (!in_buffer || (in_bytes <= 0) || (bytes_per_sample == 0) || !b_aligned) {
+        ALOGE("in_buffer %p in_bytes %#x bytes_per_sample %p b_aligned %d\n",
+            in_buffer, in_bytes, bytes_per_sample, b_aligned);
+        return -1;
+    }
+
+    nframe = in_bytes/(8*bytes_per_sample);
+
+    if (bytes_per_sample == sizeof(int16_t)) {
+        int16_t *in_16 = (int16_t *)in_buffer;
+        int16_t temp_16 = 0;
+        for (i = 0; i < nframe; i++) {
+            //temp = lfe; lfe = c; c = temp;
+            temp_16 = in_16[8*i + 2];
+            in_16[8*i + 2] = in_16[8*i + 3];
+            in_16[8*i + 3] = temp_16;
+        }
+    }
+    else if (bytes_per_sample == sizeof(int32_t)) {
+        int32_t *in_32 = (int32_t *)in_buffer;
+        int32_t temp_32 = 0;
+        for (i = 0; i < nframe; i++) {
+            //temp = lfe; lfe = c; c = temp;
+            temp_32 = in_32[8*i + 2];
+            in_32[8*i + 2] = in_32[8*i + 3];
+            in_32[8*i + 3] = temp_32;
+        }
+    }
+    else
+        return -1;
+
+    return 0;
+}
+
 int datmos_decoder_process_patch(aml_dec_t *aml_dec, unsigned char*in_buffer, int in_bytes)
 {
     struct dolby_atmos_dec *datmos_dec = (struct dolby_atmos_dec *)aml_dec;
@@ -860,8 +934,8 @@ int datmos_decoder_process_patch(aml_dec_t *aml_dec, unsigned char*in_buffer, in
     int ret = 0;
     size_t input_threshold = 0;
     size_t dump_input = 0;
-    size_t dump_output = 0;
     size_t check_data = 0;
+    int bps = 0;
 
     ALOGV("<<IN>>");
     if (!aml_dec || !in_buffer || (in_bytes <= 0) || !aml_dec->inbuf) {
@@ -871,19 +945,29 @@ int datmos_decoder_process_patch(aml_dec_t *aml_dec, unsigned char*in_buffer, in
     }
 
     /*FIXME, sometimes the data is not right, decoder could not preroll the datmos at all*/
-    /*if (aml_dec->format == AUDIO_FORMAT_E_AC3) {
-        input_threshold = (aml_dec->burst_payload_size < DATMOS_HT_DDP_PROC_INIT_SIZE) ?
-                         (aml_dec->burst_payload_size) : (DATMOS_HT_DDP_PROC_INIT_SIZE);
-        //if more than 6144bytes, decoder show the timeslice is error.
+    if (audio_is_linear_pcm(aml_dec->format)) {
+        input_threshold = 1536*aml_dec->dec_info.stream_ch* aml_dec->dec_info.stream_bitwidth/8;
     }
-    else*/
+    else
         input_threshold = aml_dec->burst_payload_size;
+
     aml_dec->outlen_pcm = 0;
-    //ALOGE("begin decode\n");
+    bps = aml_dec->dec_info.stream_bitwidth/8;
+
+    ALOGV("valid bytes %#x input_threshold %#x\n", aml_dec->inbuf_wt, input_threshold);
+
     while((aml_dec->inbuf_wt >= input_threshold) && (input_threshold > 0)){
     if ((aml_dec->inbuf_wt >= input_threshold) && (input_threshold > 0)) {
-        //ALOGE("inbuf_wt %#x burst_payload_size %#x, input_threshold %#x 0x%x 0x%x\n", aml_dec->inbuf_wt, aml_dec->burst_payload_size, input_threshold,aml_dec->inbuf[0],aml_dec->inbuf[1]);
+        //ALOGE("inbuf_wt %#x burst_payload_size %#x, input_threshold %#x 0x%x 0x%x\n",
+        //  aml_dec->inbuf_wt, aml_dec->burst_payload_size, input_threshold,aml_dec->inbuf[0],aml_dec->inbuf[1]);
         datmos_dec->is_truehd_within_mat = is_truehd_within_mat(aml_dec->inbuf, input_threshold);
+
+        /*for the 8ch pcm, the lfe and center channel are reversed*/
+        if (audio_is_linear_pcm(aml_dec->format) && (aml_dec->dec_info.stream_ch == 8))
+            if (swap_center_lfe_for_8ch_pcm(aml_dec->inbuf, input_threshold, bps)) {
+                ALOGE("in_bytes %#x inbuf %p bps %#x\n", input_threshold, aml_dec->inbuf, bps);
+                goto EXIT;
+            }
 
         /*begin to decode the data*/
         ret = datmos_dec->aml_atmos_process
@@ -900,7 +984,6 @@ int datmos_decoder_process_patch(aml_dec_t *aml_dec, unsigned char*in_buffer, in
             char *datmos_data = aml_dec->inbuf;
             ALOGE("header %2x %2x", datmos_data[0], datmos_data[1]);
         }
-        //ALOGD("ret=%d valid bytes %#x outlen_pcm %#x consume=0x%x", ret, aml_dec->inbuf_wt, aml_dec->outlen_pcm,bytes_consumed);
 
         if (aml_dec->format == AUDIO_FORMAT_E_AC3 || aml_dec->format == AUDIO_FORMAT_AC3) {
               /*
@@ -921,7 +1004,7 @@ int datmos_decoder_process_patch(aml_dec_t *aml_dec, unsigned char*in_buffer, in
             if (dump_input) {
                 FILE *fpa=fopen(DATMOS_RAW_IN_FILE,"a+");
                 // convert_format(aml_dec->inbuf, aml_dec->burst_payload_size);
-                fwrite((char *)aml_dec->inbuf, 1, aml_dec->burst_payload_size,fpa);
+                fwrite((char *)aml_dec->inbuf, 1, bytes_consumed,fpa);
                 fclose(fpa);
             }
             //update the inbuf_wt and flush the consumed data in the inbuf
@@ -968,7 +1051,9 @@ int datmos_decoder_process_patch(aml_dec_t *aml_dec, unsigned char*in_buffer, in
             }
 
         }
-
+        /*information about Datmos decoder*/
+        ALOGV("ret=%d valid bytes %#x outlen_pcm %#x consume=0x%x pcm_produced_bytes %#x",
+            ret, aml_dec->inbuf_wt, aml_dec->outlen_pcm,bytes_consumed, pcm_produced_bytes);
     }
     else {
         /*

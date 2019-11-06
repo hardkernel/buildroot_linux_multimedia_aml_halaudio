@@ -52,6 +52,7 @@ struct aml_datmos_param {
     bool dec_joc;
     char dapcustomize[CONFIG_MAX];
     bool b_dap_customize;
+    char inputpcm_config[CONFIG_MAX];
 };
 
 typedef enum

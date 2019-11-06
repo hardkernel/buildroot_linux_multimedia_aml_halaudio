@@ -25,6 +25,8 @@
 
 #include "aml_datmos_config.h"
 
+//#define DATMOS_DEBUG
+
 using namespace std;
 
 class Option
@@ -87,6 +89,10 @@ extern "C" void *datmos_default_options()
     opts.push_back(Option("-speakers", "lr:c:lfe:lrs:lrrs"));
     opts.push_back(Option("-noupresampler", "1"));
     opts.push_back(Option("-dec_joc", "0"));
+    opts.push_back(Option("-inputpcm", "inputpcm_mode=disable"));
+#ifdef DATMOS_DEBUG
+    opts.push_back(Option("-dbgout", "0x1f"));
+#endif
 
     return (void *)&opts;
 }

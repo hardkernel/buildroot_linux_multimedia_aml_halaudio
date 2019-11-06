@@ -25,6 +25,7 @@
 typedef struct aml_dec_info {
     int stream_sr;    /** the sample rate in stream*/
     int stream_ch;    /** the original channels in stream*/
+    int stream_bitwidth; /** the original bitwidth in stream*/
 
     int output_sr ;   /** the decoded data samplerate*/
     int output_ch ;   /** the decoded data channels*/
@@ -97,6 +98,12 @@ typedef struct aml_dca_config {
 } aml_dca_config_t;
 
 typedef struct aml_datmos_config {
+    /*to storage the audio input information*/
+    int pcm_format;
+    int samplerate;
+    int channel;
+    int bitwidth;
+
     int audio_type;
     int is_eb3_extension;
     void *reserved;//dlopen handle

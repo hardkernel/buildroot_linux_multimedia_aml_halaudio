@@ -628,7 +628,14 @@ ssize_t hw_write(struct audio_stream_out *stream
                  , aml_data_format_t * data_format);
 
 
-#define IS_DATMOS_DECODER_SUPPORT(format) ((format == AUDIO_FORMAT_AC3) || (format == AUDIO_FORMAT_E_AC3) || (format == AUDIO_FORMAT_DOLBY_TRUEHD))
+#define IS_DATMOS_DECODER_SUPPORT(format) ((format == AUDIO_FORMAT_AC3) || \
+                                            (format == AUDIO_FORMAT_E_AC3) || \
+                                            (format == AUDIO_FORMAT_DOLBY_TRUEHD) || \
+                                            (format == AUDIO_FORMAT_PCM_8_BIT) || \
+                                            (format == AUDIO_FORMAT_PCM_16_BIT) || \
+                                            (format == AUDIO_FORMAT_PCM_8_24_BIT) || \
+                                            (format == AUDIO_FORMAT_PCM_32_BIT))
+
 #define EAC3_MULTIPLIER 4
 #define TRUEHD_MULTIPLIER 16
 
@@ -644,7 +651,11 @@ ssize_t hw_write(struct audio_stream_out *stream
                                     (format == AUDIO_FORMAT_DTS_HD) || \
                                     (format == AUDIO_FORMAT_AC3) || \
                                     (format == AUDIO_FORMAT_E_AC3) || \
-                                    (format == AUDIO_FORMAT_DOLBY_TRUEHD))
+                                    (format == AUDIO_FORMAT_DOLBY_TRUEHD) || \
+                                    (format == AUDIO_FORMAT_PCM_8_BIT) || \
+                                    (format == AUDIO_FORMAT_PCM_16_BIT) || \
+                                    (format == AUDIO_FORMAT_PCM_8_24_BIT) || \
+                                    (format == AUDIO_FORMAT_PCM_32_BIT))
 #else
 #define IS_DECODER_SUPPORT(format)   ((format == AUDIO_FORMAT_DTS) || \
                                     (format == AUDIO_FORMAT_DTS_HD) || \
