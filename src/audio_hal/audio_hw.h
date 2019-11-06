@@ -479,6 +479,7 @@ struct aml_stream_out {
     aml_sample_conv_t * sample_convert;        /*store the sample convert handle*/
     aml_channel_map_t * channel_map;           /*store the channel map handle*/
     aml_audio_resample_t *resample_handle;     /*store the resample handle*/
+    aml_dec_config_t    dec_config;            /*store the special decoder config info*/
 };
 
 typedef ssize_t (*write_func)(struct audio_stream_out *stream, const void *buffer, size_t bytes);
@@ -630,6 +631,12 @@ ssize_t hw_write(struct audio_stream_out *stream
 #define IS_DATMOS_DECODER_SUPPORT(format) ((format == AUDIO_FORMAT_AC3) || (format == AUDIO_FORMAT_E_AC3) || (format == AUDIO_FORMAT_DOLBY_TRUEHD))
 #define EAC3_MULTIPLIER 4
 #define TRUEHD_MULTIPLIER 16
+
+#define IS_PCM_FORMAT(format)       ((format == AUDIO_FORMAT_PCM_8_BIT) || \
+                                    (format == AUDIO_FORMAT_PCM_16_BIT) || \
+                                    (format == AUDIO_FORMAT_PCM_8_24_BIT) || \
+                                    (format == AUDIO_FORMAT_PCM_32_BIT))
+
 
 
 #ifdef DATMOS

@@ -6247,6 +6247,11 @@ static void config_output(struct audio_stream_out *stream)
         }
         dec_config.dca_config = dca_config;
 
+    } else if (IS_PCM_FORMAT(aml_out->hal_internal_format)) {
+               dec_config.pcm_config.pcm_format = aml_out->hal_internal_format;
+               dec_config.pcm_config.bitwidth   = aml_out->dec_config.pcm_config.bitwidth;
+               dec_config.pcm_config.samplerate = aml_out->dec_config.pcm_config.samplerate;
+               dec_config.pcm_config.channel    = aml_out->dec_config.pcm_config.channel;
     }
 
     if (adev->bypass_enable != 1) {
@@ -6416,7 +6421,17 @@ ssize_t mixer_main_buffer_write(struct audio_stream_out *stream, const void *buf
                 return 0;
             }
 
+        } else if (patch->input_src == AUDIO_DEVICE_IN_LINE) {
+            cur_aformat = AUDIO_FORMAT_PCM_16_BIT;
         }
+
+        if (IS_PCM_FORMAT(cur_aformat)) {
+            aml_out->dec_config.pcm_config.pcm_format = cur_aformat;
+            aml_out->dec_config.pcm_config.samplerate = patch->sample_rate;
+            aml_out->dec_config.pcm_config.channel    = patch->ch;
+            aml_out->dec_config.pcm_config.bitwidth   = FormatToBit(cur_aformat);
+        }
+
     } else if (aml_out->hal_internal_format == AUDIO_FORMAT_IEC61937) {
         audio_channel_mask_t cur_ch_mask;
         audio_format_t cur_aformat;
@@ -6473,7 +6488,7 @@ ssize_t mixer_main_buffer_write(struct audio_stream_out *stream, const void *buf
         }
     } else {
 
-        if (IS_DECODER_SUPPORT(aml_out->hal_internal_format)) {
+        if (IS_DECODER_SUPPORT(aml_out->hal_internal_format) || IS_PCM_FORMAT(aml_out->hal_internal_format)) {
             if (adev->bypass_enable) {
                 if (aml_out->hal_format == AUDIO_FORMAT_IEC61937) {
                     output_format = aml_out->hal_internal_format;
@@ -6583,7 +6598,7 @@ ssize_t mixer_main_buffer_write(struct audio_stream_out *stream, const void *buf
             if (aml_dec->outlen_pcm <= 0) {
                 return bytes;
             }
-            //memset(aml_dec->outbuf, 0, aml_dec->outlen_pcm);
+
             //write pcm data
             void *tmp_buffer = (void *) aml_dec->outbuf;
             output_format = AUDIO_FORMAT_PCM_16_BIT;
@@ -6602,7 +6617,7 @@ ssize_t mixer_main_buffer_write(struct audio_stream_out *stream, const void *buf
                 data_format.ch_order_type = CHANNEL_ORDER_DOLBY;
             } else if (aml_out->hal_internal_format == AUDIO_FORMAT_DTS || aml_out->hal_internal_format == AUDIO_FORMAT_DTS_HD) {
                 data_format.ch_order_type = CHANNEL_ORDER_DTS;
-            } else {
+            } else if (IS_PCM_FORMAT(aml_out->hal_internal_format)) {
                 data_format.ch_order_type = CHANNEL_ORDER_HDMIPCM;
             }
 
@@ -6619,56 +6634,6 @@ ssize_t mixer_main_buffer_write(struct audio_stream_out *stream, const void *buf
 
             return return_bytes;
         }
-
-        /** PCM input case*/
-
-        if (adev->audio_patch) {
-            audio_format_t ori_format = adev->decode_format;
-            if (patch->input_src == AUDIO_DEVICE_IN_HDMI) {
-                /* we need some input info*/
-                data_format.sr = patch->sample_rate;
-                data_format.ch = patch->ch;
-                //ALOGD("patch->sample_rate=%d\n",patch->sample_rate);
-                adev->decode_format = output_format;
-                adev->audio_sample_rate = patch->sample_rate;
-                adev->audio_channels    = patch->ch;
-
-            } else if (patch->input_src == AUDIO_DEVICE_IN_SPDIF) {
-                data_format.sr = patch->sample_rate;
-                data_format.ch = patch->ch;
-                adev->decode_format = output_format;
-                adev->audio_sample_rate = patch->original_rate;
-                adev->audio_channels    = patch->ch;
-
-            } else {
-                data_format.sr = patch->sample_rate;
-                adev->decode_format = output_format;
-                adev->audio_sample_rate = patch->original_rate;//48000;
-                adev->audio_channels    = 2;
-            }
-            adev->is_dolby_atmos = false;
-            if (ori_format != adev->decode_format) {
-                ALOGD("trigger audio format changed callback = %#x\n" , adev->decode_format);
-                trigger_audio_callback(patch->callback_handle, AML_AUDIO_CALLBACK_FORMATCHANGED, (audio_callback_data_t *)&adev->decode_format);
-            }
-        }
-        data_format.ch_order_type = CHANNEL_ORDER_HDMIPCM;
-
-#if 0
-        {
-            int i = 0;
-            int found = 0;
-            char * data = (char *)write_buf;
-            for (i = 0; i < write_bytes; i++) {
-                if (data[i] != 0) {
-                    ALOGF("Write Noise data is found i=%d 0x%hx \n", i, data[i]);
-                    found = 1;
-                    break;
-                }
-            }
-        }
-#endif
-
 
         void *tmp_buffer = (void *) write_buf;
         //memset(write_buf, 0, write_bytes);

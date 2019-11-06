@@ -36,6 +36,7 @@
 #include "aml_dec_api.h"
 #include "aml_dca_dec_api.h"
 #include "aml_dcv_dec_api.h"
+#include "aml_pcm_dec_api.h"
 #include "aml_datmos_api.h"
 #include "aml_mat_parser.h"
 #include "dolby_lib_api.h"
@@ -63,6 +64,12 @@ static aml_dec_func_t * get_decoder_function(audio_format_t format, int dolby_st
     case AUDIO_FORMAT_DTS:
     case AUDIO_FORMAT_DTS_HD: {
         return &aml_dca_func;
+    }
+    case AUDIO_FORMAT_PCM_16_BIT:
+    case AUDIO_FORMAT_PCM_32_BIT:
+    case AUDIO_FORMAT_PCM_8_BIT:
+    case AUDIO_FORMAT_PCM_8_24_BIT: {
+        return &aml_pcm_func;
     }
     default:
         return NULL;
@@ -208,9 +215,11 @@ int aml_decoder_process(aml_dec_t *aml_dec, unsigned char*buffer, int bytes, int
     if (aml_dec->is_iec61937 == 0) {
         if (dec_fun->f_process) {
             // below code is temparily for Dolby
-            memcpy(aml_dec->inbuf, buffer, bytes);
-            aml_dec->burst_payload_size = bytes;
-            aml_dec->inbuf_wt = bytes;
+            if (aml_dec->inbuf) {
+                memcpy(aml_dec->inbuf, buffer, bytes);
+                aml_dec->burst_payload_size = bytes;
+                aml_dec->inbuf_wt = bytes;
+            }
             ret = dec_fun->f_process(aml_dec, buffer, bytes);
         } else {
             return -1;

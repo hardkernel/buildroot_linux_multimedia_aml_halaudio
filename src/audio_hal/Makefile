@@ -13,6 +13,7 @@ CC_OBJS=audio_hw.o \
 	aml_ac3_parser.o \
 	aml_dcv_dec_api.o \
 	aml_dca_dec_api.o \
+	aml_pcm_dec_api.o \
 	alsa_device_parser.o \
 	audio_post_process.o \
 	aml_avsync_tuning.o \
